@@ -1,0 +1,80 @@
+# ==========================================
+# .NET / C#
+# ==========================================
+[Bb]in/
+[Oo]bj/
+backend/bin/
+backend/obj/
+backend/*.user
+backend/*.userosscache
+backend/appsettings.Development.json
+
+# Uploads directory (chặn ảnh tải lên làm nặng repo, giữ lại cấu trúc thư mục)
+backend/wwwroot/uploads/*
+!backend/wwwroot/uploads/.gitkeep
+
+# EF Core / DB tools
+*.db
+*.sqlite
+
+# Secrets & Certificates
+*.pfx
+*.p12
+
+# ==========================================
+# Node / Frontend (React + Vite)
+# ==========================================
+node_modules/
+dist/
+dist-ssr/
+.vite/
+
+# Env & Secrets
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ==========================================
+# OS Files
+# ==========================================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+
+# ==========================================
+# IDE / Editors
+# ==========================================
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.suo
+*.user
+*.ntvs*
+*.njsproj
+*.sw?
+
+# ==========================================
+# Tailieu & Config noi bo (Khong day len Git)
+# ==========================================
+
+GHT_CONFIG.md
+GHT_PROMPT_KHOI_DONG.md
+GHT_ANTI_RULES.md
+GHT_HUONG_DAN_LAY_KEY.md
+GHT_TECHNICAL_FLOWS.md
+GHT_TASK_LOGS.md
+GHT_UI_Design_Guide_v3.md
+anti_project_guide_v4.md
+README.md

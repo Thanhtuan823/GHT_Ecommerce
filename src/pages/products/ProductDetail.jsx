@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useCart } from '../../context/CartContext';
 import axiosClient from '../../utils/axiosClient';
 import './ProductDetail.css';
 
 const ProductDetail = () => {
   const { slug } = useParams();
   const { user } = useAuth();
+  const { addToCart } = useCart();
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -42,6 +44,13 @@ const ProductDetail = () => {
       setRating(5);
     } catch (err) {
       setSubmitReviewError(err.response?.data?.message || 'Gửi đánh giá thất bại');
+    }
+  };
+
+  const handleAddToCart = async () => {
+    const success = await addToCart(data.product, 1);
+    if (success) {
+      alert('Đã thêm vào giỏ hàng thành công!');
     }
   };
 
@@ -84,7 +93,7 @@ const ProductDetail = () => {
           </div>
           
           <div className="product-actions">
-            <button className="btn-primary" style={{ padding: '12px 24px', fontSize: '16px' }} disabled={product.inStock <= 0}>
+            <button className="btn-primary" style={{ padding: '12px 24px', fontSize: '16px' }} disabled={product.inStock <= 0} onClick={handleAddToCart}>
               THÊM VÀO GIỎ HÀNG
             </button>
           </div>

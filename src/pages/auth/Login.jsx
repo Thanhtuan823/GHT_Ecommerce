@@ -3,12 +3,16 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import axiosClient from '../../utils/axiosClient';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import { useCart } from '../../context/CartContext';
+import { useWishlist } from '../../context/WishlistContext';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const { login } = useAuth();
+  const { syncCart } = useCart();
+  const { syncWishlist } = useWishlist();
   const navigate = useNavigate();
 
   // Please ensure you have this Client ID in your .env as VITE_GOOGLE_CLIENT_ID
@@ -19,6 +23,8 @@ const Login = () => {
     try {
       const res = await axiosClient.post('/auth/login', { email, password });
       login(res.data.token);
+      await syncCart();
+      await syncWishlist();
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.message || 'Đăng nhập thất bại');
@@ -29,6 +35,8 @@ const Login = () => {
     try {
       const res = await axiosClient.post('/auth/google', { idToken: credentialResponse.credential });
       login(res.data.token);
+      await syncCart();
+      await syncWishlist();
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.message || 'Đăng nhập Google thất bại');

@@ -40,6 +40,10 @@ builder.Services.AddControllers();
 
 // Add Authentication and Authorization to allow app.UseAuthentication() and app.UseAuthorization()
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<DiscountService>();
+builder.Services.AddScoped<EmailService>();
+builder.Services.AddTransient<OrderBackgroundService>();
+builder.Services.AddHttpClient();
 
 var jwtSecret = builder.Configuration["Jwt:Secret"] ?? throw new InvalidOperationException("Jwt:Secret is missing");
 
@@ -82,6 +86,13 @@ app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseHangfireDashboard("/hangfire");
+
+RecurringJob.AddOrUpdate<OrderBackgroundService>(
+    "expire-orders",
+    x => x.ExpireOrders(),
+    Cron.Minutely()
+);
+
 app.MapControllers();
 
 app.Run();

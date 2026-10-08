@@ -17,6 +17,7 @@ public class AppDbContext : DbContext
     public DbSet<Discount> Discounts { get; set; } = null!;
     public DbSet<UserUsedDiscount> UserUsedDiscounts { get; set; } = null!;
     public DbSet<Review> Reviews { get; set; } = null!;
+    public DbSet<Wishlist> Wishlists { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -26,5 +27,6 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Product>().HasIndex(p => p.Slug).IsUnique();
         modelBuilder.Entity<Category>().HasIndex(c => c.Slug).IsUnique();
         modelBuilder.Entity<Discount>().HasIndex(d => d.Code).IsUnique();
+        modelBuilder.Entity<Wishlist>().HasIndex(w => new { w.UserId, w.ProductId }).IsUnique();
     }
 }

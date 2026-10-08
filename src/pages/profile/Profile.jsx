@@ -38,7 +38,7 @@ const Profile = () => {
   };
 
   return (
-    <div style={{ maxWidth: '600px', margin: '40px auto', padding: '32px', background: '#fff', borderRadius: '12px', boxShadow: 'var(--shadow-md)' }}>
+    <div style={{ maxWidth: '600px', margin: '40px auto', padding: '32px', background: 'var(--color-bg-white)', borderRadius: '12px', boxShadow: 'var(--shadow-md)' }}>
       <h2 style={{ marginBottom: '24px', borderBottom: '1px solid var(--color-border)', paddingBottom: '12px' }}>Hồ sơ cá nhân</h2>
       {message && <div style={{ color: 'var(--color-success-text)', background: 'var(--color-success-bg)', padding: '12px', borderRadius: '8px', marginBottom: '24px', fontWeight: '500' }}>{message}</div>}
       {error && <div className="error-message" style={{ background: 'var(--color-danger-bg)', padding: '12px', borderRadius: '8px', marginBottom: '24px', fontWeight: '500' }}>{error}</div>}

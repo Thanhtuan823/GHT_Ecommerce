@@ -2,9 +2,12 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axiosClient from '../../utils/axiosClient';
 import { getOrderStatus } from '../../utils/orderStatusHelper';
+import { useToast } from '../../components/common/ToastContext';
+import Skeleton from '../../components/common/Skeleton';
 
 const OrderDetail = () => {
   const { id } = useParams();
+  const toast = useToast();
   const [order, setOrder] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -22,7 +25,28 @@ const OrderDetail = () => {
     fetchOrder();
   }, [id]);
 
-  if (isLoading) return <div style={{ textAlign: 'center', padding: '40px' }}>Đang tải...</div>;
+  const handleDownloadInvoice = async () => {
+    try {
+      const res = await axiosClient.get(`/orders/${order.id}/invoice`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Invoice_DH${order.id}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+    } catch (err) {
+      toast.error('Không thể tải hóa đơn. Vui lòng thử lại.');
+    }
+  };
+
+  if (isLoading) return (
+    <div style={{ maxWidth: '800px', margin: '40px auto', padding: '0 24px' }}>
+      <Skeleton height="32px" width="300px" style={{ marginBottom: '24px' }} />
+      <Skeleton height="300px" borderRadius="12px" style={{ marginBottom: '24px' }} />
+      <Skeleton height="150px" borderRadius="12px" />
+    </div>
+  );
   if (!order) return <div style={{ textAlign: 'center', padding: '40px' }}>Không tìm thấy đơn hàng.</div>;
 
   const status = getOrderStatus(order.status);
@@ -32,7 +56,12 @@ const OrderDetail = () => {
     <div style={{ maxWidth: '800px', margin: '40px auto', padding: '0 24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <h2>Chi tiết đơn hàng #{order.id}</h2>
-        <span className={`badge ${status.className}`}>{status.label}</span>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <span className={`badge ${status.className}`}>{status.label}</span>
+          <button onClick={handleDownloadInvoice} className="btn-ghost" style={{ padding: '8px 12px', border: '1px solid var(--color-border)', borderRadius: '6px' }}>
+            📄 Tải hóa đơn
+          </button>
+        </div>
       </div>
 
       <div style={{ background: 'var(--color-bg-white)', padding: '24px', borderRadius: '12px', boxShadow: 'var(--shadow-sm)', marginBottom: '24px' }}>

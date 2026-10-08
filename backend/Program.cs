@@ -41,8 +41,10 @@ builder.Services.AddControllers();
 // Add Authentication and Authorization to allow app.UseAuthentication() and app.UseAuthorization()
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<DiscountService>();
+builder.Services.AddScoped<PdfService>();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddTransient<OrderBackgroundService>();
+builder.Services.AddTransient<ReportBackgroundService>();
 builder.Services.AddHttpClient();
 
 var jwtSecret = builder.Configuration["Jwt:Secret"] ?? throw new InvalidOperationException("Jwt:Secret is missing");
@@ -91,6 +93,24 @@ RecurringJob.AddOrUpdate<OrderBackgroundService>(
     "expire-orders",
     x => x.ExpireOrders(),
     Cron.Minutely()
+);
+
+RecurringJob.AddOrUpdate<ReportBackgroundService>(
+    "daily-report",
+    x => x.GenerateDailyReport(),
+    "59 23 * * *"
+);
+
+RecurringJob.AddOrUpdate<ReportBackgroundService>(
+    "weekly-report",
+    x => x.GenerateWeeklyReport(),
+    "0 8 * * 1"
+);
+
+RecurringJob.AddOrUpdate<ReportBackgroundService>(
+    "low-stock-alert",
+    x => x.CheckLowStock(),
+    "0 9 * * *"
 );
 
 app.MapControllers();

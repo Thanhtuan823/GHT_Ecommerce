@@ -16,14 +16,16 @@ import OrderHistory from './pages/orders/OrderHistory';
 import OrderDetail from './pages/orders/OrderDetail';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
+import { ToastProvider } from './components/common/ToastContext';
 
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <CartProvider>
-          <WishlistProvider>
-            <Routes>
+      <ToastProvider>
+        <AuthProvider>
+          <CartProvider>
+            <WishlistProvider>
+              <Routes>
               <Route path="/" element={<MainLayout />}>
             <Route index element={<div style={{ textAlign: 'center', marginTop: '80px' }}><h1 style={{ color: 'var(--color-accent)', fontSize: '32px' }}>Trang chủ GHT_Ecom</h1><p style={{ color: 'var(--color-text-secondary)' }}>Hệ thống thương mại điện tử</p></div>} />
             <Route path="login" element={<Login />} />
@@ -52,10 +54,11 @@ function App() {
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
-            </Routes>
-          </WishlistProvider>
-        </CartProvider>
-      </AuthProvider>
+              </Routes>
+            </WishlistProvider>
+          </CartProvider>
+        </AuthProvider>
+      </ToastProvider>
     </BrowserRouter>
   );
 }

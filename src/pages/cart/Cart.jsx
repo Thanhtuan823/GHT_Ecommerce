@@ -1,15 +1,17 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
+import { useToast } from '../../components/common/ToastContext';
 import './Cart.css';
 
 const Cart = () => {
   const { cart, removeFromCart, updateQuantity } = useCart();
   const navigate = useNavigate();
+  const toast = useToast();
 
   const handleCheckout = () => {
     const outOfStockItems = cart.items.filter(item => item.inStock < item.quantity);
     if (outOfStockItems.length > 0) {
-      alert(`Sản phẩm ${outOfStockItems[0].productName} không đủ hàng (chỉ còn ${outOfStockItems[0].inStock}). Vui lòng điều chỉnh lại.`);
+      toast.error(`Sản phẩm ${outOfStockItems[0].productName} không đủ hàng (chỉ còn ${outOfStockItems[0].inStock}). Vui lòng điều chỉnh lại.`);
       return;
     }
     navigate('/checkout');

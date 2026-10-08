@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axiosClient from '../../utils/axiosClient';
 import { getOrderStatus } from '../../utils/orderStatusHelper';
+import Skeleton from '../../components/common/Skeleton';
 
 const OrderHistory = () => {
   const [orders, setOrders] = useState([]);
@@ -21,7 +22,13 @@ const OrderHistory = () => {
     fetchOrders();
   }, []);
 
-  if (isLoading) return <div style={{ textAlign: 'center', padding: '40px' }}>Đang tải...</div>;
+  if (isLoading) return (
+    <div style={{ maxWidth: '1000px', margin: '40px auto', padding: '0 24px' }}>
+      <Skeleton height="32px" width="200px" style={{ marginBottom: '24px' }} />
+      <Skeleton height="120px" borderRadius="12px" style={{ marginBottom: '16px' }} />
+      <Skeleton height="120px" borderRadius="12px" style={{ marginBottom: '16px' }} />
+    </div>
+  );
 
   return (
     <div style={{ maxWidth: '1000px', margin: '40px auto', padding: '0 24px' }}>

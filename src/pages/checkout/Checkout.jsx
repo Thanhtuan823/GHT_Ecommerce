@@ -2,10 +2,13 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import axiosClient from '../../utils/axiosClient';
+import { useToast } from '../../components/common/ToastContext';
+import ButtonSpinner from '../../components/common/ButtonSpinner';
 
 const Checkout = () => {
   const { cart, fetchCart } = useCart();
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [address, setAddress] = useState({ name: '', phone: '', provinceId: '', districtId: '', wardCode: '', address: '' });
   const [provinces, setProvinces] = useState([]);
@@ -17,6 +20,8 @@ const Checkout = () => {
   const [discountStatus, setDiscountStatus] = useState('default'); // default, success, error
   const [discountAmount, setDiscountAmount] = useState(0);
   const [discountMessage, setDiscountMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState({});
   
   const originalAmount = cart?.items?.reduce((sum, item) => sum + item.price * item.quantity, 0) || 0;
   const totalPrice = originalAmount - discountAmount + shippingFee;
@@ -99,8 +104,26 @@ const Checkout = () => {
     setDiscountMessage('');
   };
 
+  const handleBlur = (field) => {
+    if (!address[field]) {
+      setErrors(prev => ({ ...prev, [field]: 'Trường này không được để trống' }));
+    } else {
+      setErrors(prev => ({ ...prev, [field]: null }));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const newErrors = {};
+    Object.keys(address).forEach(k => {
+      if (!address[k]) newErrors[k] = 'Trường này không được để trống';
+    });
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
       const payload = {
         items: cart.items.map(i => ({ productId: i.productId, quantity: i.quantity })),
@@ -112,7 +135,9 @@ const Checkout = () => {
       await fetchCart();
       navigate(`/payment/${res.data.orderId}`);
     } catch (err) {
-      alert(err.response?.data?.message || 'Lỗi đặt hàng');
+      toast.error(err.response?.data?.message || 'Lỗi đặt hàng');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -120,41 +145,47 @@ const Checkout = () => {
     <div style={{ maxWidth: '1000px', margin: '40px auto', padding: '0 24px', display: 'flex', gap: '32px' }}>
       <div style={{ flex: 2 }}>
         <h2>Thông tin giao hàng</h2>
-        <form id="checkout-form" onSubmit={handleSubmit}>
+        <form id="checkout-form" onSubmit={handleSubmit} noValidate>
           <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', marginBottom: '8px' }}>Họ tên</label>
-            <input className="input" style={{ width: '100%' }} value={address.name} onChange={e => setAddress({...address, name: e.target.value})} required />
+            <input className={`input ${errors.name ? 'is-error' : ''}`} style={{ width: '100%' }} value={address.name} onChange={e => {setAddress({...address, name: e.target.value}); setErrors({...errors, name: null})}} onBlur={() => handleBlur('name')} />
+            {errors.name && <div style={{ color: 'var(--color-danger)', fontSize: '13px', marginTop: '4px' }}>{errors.name}</div>}
           </div>
           <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', marginBottom: '8px' }}>Số điện thoại</label>
-            <input className="input" style={{ width: '100%' }} value={address.phone} onChange={e => setAddress({...address, phone: e.target.value})} required />
+            <input className={`input ${errors.phone ? 'is-error' : ''}`} style={{ width: '100%' }} value={address.phone} onChange={e => {setAddress({...address, phone: e.target.value}); setErrors({...errors, phone: null})}} onBlur={() => handleBlur('phone')} />
+            {errors.phone && <div style={{ color: 'var(--color-danger)', fontSize: '13px', marginTop: '4px' }}>{errors.phone}</div>}
           </div>
           <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
             <div style={{ flex: 1 }}>
               <label style={{ display: 'block', marginBottom: '8px' }}>Tỉnh/Thành</label>
-              <select className="input" style={{ width: '100%' }} value={address.provinceId} onChange={handleProvinceChange} required>
+              <select className={`input ${errors.provinceId ? 'is-error' : ''}`} style={{ width: '100%' }} value={address.provinceId} onChange={e => { handleProvinceChange(e); setErrors({...errors, provinceId: null}); }} onBlur={() => handleBlur('provinceId')}>
                 <option value="">Chọn Tỉnh/Thành</option>
                 {provinces.map(p => <option key={p.ProvinceID} value={p.ProvinceID}>{p.ProvinceName}</option>)}
               </select>
+              {errors.provinceId && <div style={{ color: 'var(--color-danger)', fontSize: '13px', marginTop: '4px' }}>{errors.provinceId}</div>}
             </div>
             <div style={{ flex: 1 }}>
               <label style={{ display: 'block', marginBottom: '8px' }}>Quận/Huyện</label>
-              <select className="input" style={{ width: '100%' }} value={address.districtId} onChange={handleDistrictChange} required disabled={!address.provinceId}>
+              <select className={`input ${errors.districtId ? 'is-error' : ''}`} style={{ width: '100%' }} value={address.districtId} onChange={e => { handleDistrictChange(e); setErrors({...errors, districtId: null}); }} onBlur={() => handleBlur('districtId')} disabled={!address.provinceId}>
                 <option value="">Chọn Quận/Huyện</option>
                 {districts.map(d => <option key={d.DistrictID} value={d.DistrictID}>{d.DistrictName}</option>)}
               </select>
+              {errors.districtId && <div style={{ color: 'var(--color-danger)', fontSize: '13px', marginTop: '4px' }}>{errors.districtId}</div>}
             </div>
             <div style={{ flex: 1 }}>
               <label style={{ display: 'block', marginBottom: '8px' }}>Phường/Xã</label>
-              <select className="input" style={{ width: '100%' }} value={address.wardCode} onChange={handleWardChange} required disabled={!address.districtId}>
+              <select className={`input ${errors.wardCode ? 'is-error' : ''}`} style={{ width: '100%' }} value={address.wardCode} onChange={e => { handleWardChange(e); setErrors({...errors, wardCode: null}); }} onBlur={() => handleBlur('wardCode')} disabled={!address.districtId}>
                 <option value="">Chọn Phường/Xã</option>
                 {wards.map(w => <option key={w.WardCode} value={w.WardCode}>{w.WardName}</option>)}
               </select>
+              {errors.wardCode && <div style={{ color: 'var(--color-danger)', fontSize: '13px', marginTop: '4px' }}>{errors.wardCode}</div>}
             </div>
           </div>
           <div style={{ marginBottom: '24px' }}>
             <label style={{ display: 'block', marginBottom: '8px' }}>Địa chỉ cụ thể (Số nhà, đường...)</label>
-            <input className="input" style={{ width: '100%' }} value={address.address} onChange={e => setAddress({...address, address: e.target.value})} required />
+            <input className={`input ${errors.address ? 'is-error' : ''}`} style={{ width: '100%' }} value={address.address} onChange={e => {setAddress({...address, address: e.target.value}); setErrors({...errors, address: null})}} onBlur={() => handleBlur('address')} />
+            {errors.address && <div style={{ color: 'var(--color-danger)', fontSize: '13px', marginTop: '4px' }}>{errors.address}</div>}
           </div>
         </form>
       </div>
@@ -218,8 +249,8 @@ const Checkout = () => {
           <strong style={{ color: 'var(--color-accent)' }}>{new Intl.NumberFormat('vi-VN').format(totalPrice)} đ</strong>
         </div>
 
-        <button type="submit" form="checkout-form" className="btn-primary" style={{ width: '100%', marginTop: '24px', padding: '14px', fontSize: '16px' }}>
-          ĐẶT HÀNG
+        <button type="submit" form="checkout-form" className="btn-primary" style={{ width: '100%', marginTop: '24px', padding: '14px', fontSize: '16px' }} disabled={isSubmitting}>
+          {isSubmitting ? <><ButtonSpinner /> ĐANG XỬ LÝ...</> : 'ĐẶT HÀNG'}
         </button>
       </div>
     </div>

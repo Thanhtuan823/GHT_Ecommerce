@@ -17,13 +17,15 @@ public class OrdersController : ControllerBase
     private readonly AppDbContext _context;
     private readonly DiscountService _discountService;
     private readonly EmailService _emailService;
+    private readonly PdfService _pdfService;
     private readonly IConfiguration _config;
 
-    public OrdersController(AppDbContext context, DiscountService discountService, EmailService emailService, IConfiguration config)
+    public OrdersController(AppDbContext context, DiscountService discountService, EmailService emailService, PdfService pdfService, IConfiguration config)
     {
         _context = context;
         _discountService = discountService;
         _emailService = emailService;
+        _pdfService = pdfService;
         _config = config;
     }
 
@@ -146,6 +148,24 @@ public class OrdersController : ControllerBase
             return Forbid();
 
         return Ok(order);
+    }
+
+    [Authorize]
+    [HttpGet("{id}/invoice")]
+    public async Task<IActionResult> GetInvoice(int id)
+    {
+        var userId = GetUserId();
+        var order = await _context.Orders
+            .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
+            .Include(o => o.User)
+            .FirstOrDefaultAsync(o => o.Id == id);
+            
+        if (order == null) return NotFound();
+        if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Staff"))
+            return Forbid();
+
+        var pdfBytes = _pdfService.GenerateInvoice(order);
+        return File(pdfBytes, "application/pdf", $"Invoice_DH{order.Id}.pdf");
     }
 
     [Authorize]

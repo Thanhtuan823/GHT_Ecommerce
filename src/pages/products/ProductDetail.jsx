@@ -2,13 +2,15 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
-import axiosClient from '../../utils/axiosClient';
+import { useToast } from '../../components/common/ToastContext';
+import Skeleton from '../../components/common/Skeleton';
 import './ProductDetail.css';
 
 const ProductDetail = () => {
   const { slug } = useParams();
   const { user } = useAuth();
   const { addToCart } = useCart();
+  const toast = useToast();
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -50,12 +52,21 @@ const ProductDetail = () => {
   const handleAddToCart = async () => {
     const success = await addToCart(data.product, 1);
     if (success) {
-      alert('Đã thêm vào giỏ hàng thành công!');
+      toast.success('Đã thêm vào giỏ hàng thành công!');
     }
   };
 
-  if (isLoading) return <div style={{ padding: '40px', textAlign: 'center' }}>Đang tải...</div>;
-  if (error) return <div style={{ padding: '40px', textAlign: 'center', color: 'red' }}>{error}</div>;
+  if (isLoading) return (
+    <div style={{ maxWidth: '1200px', margin: '40px auto', padding: '0 24px', display: 'flex', gap: '40px' }}>
+      <Skeleton width="50%" height="500px" borderRadius="12px" />
+      <div style={{ flex: 1 }}>
+        <Skeleton width="80%" height="32px" style={{ marginBottom: '16px' }} />
+        <Skeleton width="40%" height="24px" style={{ marginBottom: '24px' }} />
+        <Skeleton width="100%" height="150px" style={{ marginBottom: '24px' }} />
+      </div>
+    </div>
+  );
+  if (error) return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--color-danger)' }}>{error}</div>;
   if (!data) return null;
 
   const { product, reviews } = data;
@@ -140,7 +151,7 @@ const ProductDetail = () => {
                         <img src={r.userAvatar || 'https://via.placeholder.com/40'} alt="Avatar" className="review-avatar" />
                         <div>
                           <strong>{r.userName}</strong>
-                          <div style={{ fontSize: '12px', color: '#ffb800' }}>{'★'.repeat(r.rating)}{'☆'.repeat(5-r.rating)}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--color-accent)' }}>{'★'.repeat(r.rating)}{'☆'.repeat(5-r.rating)}</div>
                         </div>
                         <span style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--color-text-muted)' }}>
                           {new Date(r.createdAt).toLocaleDateString('vi-VN')}

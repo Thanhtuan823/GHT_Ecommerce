@@ -1,14 +1,19 @@
 import { useState, useEffect } from 'react';
 import axiosClient from '../../utils/axiosClient';
+import { useToast } from '../../components/common/ToastContext';
+import ConfirmModal from '../../components/common/ConfirmModal';
+import ButtonSpinner from '../../components/common/ButtonSpinner';
 import './AdminProducts.css';
 
 const AdminProducts = () => {
+  const toast = useToast();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState(initialFormState());
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
+  const [productToDelete, setProductToDelete] = useState(null);
 
   function initialFormState() {
     return {
@@ -63,8 +68,9 @@ const AdminProducts = () => {
         ...prev,
         images: [...prev.images, `http://localhost:5000${res.data.url}`]
       }));
+      toast.success('Tải ảnh thành công');
     } catch (err) {
-      alert(err.response?.data?.message || 'Lỗi upload ảnh');
+      toast.error(err.response?.data?.message || 'Lỗi upload ảnh');
     } finally {
       setIsUploading(false);
       e.target.value = null; // reset input
@@ -127,13 +133,16 @@ const AdminProducts = () => {
     setShowForm(true);
   };
 
-  const deleteProduct = async (id) => {
-    if (window.confirm('Bạn có chắc muốn xóa sản phẩm này?')) {
+  const confirmDelete = async () => {
+    if (productToDelete) {
       try {
-        await axiosClient.delete(`/products/${id}`);
+        await axiosClient.delete(`/products/${productToDelete}`);
         fetchProducts();
+        toast.success('Xóa sản phẩm thành công');
       } catch (err) {
-        alert(err.response?.data?.message || 'Không thể xóa');
+        toast.error(err.response?.data?.message || 'Không thể xóa');
+      } finally {
+        setProductToDelete(null);
       }
     }
   };
@@ -170,7 +179,7 @@ const AdminProducts = () => {
               <td>{p.inStock}</td>
               <td>
                 <button className="btn-ghost btn-sm" onClick={() => editProduct(p)}>Sửa</button>
-                <button className="btn-danger btn-sm" style={{ marginLeft: '8px' }} onClick={() => deleteProduct(p.id)}>Xóa</button>
+                <button className="btn-danger btn-sm" style={{ marginLeft: '8px' }} onClick={() => setProductToDelete(p.id)}>Xóa</button>
               </td>
             </tr>
           ))}
@@ -219,7 +228,7 @@ const AdminProducts = () => {
                 
                 <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
                   <label className="btn-secondary" style={{ cursor: 'pointer', padding: '8px 16px', borderRadius: '4px', background: 'var(--color-bg-muted)' }}>
-                    {isUploading ? 'Đang tải...' : 'Upload File'}
+                    {isUploading ? <><ButtonSpinner /> ĐANG TẢI...</> : 'Upload File'}
                     <input type="file" accept=".jpg,.jpeg,.png,.webp" style={{ display: 'none' }} onChange={handleFileChange} disabled={isUploading} />
                   </label>
                   <button type="button" className="btn-ghost" onClick={handleAddImageUrl}>+ Dán Link URL</button>
@@ -247,6 +256,14 @@ const AdminProducts = () => {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={!!productToDelete}
+        title="Xác nhận xóa"
+        message="Bạn có chắc chắn muốn xóa sản phẩm này không? Hành động này không thể hoàn tác."
+        onConfirm={confirmDelete}
+        onCancel={() => setProductToDelete(null)}
+      />
     </div>
   );
 };

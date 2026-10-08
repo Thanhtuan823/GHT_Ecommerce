@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axiosClient from '../../utils/axiosClient';
+import { useToast } from '../../components/common/ToastContext';
+import Skeleton from '../../components/common/Skeleton';
 
 const Payment = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const [order, setOrder] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState(0);
@@ -26,7 +29,7 @@ const Payment = () => {
         setTimeLeft(diff > 0 ? diff : 0);
         
       } catch (err) {
-        alert('Lỗi tải đơn hàng');
+        toast.error('Lỗi tải đơn hàng');
         navigate('/');
       } finally {
         setIsLoading(false);
@@ -55,11 +58,17 @@ const Payment = () => {
       await axiosClient.put(`/orders/${orderId}/payment-confirm`);
       navigate(`/orders/${orderId}`);
     } catch (err) {
-      alert('Có lỗi xảy ra, vui lòng thử lại');
+      toast.error('Có lỗi xảy ra, vui lòng thử lại');
     }
   };
 
-  if (isLoading) return <div style={{ textAlign: 'center', padding: '40px' }}>Đang tải...</div>;
+  if (isLoading) return (
+    <div style={{ maxWidth: '600px', margin: '40px auto', padding: '32px' }}>
+      <Skeleton height="32px" style={{ marginBottom: '24px' }} />
+      <Skeleton height="100px" style={{ marginBottom: '24px' }} />
+      <Skeleton height="300px" style={{ marginBottom: '24px' }} />
+    </div>
+  );
   if (!order) return null;
 
   const minutes = Math.floor(timeLeft / 60);

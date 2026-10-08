@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import axiosClient from '../utils/axiosClient';
 import { useAuth } from './AuthContext';
+import { useToast } from '../components/common/ToastContext';
 
 const CartContext = createContext();
 
@@ -8,6 +9,7 @@ export const useCart = () => useContext(CartContext);
 
 export const CartProvider = ({ children }) => {
   const { user, token } = useAuth();
+  const toast = useToast();
   const [cart, setCart] = useState({ items: [], totalPrice: 0 });
   const [cartCount, setCartCount] = useState(0);
 
@@ -55,7 +57,7 @@ export const CartProvider = ({ children }) => {
         setCartCount(res.data.items.reduce((sum, item) => sum + item.quantity, 0));
         return true;
       } catch (err) {
-        alert(err.response?.data?.message || 'Lỗi thêm vào giỏ hàng');
+        toast.error(err.response?.data?.message || 'Lỗi thêm vào giỏ hàng');
         return false;
       }
     } else {
@@ -109,7 +111,7 @@ export const CartProvider = ({ children }) => {
         setCart(res.data);
         setCartCount(res.data.items.reduce((sum, item) => sum + item.quantity, 0));
       } catch (err) {
-        alert(err.response?.data?.message || 'Lỗi cập nhật số lượng');
+        toast.error(err.response?.data?.message || 'Lỗi cập nhật số lượng');
       }
     } else {
       let items = getGuestCart();

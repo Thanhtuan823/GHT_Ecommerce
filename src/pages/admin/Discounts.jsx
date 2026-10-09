@@ -4,6 +4,7 @@ import { useToast } from '../../components/common/ToastContext';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import ButtonSpinner from '../../components/common/ButtonSpinner';
 import { getDiscountStatus } from '../../utils/discountStatusHelper';
+import './Discounts.css';
 
 const AdminDiscounts = () => {
   const toast = useToast();

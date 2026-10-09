@@ -17,7 +17,7 @@ public class EmailService
         _pdfService = pdfService;
     }
 
-    private async Task SendEmailAsync(string toEmail, string toName, string subject, string htmlBody, byte[]? attachmentBytes = null, string attachmentName = null)
+    private async Task SendEmailAsync(string toEmail, string toName, string subject, string htmlBody, byte[]? attachmentBytes = null, string? attachmentName = null)
     {
         try
         {

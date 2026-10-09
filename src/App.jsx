@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import MainLayout from './components/layout/MainLayout';
+import AdminLayout from './layouts/AdminLayout';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
@@ -8,10 +9,13 @@ import Profile from './pages/profile/Profile';
 import ProductList from './pages/products/ProductList';
 import ProductDetail from './pages/products/ProductDetail';
 import AdminProducts from './pages/admin/Products';
+import AdminDashboard from './pages/admin/Dashboard';
+import AdminDiscounts from './pages/admin/Discounts';
 import Cart from './pages/cart/Cart';
 import Wishlist from './pages/wishlist/Wishlist';
 import Checkout from './pages/checkout/Checkout';
 import Payment from './pages/checkout/Payment';
+import FloatingChatbot from './components/chat/FloatingChatbot';
 import OrderHistory from './pages/orders/OrderHistory';
 import OrderDetail from './pages/orders/OrderDetail';
 import { CartProvider } from './context/CartContext';
@@ -45,16 +49,22 @@ function App() {
               <Route path="orders/:id" element={<OrderDetail />} />
             </Route>
 
-            {/* Admin/Staff Routes */}
-            <Route element={<ProtectedRoute allowedRoles={['Admin', 'Staff']} />}>
-              <Route path="admin" element={<Navigate to="/admin/products" replace />} />
-              <Route path="admin/products" element={<AdminProducts />} />
-            </Route>
-
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
+
+          {/* Admin Routes with AdminLayout */}
+          <Route element={<ProtectedRoute allowedRoles={['Admin', 'Staff']} />}>
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<AdminDashboard />} />
+              <Route path="products" element={<AdminProducts />} />
+              <Route path="discounts" element={<AdminDiscounts />} />
+            </Route>
+          </Route>
+
               </Routes>
+              <FloatingChatbot />
             </WishlistProvider>
           </CartProvider>
         </AuthProvider>

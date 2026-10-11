@@ -6,13 +6,18 @@ import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import ButtonSpinner from '../../components/common/ButtonSpinner';
+import './Login.css';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  const [touched, setTouched] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   const { login } = useAuth();
   const { syncCart } = useCart();
   const { syncWishlist } = useWishlist();
@@ -21,23 +26,33 @@ const Login = () => {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "17023243200-v634ttcohdmthh7g1pv8d2msud64aqmq.apps.googleusercontent.com";
 
   const handleBlur = (field, value) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
     if (!value) {
-      setFieldErrors(prev => ({ ...prev, [field]: 'Trường này không được để trống' }));
+      setFieldErrors((prev) => ({ ...prev, [field]: 'Trường này không được để trống' }));
+    } else if (field === 'email' && !/\S+@\S+\.\S+/.test(value)) {
+      setFieldErrors((prev) => ({ ...prev, [field]: 'Email không hợp lệ' }));
     } else {
-      setFieldErrors(prev => ({ ...prev, [field]: null }));
+      setFieldErrors((prev) => ({ ...prev, [field]: null }));
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !password) {
-      setFieldErrors({
-        email: !email ? 'Trường này không được để trống' : null,
-        password: !password ? 'Trường này không được để trống' : null
-      });
+    const errors = {};
+    if (!email) errors.email = 'Trường này không được để trống';
+    else if (!/\S+@\S+\.\S+/.test(email)) errors.email = 'Email không hợp lệ';
+
+    if (!password) errors.password = 'Trường này không được để trống';
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setTouched({ email: true, password: true });
       return;
     }
+
     setIsSubmitting(true);
+    setError('');
+
     try {
       const res = await axiosClient.post('/auth/login', { email, password });
       login(res.data.token);
@@ -45,7 +60,7 @@ const Login = () => {
       await syncWishlist();
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.message || 'Đăng nhập thất bại');
+      setError(err.response?.data?.message || 'Email hoặc mật khẩu không đúng');
     } finally {
       setIsSubmitting(false);
     }
@@ -63,39 +78,204 @@ const Login = () => {
     }
   };
 
+  const getEmailInputClass = () => {
+    if (fieldErrors.email) return 'input is-error';
+    if (touched.email && email && /\S+@\S+\.\S+/.test(email)) return 'input is-success';
+    return 'input';
+  };
+
+  const getPasswordInputClass = () => {
+    if (fieldErrors.password) return 'input is-error';
+    if (touched.password && password) return 'input is-success';
+    return 'input';
+  };
+
   return (
-    <div style={{ maxWidth: '400px', margin: '40px auto', padding: '24px', background: 'var(--color-bg-white)', borderRadius: '12px', boxShadow: 'var(--shadow-sm)' }}>
-      <h2 style={{ textAlign: 'center', marginBottom: '24px' }}>Đăng nhập</h2>
-      {error && <div className="error-message" style={{ marginBottom: '16px', padding: '10px', background: 'var(--color-danger-bg)', borderRadius: '8px' }}>{error}</div>}
-      <form onSubmit={handleSubmit} noValidate>
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: '500' }}>Email</label>
-          <input type="email" className={`input ${fieldErrors.email ? 'is-error' : ''}`} value={email} onChange={e => { setEmail(e.target.value); setFieldErrors({...fieldErrors, email: null}); }} onBlur={() => handleBlur('email', email)} />
-          {fieldErrors.email && <div style={{ color: 'var(--color-danger)', fontSize: '13px', marginTop: '4px' }}>{fieldErrors.email}</div>}
-        </div>
-        <div style={{ marginBottom: '24px' }}>
-          <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: '500' }}>Mật khẩu</label>
-          <input type="password" className={`input ${fieldErrors.password ? 'is-error' : ''}`} value={password} onChange={e => { setPassword(e.target.value); setFieldErrors({...fieldErrors, password: null}); }} onBlur={() => handleBlur('password', password)} />
-          {fieldErrors.password && <div style={{ color: 'var(--color-danger)', fontSize: '13px', marginTop: '4px' }}>{fieldErrors.password}</div>}
-        </div>
-        <button type="submit" className="btn-primary" style={{ width: '100%', marginBottom: '16px' }} disabled={isSubmitting}>
-          {isSubmitting ? <><ButtonSpinner /> ĐANG ĐĂNG NHẬP...</> : 'Đăng nhập'}
-        </button>
-      </form>
-      <div style={{ textAlign: 'center', marginBottom: '16px', color: 'var(--color-text-muted)' }}>hoặc</div>
-      <GoogleOAuthProvider clientId={clientId}>
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={() => setError('Đăng nhập Google bị hủy')}
-          />
-        </div>
-      </GoogleOAuthProvider>
-      <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '14px' }}>
-        Chưa có tài khoản? <Link to="/register" style={{ color: 'var(--color-accent)', fontWeight: '600' }}>Đăng ký ngay</Link>
+    <div className="auth-page-container">
+      <div className="auth-3col-layout">
+        {/* Column 1: Brand Panel (25%) */}
+        <aside className="auth-brand-panel">
+          <span className="auth-brand-pill">Chào mừng đến GHT</span>
+          <h1 className="auth-brand-title">Một tài khoản. Trọn trải nghiệm công nghệ.</h1>
+          <p className="auth-brand-sub">
+            Khám phá thiết bị công nghệ chính hãng, theo dõi đơn hàng thời gian thực và nhận tư vấn chuyên sâu từ trợ lý AI.
+          </p>
+
+          <div className="auth-trust-box">
+            <div className="auth-trust-header">
+              <span className="auth-trust-icon">🛡️</span>
+              <span>An toàn & riêng tư</span>
+            </div>
+            <p className="auth-trust-desc">
+              Thông tin đăng nhập và dữ liệu thanh toán được bảo vệ theo tiêu chuẩn bảo mật đa lớp.
+            </p>
+          </div>
+
+          <div className="auth-support-contact">
+            Cần trợ giúp? <a href="mailto:support@ght.vn">support@ght.vn</a>
+          </div>
+        </aside>
+
+        {/* Column 2: Login Form Card (35% - Active) */}
+        <section className="auth-card is-active">
+          <h2 className="auth-card-title">Đăng nhập</h2>
+          <p className="auth-card-sub">Chào bạn, rất vui được gặp lại!</p>
+
+          {error && <div className="auth-alert-box">{error}</div>}
+
+          {/* Google Login Button */}
+          <div className="auth-google-wrapper">
+            <GoogleOAuthProvider clientId={clientId}>
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => setError('Đăng nhập Google bị hủy')}
+                text="signin_with"
+                shape="rectangular"
+                width="100%"
+              />
+            </GoogleOAuthProvider>
+          </div>
+
+          <div className="auth-divider">hoặc bằng email</div>
+
+          <form onSubmit={handleSubmit} noValidate>
+            {/* Email Field */}
+            <div className="auth-form-group">
+              <label className="auth-label">
+                <span>Email <span className="auth-required-mark">*</span></span>
+              </label>
+              <div className="auth-input-wrapper">
+                <input
+                  type="email"
+                  className={getEmailInputClass()}
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setFieldErrors((prev) => ({ ...prev, email: null }));
+                  }}
+                  onBlur={() => handleBlur('email', email)}
+                  disabled={isSubmitting}
+                />
+                {touched.email && !fieldErrors.email && email && (
+                  <span className="auth-input-icon">✓</span>
+                )}
+              </div>
+              {fieldErrors.email && (
+                <span className="error-message">{fieldErrors.email}</span>
+              )}
+            </div>
+
+            {/* Password Field */}
+            <div className="auth-form-group">
+              <label className="auth-label">
+                <span>Mật khẩu <span className="auth-required-mark">*</span></span>
+              </label>
+              <div className="auth-input-wrapper">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  className={getPasswordInputClass()}
+                  placeholder="Nhập mật khẩu"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setFieldErrors((prev) => ({ ...prev, password: null }));
+                  }}
+                  onBlur={() => handleBlur('password', password)}
+                  disabled={isSubmitting}
+                />
+                <button
+                  type="button"
+                  className="auth-input-toggle"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  tabIndex={-1}
+                  title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                >
+                  {showPassword ? '👁️' : '👁️‍🗨️'}
+                </button>
+              </div>
+              {fieldErrors.password && (
+                <span className="error-message">{fieldErrors.password}</span>
+              )}
+            </div>
+
+            {/* Remember Me & Forgot Password */}
+            <div className="auth-checkbox-row">
+              <label className="auth-checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                />
+                <span>Ghi nhớ đăng nhập</span>
+              </label>
+              <Link to="/forgot-password" className="auth-link">
+                Quên mật khẩu?
+              </Link>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              className="btn-primary auth-submit-btn"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <ButtonSpinner /> Đang đăng nhập...
+                </>
+              ) : (
+                'Đăng nhập'
+              )}
+            </button>
+          </form>
+
+          <div className="auth-card-footer">
+            Chưa có tài khoản?{' '}
+            <Link to="/register" className="auth-link">
+              Tạo tài khoản ở bên cạnh
+            </Link>
+          </div>
+
+          <div className="auth-card-note">
+            Đăng nhập để đồng bộ giỏ hàng và dữ liệu mua sắm của bạn.
+          </div>
+        </section>
+
+        {/* Column 3: Register Promo / Direct Register Link (40%) */}
+        <section className="auth-card">
+          <h2 className="auth-card-title">Tạo tài khoản</h2>
+          <p className="auth-card-sub">
+            Bắt đầu mua sắm và nhận ưu đãi độc quyền dành riêng cho bạn.
+          </p>
+
+          <div className="auth-trust-box">
+            <div className="auth-trust-header">
+              <span>🎁</span>
+              <span>Đặc quyền thành viên mới GHT</span>
+            </div>
+            <p className="auth-trust-desc">
+              ✓ Giảm ngay 10% cho đơn hàng đầu tiên với mã <strong>GHTSALE10</strong><br />
+              ✓ Miễn phí vận chuyển GHN cho đơn từ 5.000.000đ<br />
+              ✓ Bảo hành chính hãng 24 tháng & đổi trả trong 7 ngày
+            </p>
+          </div>
+
+          <Link
+            to="/register"
+            className="btn-dark auth-submit-btn"
+          >
+            Đăng ký tài khoản mới ➔
+          </Link>
+
+          <div className="auth-card-note">
+            Không gửi thư rác. Bạn có thể huỷ nhận thông tin bất cứ lúc nào.
+          </div>
+        </section>
       </div>
     </div>
   );
 };
 
 export default Login;
+

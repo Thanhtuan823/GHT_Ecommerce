@@ -27,10 +27,12 @@
   --color-success:        #059669;
   --color-success-bg:     #D1FAE5;
   --color-success-text:   #065F46;
+  --color-success-light:  #34D399;
 
   --color-danger:         #DC2626;
   --color-danger-bg:      #FEE2E2;
   --color-danger-text:    #991B1B;
+  --color-danger-border:  #FCA5A5;
 
   --color-warning:        #D97706;
   --color-warning-bg:     #FEF3C7;
@@ -201,7 +203,7 @@ a {
 }
 .input.is-error {
   border-color: var(--color-danger);
-  background: #FFF5F5;
+  background: var(--color-danger-bg);
 }
 .input.is-error:focus {
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);

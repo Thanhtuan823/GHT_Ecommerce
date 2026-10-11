@@ -15,7 +15,7 @@ const Register = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID";
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "17023243200-v634ttcohdmthh7g1pv8d2msud64aqmq.apps.googleusercontent.com";
 
   const getPasswordStrength = () => {
     let score = 0;

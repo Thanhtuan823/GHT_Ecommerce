@@ -75,5 +75,39 @@ public static class DbSeeder
                 context.SaveChanges();
             }
         }
+
+        SeedUsers(context);
+    }
+
+    private static void SeedUsers(AppDbContext context)
+    {
+        SeedUser(context, "Quản trị viên", "admin@ght.vn", "Admin@123", "Admin");
+        SeedUser(context, "Quản trị viên", "admin@ght.com", "Admin@123456", "Admin");
+        SeedUser(context, "Nhân viên GHT", "staff@ght.vn", "Staff@123", "Staff");
+        SeedUser(context, "Nhân viên GHT", "staff@ght.com", "Staff@123456", "Staff");
+        SeedUser(context, "Khách hàng mẫu", "customer@ght.vn", "Customer@123", "Customer");
+        SeedUser(context, "Khách hàng mẫu", "customer@ght.com", "Customer@123456", "Customer");
+    }
+
+    private static void SeedUser(AppDbContext context, string name, string email, string password, string role)
+    {
+        var existing = context.Users.FirstOrDefault(u => u.Email == email);
+        if (existing == null)
+        {
+            context.Users.Add(new User
+            {
+                Name = name,
+                Email = email,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                Role = role
+            });
+            context.SaveChanges();
+        }
+        else
+        {
+            existing.PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
+            existing.Role = role;
+            context.SaveChanges();
+        }
     }
 }

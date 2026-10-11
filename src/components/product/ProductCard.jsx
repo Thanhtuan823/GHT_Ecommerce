@@ -1,56 +1,121 @@
 import { Link } from 'react-router-dom';
-import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import './ProductCard.css';
 
 const ProductCard = ({ product }) => {
-  const { addToCart } = useCart();
   const { wishlist, toggleWishlist } = useWishlist();
   
-  const isWishlisted = wishlist.some(w => w.id === product.id);
+  if (!product) return null;
 
-  const handleAddToCart = async () => {
-    const success = await addToCart(product, 1);
-    if (success) {
-      // Could show toast here, but alert is handled in Context
+  const isWishlisted = wishlist?.some(w => w.id === product.id) || false;
+  const isOutOfStock = product.inStock !== undefined && product.inStock <= 0;
+  
+  // Format currency
+  const formatPrice = (val) => {
+    if (!val && val !== 0) return '0đ';
+    return `${new Intl.NumberFormat('vi-VN').format(val)}đ`;
+  };
+
+  // Determine badge
+  const renderBadge = () => {
+    if (isOutOfStock) {
+      return <span className="product-card-badge badge-out-of-stock">Hết hàng</span>;
     }
+    if (product.isBestSeller || product.badge === 'bestseller') {
+      return <span className="product-card-badge badge-best-seller">Bán chạy</span>;
+    }
+    if (product.isNew || product.badge === 'new') {
+      return <span className="product-card-badge badge-new">Mới</span>;
+    }
+    if (product.originalPrice && product.originalPrice > product.price) {
+      return <span className="product-card-badge badge-discount">Giảm giá</span>;
+    }
+    return null;
   };
 
-  const handleToggleWishlist = async () => {
-    await toggleWishlist(product);
+  // Form specs string
+  const getSpecsText = () => {
+    if (product.specsLine) return product.specsLine;
+    const parts = [];
+    if (product.cpu) parts.push(product.cpu);
+    if (product.ram) parts.push(product.ram);
+    if (product.storage) parts.push(product.storage);
+    if (parts.length > 0) return parts.join(' • ');
+    if (product.category?.name) return `${product.category.name} • Chính hãng`;
+    return 'Chính hãng • Bảo hành 24 tháng';
   };
+
+  const handleWishlistClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleWishlist(product);
+  };
+
+  const productUrl = `/products/${product.slug || product.id}`;
+  const imageUrl = product.images && product.images.length > 0 ? product.images[0] : '/images/premium.png';
+
+  const rating = product.avgRating ? product.avgRating.toFixed(1) : (product.rating ? Number(product.rating).toFixed(1) : '5.0');
+  const reviewCount = product.reviewCount || 0;
+
   return (
-    <div className="product-card">
-      <div className="product-card-image" style={{ position: 'relative' }}>
-        <img 
-          src={product.images && product.images.length > 0 ? product.images[0] : '/images/premium.png'} 
-          alt={product.name} 
-        />
-        {product.inStock <= 0 && <span className="badge badge-sale">Hết hàng</span>}
-        <button 
-          onClick={handleToggleWishlist}
-          style={{
-            position: 'absolute', top: '8px', right: '8px', 
-            background: 'white', border: 'none', borderRadius: '50%', 
-            width: '32px', height: '32px', cursor: 'pointer',
-            boxShadow: 'var(--shadow-sm)', color: isWishlisted ? 'var(--color-danger)' : 'var(--color-text-muted)'
-          }}
-        >
-          {isWishlisted ? '❤️' : '🤍'}
-        </button>
+    <article className="product-card">
+      {/* Image Area (Height 160px, bg #F5F7FA) */}
+      <div className="product-card-image-box">
+        {renderBadge()}
+        <Link to={productUrl} className="product-card-image-link" tabIndex={-1}>
+          <img 
+            src={imageUrl} 
+            alt={product.name} 
+            className="product-card-image"
+            loading="lazy"
+          />
+        </Link>
       </div>
+
+      {/* Content Area */}
       <div className="product-card-content">
-        <div className="product-brand">{product.brand || 'Khác'}</div>
-        <Link to={`/products/${product.slug}`} className="product-name" title={product.name}>
+        <span className="product-card-brand">{product.brand || 'GHT'}</span>
+        <Link to={productUrl} className="product-card-name" title={product.name}>
           {product.name}
         </Link>
-        <div className="product-price">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(product.price)}</div>
-        <div className="product-footer">
-          <span className="product-rating">⭐ {product.avgRating?.toFixed(1) || '0.0'} ({product.reviewCount})</span>
-          <button className="btn-primary btn-sm" disabled={product.inStock <= 0} onClick={handleAddToCart}>Thêm giỏ</button>
+        <div className="product-card-specs" title={getSpecsText()}>
+          {getSpecsText()}
         </div>
       </div>
-    </div>
+
+      {/* Footer Area */}
+      <div className="product-card-footer">
+        <div className="product-card-price-row">
+          <div className="product-card-prices">
+            <span className="product-card-price">{formatPrice(product.price)}</span>
+            {product.originalPrice && product.originalPrice > product.price && (
+              <span className="product-card-original-price">
+                {formatPrice(product.originalPrice)}
+              </span>
+            )}
+          </div>
+          
+          <button 
+            type="button"
+            className={`product-card-wishlist-btn ${isWishlisted ? 'is-active' : ''}`}
+            onClick={handleWishlistClick}
+            aria-label={isWishlisted ? "Bỏ yêu thích" : "Thêm vào yêu thích"}
+            title={isWishlisted ? "Bỏ yêu thích" : "Thêm vào yêu thích"}
+          >
+            {isWishlisted ? '♥' : '♡'}
+          </button>
+        </div>
+
+        <div className="product-card-meta-row">
+          <span className={`product-card-stock ${isOutOfStock ? 'is-out' : ''}`}>
+            {isOutOfStock ? 'Tạm hết hàng' : 'Còn hàng • Giao nhanh'}
+          </span>
+          <span className="product-card-rating">
+            ⭐ {rating} ({reviewCount})
+          </span>
+        </div>
+      </div>
+    </article>
   );
 };
 

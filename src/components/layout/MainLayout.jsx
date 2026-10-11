@@ -1,15 +1,19 @@
 import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
+import Footer from './Footer';
+import './MainLayout.css';
 
 const MainLayout = () => {
   return (
-    <div>
+    <div className="main-layout">
       <Navbar />
-      <main style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+      <main className="main-content">
         <Outlet />
       </main>
+      <Footer />
     </div>
   );
 };
 
 export default MainLayout;
+

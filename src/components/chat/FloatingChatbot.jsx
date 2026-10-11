@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import axiosClient from '../../utils/axiosClient';
-import { useAuth } from '../../context/AuthContext';
 import './FloatingChatbot.css';
 
 const FloatingChatbot = () => {
@@ -13,10 +12,10 @@ const FloatingChatbot = () => {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
-  
-  // Lấy productId nếu đang ở trang chi tiết
-  const productId = window.location.pathname.includes('/products/') 
-    ? parseInt(window.location.pathname.split('/').pop()) 
+
+  // Extract productId if currently on a detail page
+  const productId = window.location.pathname.includes('/products/')
+    ? parseInt(window.location.pathname.split('/').pop(), 10)
     : null;
 
   const scrollToBottom = () => {
@@ -33,7 +32,7 @@ const FloatingChatbot = () => {
 
     const userMsg = input.trim();
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+    setMessages((prev) => [...prev, { role: 'user', content: userMsg }]);
     setIsTyping(true);
 
     try {
@@ -44,9 +43,15 @@ const FloatingChatbot = () => {
       };
 
       const res = await axiosClient.post('/ai/chat', payload);
-      setMessages(prev => [...prev, { role: 'ai', content: res.data.reply }]);
+      setMessages((prev) => [...prev, { role: 'ai', content: res.data.reply }]);
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'ai', content: err.response?.data?.message || 'Trợ lý tạm thời không khả dụng, thử lại sau' }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'ai',
+          content: err.response?.data?.message || 'Trợ lý tạm thời không khả dụng, thử lại sau'
+        }
+      ]);
     } finally {
       setIsTyping(false);
     }
@@ -56,14 +61,33 @@ const FloatingChatbot = () => {
     <div className="floating-chatbot">
       {isOpen && (
         <div className="chatbot-window">
+          {/* Header */}
           <div className="chatbot-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span className="ti-sparkles" style={{ fontSize: '20px' }}></span>
-              <span style={{ fontWeight: '600', fontSize: '15px' }}>Trợ lý GHT</span>
+            <div className="chatbot-header-title">
+              <span className="chatbot-title-main">✦ Trợ lý GHT</span>
+              <span className="chatbot-title-sub">Tư vấn chọn sản phẩm</span>
             </div>
-            <button className="btn-close" onClick={() => setIsOpen(false)}>&times;</button>
+            <div className="chatbot-header-actions">
+              <button
+                type="button"
+                className="chatbot-header-btn"
+                onClick={() => setIsOpen(false)}
+                title="Thu nhỏ"
+              >
+                –
+              </button>
+              <button
+                type="button"
+                className="chatbot-header-btn"
+                onClick={() => setIsOpen(false)}
+                title="Đóng"
+              >
+                &times;
+              </button>
+            </div>
           </div>
-          
+
+          {/* Messages */}
           <div className="chatbot-messages">
             {messages.map((msg, idx) => (
               <div key={idx} className={`message-bubble ${msg.role}`}>
@@ -75,35 +99,49 @@ const FloatingChatbot = () => {
               </div>
             ))}
             {isTyping && (
-              <div className="message-bubble ai typing">
-                <div className="dot"></div>
-                <div className="dot"></div>
-                <div className="dot"></div>
+              <div className="message-bubble ai typing-indicator">
+                <div className="typing-dot" />
+                <div className="typing-dot" />
+                <div className="typing-dot" />
               </div>
             )}
             <div ref={messagesEndRef} />
           </div>
-          
+
+          {/* Input Form */}
           <form className="chatbot-input-form" onSubmit={handleSend}>
-            <input 
-              type="text" 
-              placeholder="Nhập câu hỏi..." 
-              value={input} 
-              onChange={e => setInput(e.target.value)}
+            <input
+              type="text"
+              className="chatbot-input-field"
+              placeholder="Nhập câu hỏi..."
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
               disabled={isTyping}
             />
-            <button type="submit" disabled={!input.trim() || isTyping}>
-              <span className="ti-location-arrow"></span>
+            <button
+              type="submit"
+              className="chatbot-send-btn"
+              disabled={!input.trim() || isTyping}
+              title="Gửi"
+            >
+              ➤
             </button>
           </form>
         </div>
       )}
 
-      <button className="chatbot-toggle" onClick={() => setIsOpen(!isOpen)}>
-        {isOpen ? <span className="ti-close"></span> : <span className="ti-sparkles"></span>}
+      {/* Floating Action Button */}
+      <button
+        type="button"
+        className="chatbot-toggle"
+        onClick={() => setIsOpen(!isOpen)}
+        title="Trợ lý AI"
+      >
+        {isOpen ? '✕' : '✦'}
       </button>
     </div>
   );
 };
 
 export default FloatingChatbot;
+

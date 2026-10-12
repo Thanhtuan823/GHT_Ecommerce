@@ -36,7 +36,10 @@ builder.Services.AddHangfire(config =>
 );
 builder.Services.AddHangfireServer();
 
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+});
 
 // Add Authentication and Authorization to allow app.UseAuthentication() and app.UseAuthorization()
 builder.Services.AddScoped<IAuthService, AuthService>();

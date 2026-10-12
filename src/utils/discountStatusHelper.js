@@ -5,8 +5,9 @@ export const getDiscountStatus = (discount) => {
     if (discount.usageLimit > 0 && discount.usedCount >= discount.usageLimit) {
         return { label: 'Hết lượt', className: 'status-out' };
     }
-    if (discount.expiryDate && new Date(discount.expiryDate) < new Date()) {
-        return { label: 'Hết hạn', className: 'status-expired' };
+    const exp = discount.endDate || discount.expiryDate;
+    if (exp && new Date(exp) < new Date()) {
+        return { label: 'Hết hạn', className: 'status-expired', key: 'EXPIRED' };
     }
-    return { label: 'Đang chạy', className: 'status-active' };
+    return { label: 'Đang chạy', className: 'status-active', key: 'ACTIVE' };
 };

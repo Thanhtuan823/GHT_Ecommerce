@@ -50,11 +50,17 @@
   font-weight: 800;
 }
 
+.navbar-category-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
 .navbar-category-btn {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-2) var(--space-3);
+  gap: 6px;
+  height: 38px;
+  padding: 0 var(--space-3);
   font-size: 13px;
   font-weight: 600;
   color: var(--color-text-secondary);
@@ -65,9 +71,173 @@
   cursor: pointer;
 }
 
-.navbar-category-btn:hover {
+.navbar-category-btn:hover,
+.navbar-category-btn.is-active {
   color: var(--color-accent);
-  border-color: var(--color-border-hover);
+  border-color: var(--color-accent);
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
+}
+
+.navbar-category-chevron {
+  font-size: 11px;
+  transition: transform 0.2s ease;
+}
+
+.navbar-category-chevron.is-rotated {
+  transform: rotate(180deg);
+}
+
+/* Category Hover Dropdown Menu */
+.navbar-category-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 290px;
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  box-shadow: 0 18px 36px -8px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  padding: 8px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  animation: categoryDropdownFade 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes categoryDropdownFade {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.category-dropdown-header,
+.category-dropdown-list,
+.category-dropdown-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.category-dropdown-divider {
+  height: 1px;
+  background: var(--color-border, #e2e8f0);
+  margin: 6px 4px;
+}
+
+.category-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--color-text-main, #0f172a);
+  transition: all 0.15s ease;
+}
+
+.category-dropdown-item:hover {
+  background: #f1f5f9;
+  color: var(--color-accent, #2563eb);
+  transform: translateX(2px);
+}
+
+.cat-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-accent, #2563eb);
+  font-size: 16px;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.category-dropdown-item:hover .cat-icon-box {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.cat-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cat-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cat-sub {
+  font-size: 11px;
+  color: var(--color-text-secondary, #64748b);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.category-dropdown-item:hover .cat-sub {
+  color: #3b82f6;
+}
+
+.cat-arrow {
+  font-size: 12px;
+  color: #94a3b8;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: all 0.15s ease;
+}
+
+.category-dropdown-item:hover .cat-arrow {
+  opacity: 1;
+  transform: translateX(0);
+  color: var(--color-accent, #2563eb);
+}
+
+.category-dropdown-ai-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.category-dropdown-ai-btn:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.12);
+}
+
+.category-dropdown-ai-btn i {
+  font-size: 15px;
+  color: #2563eb;
 }
 
 .navbar-search-form {
@@ -280,8 +450,11 @@
   .navbar-search-form {
     display: none;
   }
-  .navbar-category-btn {
+  .navbar-category-btn span {
     display: none;
+  }
+  .navbar-category-btn {
+    padding: 0 8px;
   }
   .user-name-text {
     display: none;

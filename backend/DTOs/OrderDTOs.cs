@@ -14,6 +14,16 @@ public class CreateOrderRequest
 
     [Required]
     public int ShippingFee { get; set; }
+
+    public string PaymentMethod { get; set; } = "BANK_TRANSFER";
+
+    public string? Note { get; set; }
+}
+
+public class CancelOrderRequest
+{
+    [Required]
+    public string Reason { get; set; } = string.Empty;
 }
 
 public class OrderItemRequest
@@ -27,9 +37,13 @@ public class ShippingAddressDto
     public string Name { get; set; } = string.Empty;
     public string Phone { get; set; } = string.Empty;
     public string ProvinceId { get; set; } = string.Empty;
+    public string? ProvinceName { get; set; }
     public string DistrictId { get; set; } = string.Empty;
+    public string? DistrictName { get; set; }
     public string WardCode { get; set; } = string.Empty;
+    public string? WardName { get; set; }
     public string Address { get; set; } = string.Empty;
+    public string? FullAddress { get; set; }
 }
 
 public class SePayWebhookRequest

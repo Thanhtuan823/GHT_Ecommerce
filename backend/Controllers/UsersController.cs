@@ -32,13 +32,27 @@ public class UsersController : ControllerBase
         var user = await _context.Users.FindAsync(userId);
         if (user == null) return NotFound(new { message = "User không tồn tại" });
 
+        ShippingAddressDto? defaultAddress = null;
+        if (!string.IsNullOrEmpty(user.DefaultAddress))
+        {
+            try
+            {
+                defaultAddress = System.Text.Json.JsonSerializer.Deserialize<ShippingAddressDto>(user.DefaultAddress);
+            }
+            catch { }
+        }
+
         return Ok(new UserDto
         {
             Id = user.Id,
             Name = user.Name,
             Email = user.Email,
             Role = user.Role,
-            Avatar = user.Avatar
+            Avatar = user.Avatar,
+            Phone = user.Phone,
+            DefaultAddress = defaultAddress,
+            HasPassword = !string.IsNullOrEmpty(user.PasswordHash),
+            IsGoogleLinked = !string.IsNullOrEmpty(user.GoogleId)
         });
     }
 
@@ -51,9 +65,24 @@ public class UsersController : ControllerBase
 
         user.Name = request.Name;
         user.Avatar = request.Avatar;
+        user.Phone = request.Phone;
+        if (request.DefaultAddress != null)
+        {
+            user.DefaultAddress = System.Text.Json.JsonSerializer.Serialize(request.DefaultAddress);
+        }
         user.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
+
+        ShippingAddressDto? savedAddress = null;
+        if (!string.IsNullOrEmpty(user.DefaultAddress))
+        {
+            try
+            {
+                savedAddress = System.Text.Json.JsonSerializer.Deserialize<ShippingAddressDto>(user.DefaultAddress);
+            }
+            catch { }
+        }
 
         return Ok(new UserDto
         {
@@ -61,8 +90,30 @@ public class UsersController : ControllerBase
             Name = user.Name,
             Email = user.Email,
             Role = user.Role,
-            Avatar = user.Avatar
+            Avatar = user.Avatar,
+            Phone = user.Phone,
+            DefaultAddress = savedAddress,
+            HasPassword = !string.IsNullOrEmpty(user.PasswordHash),
+            IsGoogleLinked = !string.IsNullOrEmpty(user.GoogleId)
         });
+    }
+
+    [HttpPost("set-password")]
+    public async Task<IActionResult> SetPassword(SetPasswordRequest request)
+    {
+        var userId = GetCurrentUserId();
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null) return NotFound(new { message = "User không tồn tại" });
+
+        if (!string.IsNullOrEmpty(user.PasswordHash))
+            return BadRequest(new { message = "Tài khoản đã có mật khẩu. Vui lòng sử dụng tính năng đổi mật khẩu." });
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Thiết lập mật khẩu thành công! Giờ đây bạn có thể đăng nhập bằng email và mật khẩu." });
     }
 
     [HttpPut("password")]
@@ -73,7 +124,7 @@ public class UsersController : ControllerBase
         if (user == null) return NotFound(new { message = "User không tồn tại" });
 
         if (string.IsNullOrEmpty(user.PasswordHash))
-            return BadRequest(new { message = "Tài khoản đăng nhập bằng Google, không thể đổi mật khẩu" });
+            return BadRequest(new { message = "Tài khoản chưa có mật khẩu, vui lòng thiết lập mật khẩu trước" });
 
         if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
             return BadRequest(new { message = "Mật khẩu hiện tại không đúng" });

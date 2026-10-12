@@ -16,7 +16,7 @@ public class PdfService
                 page.Size(PageSizes.A4);
                 page.Margin(2, Unit.Centimetre);
                 page.PageColor(Colors.White);
-                page.DefaultTextStyle(x => x.FontSize(11).FontFamily("Arial"));
+                page.DefaultTextStyle(x => x.FontSize(11).FontFamily("Lato"));
 
                 page.Header().Element(c => ComposeHeader(c, order));
                 page.Content().Element(c => ComposeContent(c, order));
@@ -50,8 +50,21 @@ public class PdfService
             {
                 row.RelativeItem().Component(new AddressComponent("Thông tin khách hàng", order.User?.Name ?? "Khách hàng", order.User?.Email ?? ""));
                 
-                var address = order.ShippingAddress != null ? System.Text.Json.JsonSerializer.Deserialize<GhtBackend.DTOs.ShippingAddressDto>(order.ShippingAddress) : null;
-                var addrStr = address != null ? $"{address.Name} - {address.Phone}\n{address.Address}, {address.WardCode}, {address.DistrictId}, {address.ProvinceId}" : "Không có";
+                GhtBackend.DTOs.ShippingAddressDto? address = null;
+                if (!string.IsNullOrEmpty(order.ShippingAddress))
+                {
+                    try
+                    {
+                        address = System.Text.Json.JsonSerializer.Deserialize<GhtBackend.DTOs.ShippingAddressDto>(
+                            order.ShippingAddress,
+                            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                        );
+                    }
+                    catch { }
+                }
+                var addrStr = address != null 
+                    ? $"{address.Name} - {address.Phone}\n{address.Address}" 
+                    : (order.ShippingAddress ?? "Không có");
                 
                 row.RelativeItem().Component(new AddressComponent("Giao hàng đến", "Địa chỉ", addrStr));
             });

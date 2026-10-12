@@ -48,7 +48,11 @@ public class AuthController : ControllerBase
                 Name = user.Name,
                 Email = user.Email,
                 Role = user.Role,
-                Avatar = user.Avatar
+                Avatar = user.Avatar,
+                Phone = user.Phone,
+                DefaultAddress = ParseAddress(user.DefaultAddress),
+                HasPassword = !string.IsNullOrEmpty(user.PasswordHash),
+                IsGoogleLinked = !string.IsNullOrEmpty(user.GoogleId)
             }
         });
     }
@@ -70,7 +74,11 @@ public class AuthController : ControllerBase
                 Name = user.Name,
                 Email = user.Email,
                 Role = user.Role,
-                Avatar = user.Avatar
+                Avatar = user.Avatar,
+                Phone = user.Phone,
+                DefaultAddress = ParseAddress(user.DefaultAddress),
+                HasPassword = !string.IsNullOrEmpty(user.PasswordHash),
+                IsGoogleLinked = !string.IsNullOrEmpty(user.GoogleId)
             }
         });
     }
@@ -114,7 +122,11 @@ public class AuthController : ControllerBase
                     Name = user.Name,
                     Email = user.Email,
                     Role = user.Role,
-                    Avatar = user.Avatar
+                    Avatar = user.Avatar,
+                    Phone = user.Phone,
+                    DefaultAddress = ParseAddress(user.DefaultAddress),
+                    HasPassword = !string.IsNullOrEmpty(user.PasswordHash),
+                    IsGoogleLinked = !string.IsNullOrEmpty(user.GoogleId)
                 }
             });
         }
@@ -122,5 +134,12 @@ public class AuthController : ControllerBase
         {
             return Unauthorized(new { message = "Token Google không hợp lệ" });
         }
+    }
+
+    private static ShippingAddressDto? ParseAddress(string? json)
+    {
+        if (string.IsNullOrEmpty(json)) return null;
+        try { return System.Text.Json.JsonSerializer.Deserialize<ShippingAddressDto>(json); }
+        catch { return null; }
     }
 }

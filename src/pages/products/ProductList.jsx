@@ -159,41 +159,8 @@ const ProductList = () => {
     );
   };
 
-  // Nav categories combining defaults and API categories
-  const navCategories = [
-    { id: '', name: 'Tất cả' },
-    { id: 'laptop', name: 'Laptop' },
-    { id: 'pc', name: 'PC & màn hình' },
-    { id: 'phukien', name: 'Phụ kiện' },
-    { id: 'dienthoai', name: 'Điện thoại' },
-    { id: 'khuyenmai', name: 'Khuyến mãi' }
-  ];
-
   return (
     <div className="product-list-page-wrapper">
-      {/* 1. Category Nav Bar (44px) */}
-      <nav className="category-navbar-wrapper" aria-label="Danh mục sản phẩm">
-        <div className="category-navbar-container">
-          {navCategories.map((cat) => {
-            const isActive = (!categoryParam && cat.id === '') || categoryParam === cat.id;
-            return (
-              <button
-                key={cat.id || 'all'}
-                type="button"
-                className={`category-nav-item ${isActive ? 'is-active' : ''}`}
-                onClick={() => updateParam('category', cat.id)}
-              >
-                {cat.name}
-              </button>
-            );
-          })}
-
-          <a href="#ai-assistant" className="category-nav-item category-nav-link-ai">
-            ✦ Tư vấn chọn máy ↗
-          </a>
-        </div>
-      </nav>
-
       {/* Main Content Container */}
       <div className="products-page-container">
         {/* 2. Hero Banner (#EBF2FF, 2 columns) */}

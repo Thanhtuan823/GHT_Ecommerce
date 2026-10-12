@@ -12,6 +12,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // ① QuestPDF license — PHẢI đặt trước builder.Build()
 QuestPDF.Settings.License = LicenseType.Community;
+QuestPDF.Settings.UseSystemFonts = true;
+QuestPDF.Settings.ThrowOnMissingFontFamilies = false;
 
 // ② EF Core + PostgreSQL
 builder.Services.AddDbContext<AppDbContext>(options =>

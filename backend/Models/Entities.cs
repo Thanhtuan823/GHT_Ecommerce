@@ -11,6 +11,10 @@ public class User
     public string Role { get; set; } = "Customer"; // Admin, Staff, Customer
     public string? GoogleId { get; set; }
     public string? Avatar { get; set; }
+    public string? Phone { get; set; }
+    
+    [Column(TypeName = "jsonb")]
+    public string? DefaultAddress { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
@@ -85,6 +89,8 @@ public class Order
     public int ShippingFee { get; set; }
     public bool IsPaid { get; set; }
     public DateTime? PaidAt { get; set; }
+    public string PaymentMethod { get; set; } = "BANK_TRANSFER";
+    public string? CancelReason { get; set; }
     
     [Column(TypeName = "jsonb")]
     public string ShippingAddress { get; set; } = "{}"; // JSON string

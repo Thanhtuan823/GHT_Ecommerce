@@ -3,10 +3,28 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
+import axiosClient from '../../utils/axiosClient';
 import './Navbar.css';
 
+const DEFAULT_CATEGORIES = [
+  { id: '1', name: 'Laptop', description: 'Gaming, Văn phòng, Đồ họa' },
+  { id: '2', name: 'PC & Màn hình', description: 'Máy bộ, Màn hình gaming' },
+  { id: '3', name: 'Phụ kiện', description: 'Bàn phím, Chuột, Tai nghe' },
+  { id: '4', name: 'Linh kiện', description: 'CPU, RAM, Ổ cứng SSD' }
+];
+
+const getCategoryIcon = (catName = '') => {
+  const lower = catName.toLowerCase();
+  if (lower.includes('laptop')) return 'ti-device-laptop';
+  if (lower.includes('pc') || lower.includes('màn hình') || lower.includes('máy tính')) return 'ti-device-desktop';
+  if (lower.includes('phụ kiện') || lower.includes('tai nghe') || lower.includes('chuột') || lower.includes('bàn phím')) return 'ti-headphones';
+  if (lower.includes('điện thoại') || lower.includes('phone') || lower.includes('tablet')) return 'ti-device-mobile';
+  if (lower.includes('linh kiện') || lower.includes('cpu') || lower.includes('vga') || lower.includes('ram')) return 'ti-cpu';
+  return 'ti-device-laptop';
+};
+
 const Navbar = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, openProfileModal } = useAuth();
   const { cartCount } = useCart();
   const { wishlist } = useWishlist();
   const navigate = useNavigate();
@@ -15,16 +33,53 @@ const Navbar = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Close dropdown when clicking outside
+  // Category dropdown states
+  const [categories, setCategories] = useState([]);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const categoryRef = useRef(null);
+  const catTimeoutRef = useRef(null);
+
+  // Fetch categories from backend
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await axiosClient.get('/categories');
+        if (res.data && res.data.length > 0) {
+          setCategories(res.data);
+        } else {
+          setCategories(DEFAULT_CATEGORIES);
+        }
+      } catch {
+        setCategories(DEFAULT_CATEGORIES);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // Close user dropdown & category dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setDropdownOpen(false);
       }
+      if (categoryRef.current && !categoryRef.current.contains(event.target)) {
+        setCategoryDropdownOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleCategoryMouseEnter = () => {
+    if (catTimeoutRef.current) clearTimeout(catTimeoutRef.current);
+    setCategoryDropdownOpen(true);
+  };
+
+  const handleCategoryMouseLeave = () => {
+    catTimeoutRef.current = setTimeout(() => {
+      setCategoryDropdownOpen(false);
+    }, 180);
+  };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -45,16 +100,90 @@ const Navbar = () => {
   return (
     <nav className="navbar">
       <div className="navbar-container">
-        {/* Left: Logo & Category */}
+        {/* Left: Logo & Category Hover Menu */}
         <div className="navbar-left">
           <Link to="/" className="navbar-logo">
             <span className="navbar-logo-icon">G</span>
             <span>GHT_Ecom</span>
           </Link>
-          <Link to="/products" className="navbar-category-btn">
-            <i className="ti ti-layout-grid"></i>
-            <span>Danh mục</span>
-          </Link>
+
+          <div
+            className="navbar-category-wrapper"
+            ref={categoryRef}
+            onMouseEnter={handleCategoryMouseEnter}
+            onMouseLeave={handleCategoryMouseLeave}
+          >
+            <button
+              type="button"
+              className={`navbar-category-btn ${categoryDropdownOpen ? 'is-active' : ''}`}
+              onClick={() => setCategoryDropdownOpen((prev) => !prev)}
+              aria-expanded={categoryDropdownOpen}
+              aria-haspopup="true"
+            >
+              <i className="ti ti-layout-grid"></i>
+              <span>Danh mục</span>
+              <i className={`ti ti-chevron-down navbar-category-chevron ${categoryDropdownOpen ? 'is-rotated' : ''}`}></i>
+            </button>
+
+            {categoryDropdownOpen && (
+              <div className="navbar-category-dropdown" role="menu">
+                <div className="category-dropdown-header">
+                  <Link
+                    to="/products"
+                    className="category-dropdown-item category-dropdown-item-all"
+                    onClick={() => setCategoryDropdownOpen(false)}
+                  >
+                    <div className="cat-icon-box">
+                      <i className="ti ti-apps"></i>
+                    </div>
+                    <div className="cat-info">
+                      <span className="cat-title">Tất cả sản phẩm</span>
+                      <span className="cat-sub">Khám phá toàn bộ thiết bị & phụ kiện</span>
+                    </div>
+                    <i className="ti ti-chevron-right cat-arrow"></i>
+                  </Link>
+                </div>
+
+                <div className="category-dropdown-divider" />
+
+                <div className="category-dropdown-list">
+                  {categories.map((cat) => (
+                    <Link
+                      key={cat.id}
+                      to={`/products?category=${cat.id}`}
+                      className="category-dropdown-item"
+                      onClick={() => setCategoryDropdownOpen(false)}
+                    >
+                      <div className="cat-icon-box">
+                        <i className={`ti ${getCategoryIcon(cat.name)}`}></i>
+                      </div>
+                      <div className="cat-info">
+                        <span className="cat-title">{cat.name}</span>
+                        {cat.description && <span className="cat-sub">{cat.description}</span>}
+                      </div>
+                      <i className="ti ti-chevron-right cat-arrow"></i>
+                    </Link>
+                  ))}
+                </div>
+
+                <div className="category-dropdown-divider" />
+
+                <div className="category-dropdown-footer">
+                  <button
+                    type="button"
+                    className="category-dropdown-ai-btn"
+                    onClick={() => {
+                      setCategoryDropdownOpen(false);
+                      window.dispatchEvent(new CustomEvent('open-ght-chatbot'));
+                    }}
+                  >
+                    <i className="ti ti-sparkles"></i>
+                    <span>✦ Tư vấn chọn máy với AI</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Center: Search Bar */}
@@ -118,14 +247,17 @@ const Navbar = () => {
                     <div className="user-dropdown-email">{user.email}</div>
                   </div>
 
-                  <Link
-                    to="/profile"
+                  <button
+                    type="button"
                     className="user-dropdown-item"
-                    onClick={() => setDropdownOpen(false)}
+                    onClick={() => {
+                      setDropdownOpen(false);
+                      openProfileModal();
+                    }}
                   >
                     <i className="ti ti-user"></i>
                     <span>Hồ sơ cá nhân</span>
-                  </Link>
+                  </button>
 
                   <Link
                     to="/orders"

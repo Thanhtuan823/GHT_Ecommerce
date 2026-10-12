@@ -36,6 +36,10 @@ public class UserDto
     public string Email { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
     public string? Avatar { get; set; }
+    public string? Phone { get; set; }
+    public ShippingAddressDto? DefaultAddress { get; set; }
+    public bool HasPassword { get; set; }
+    public bool IsGoogleLinked { get; set; }
 }
 
 public class AuthResponse
@@ -49,6 +53,8 @@ public class UpdateProfileRequest
     [Required, StringLength(100)]
     public string Name { get; set; } = string.Empty;
     public string? Avatar { get; set; }
+    public string? Phone { get; set; }
+    public ShippingAddressDto? DefaultAddress { get; set; }
 }
 
 public class UpdatePasswordRequest
@@ -56,6 +62,12 @@ public class UpdatePasswordRequest
     [Required]
     public string CurrentPassword { get; set; } = string.Empty;
     
+    [Required, MinLength(8)]
+    public string NewPassword { get; set; } = string.Empty;
+}
+
+public class SetPasswordRequest
+{
     [Required, MinLength(8)]
     public string NewPassword { get; set; } = string.Empty;
 }

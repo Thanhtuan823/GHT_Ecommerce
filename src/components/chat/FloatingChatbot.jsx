@@ -26,6 +26,17 @@ const FloatingChatbot = () => {
     scrollToBottom();
   }, [messages, isTyping]);
 
+  useEffect(() => {
+    const handleOpenChat = (e) => {
+      setIsOpen(true);
+      if (e?.detail?.message) {
+        setInput(e.detail.message);
+      }
+    };
+    window.addEventListener('open-ght-chatbot', handleOpenChat);
+    return () => window.removeEventListener('open-ght-chatbot', handleOpenChat);
+  }, []);
+
   const handleSend = async (e) => {
     e.preventDefault();
     if (!input.trim() || isTyping) return;

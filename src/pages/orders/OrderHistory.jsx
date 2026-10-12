@@ -3,60 +3,32 @@ import { Link, useNavigate } from 'react-router-dom';
 import axiosClient from '../../utils/axiosClient';
 import { getOrderStatus } from '../../utils/orderStatusHelper';
 import { useToast } from '../../components/common/ToastContext';
+import { useCart } from '../../context/CartContext';
+import CancelOrderModal from '../../components/orders/CancelOrderModal';
 import './OrderHistory.css';
-
-// 5 Standard Stepper Steps
-const STEPPER_STEPS = [
-  { id: 'placed', label: 'Đã đặt hàng', icon: <i className="ti ti-check"></i> },
-  { id: 'paid', label: 'Đã thanh toán', icon: <i className="ti ti-credit-card"></i> },
-  { id: 'processing', label: 'Đang xử lý', icon: <i className="ti ti-settings"></i> },
-  { id: 'shipping', label: 'Đang giao', icon: <i className="ti ti-truck"></i> },
-  { id: 'completed', label: 'Hoàn thành', icon: <i className="ti ti-star"></i> }
-];
-
-const getStepIndex = (status) => {
-  switch (status) {
-    case 'PENDING_PAYMENT':
-      return 0; // step 1 done/current
-    case 'PENDING_REVIEW':
-      return 1;
-    case 'PAID':
-    case 'CONFIRMED':
-      return 1;
-    case 'PROCESSING':
-      return 2;
-    case 'SHIPPING':
-      return 3;
-    case 'COMPLETED':
-    case 'DELIVERED':
-      return 4;
-    default:
-      return 0;
-  }
-};
 
 const OrderHistory = () => {
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('ALL');
-  const [featuredOrderId, setFeaturedOrderId] = useState(null);
-  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [downloadingOrderId, setDownloadingOrderId] = useState(null);
+  const [orderToCancel, setOrderToCancel] = useState(null);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [reorderingOrderId, setReorderingOrderId] = useState(null);
 
   const toast = useToast();
   const navigate = useNavigate();
+  const { addToCart } = useCart();
 
   useEffect(() => {
     const fetchOrders = async () => {
       setIsLoading(true);
       try {
         const res = await axiosClient.get('/orders/myorders');
-        const list = res.data || [];
-        setOrders(list);
-        if (list.length > 0) {
-          setFeaturedOrderId(list[0].id);
-        }
+        setOrders(res.data || []);
       } catch (err) {
         console.error('Lỗi lấy danh sách đơn hàng', err);
+        toast.error('Không thể tải danh sách đơn hàng.');
       } finally {
         setIsLoading(false);
       }
@@ -85,20 +57,8 @@ const OrderHistory = () => {
     return orders;
   }, [orders, activeTab]);
 
-  // Featured Order
-  const featuredOrder = useMemo(() => {
-    if (!orders.length) return null;
-    return orders.find((o) => o.id === featuredOrderId) || orders[0];
-  }, [orders, featuredOrderId]);
-
-  // Other orders in table
-  const otherOrders = useMemo(() => {
-    if (!featuredOrder) return [];
-    return orders.filter((o) => o.id !== featuredOrder.id);
-  }, [orders, featuredOrder]);
-
   const handleDownloadInvoice = async (orderId) => {
-    setIsDownloadingPdf(true);
+    setDownloadingOrderId(orderId);
     try {
       const res = await axiosClient.get(`/orders/${orderId}/invoice`, { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
@@ -112,7 +72,52 @@ const OrderHistory = () => {
     } catch {
       toast.error('Không thể tải hóa đơn. Vui lòng thử lại sau.');
     } finally {
-      setIsDownloadingPdf(false);
+      setDownloadingOrderId(null);
+    }
+  };
+
+  const handleConfirmCancel = async (reason) => {
+    if (!orderToCancel) return;
+    setIsCancelling(true);
+    try {
+      await axiosClient.put(`/orders/${orderToCancel.id}/cancel`, { reason });
+      toast.success(`Đã hủy thành công đơn hàng #GHT${orderToCancel.id}`);
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderToCancel.id ? { ...o, status: 'CANCELLED', cancelReason: reason } : o))
+      );
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Không thể hủy đơn hàng này.');
+    } finally {
+      setIsCancelling(false);
+      setOrderToCancel(null);
+    }
+  };
+
+  const handleReorder = async (order) => {
+    setReorderingOrderId(order.id);
+    try {
+      const items = order.orderItems || [];
+      if (!items.length) {
+        toast.error('Đơn hàng không có sản phẩm.');
+        return;
+      }
+      let added = 0;
+      for (const item of items) {
+        if (item.product) {
+          const ok = await addToCart(item.product, item.quantity);
+          if (ok !== false) added++;
+        }
+      }
+      if (added > 0) {
+        toast.success(`Đã thêm ${added} sản phẩm vào giỏ hàng!`);
+        navigate('/cart');
+      } else {
+        toast.error('Sản phẩm trong đơn hàng hiện không khả dụng.');
+      }
+    } catch {
+      toast.error('Lỗi khi mua lại đơn hàng.');
+    } finally {
+      setReorderingOrderId(null);
     }
   };
 
@@ -125,8 +130,11 @@ const OrderHistory = () => {
           <div className="skeleton" style={{ width: '240px', height: '32px', borderRadius: '4px' }} />
           <div className="skeleton" style={{ width: '360px', height: '18px', marginTop: '8px', borderRadius: '4px' }} />
         </div>
-        <div className="skeleton" style={{ height: '400px', borderRadius: '16px' }} />
-        <div className="skeleton" style={{ height: '200px', borderRadius: '16px' }} />
+        <div className="orders-feed-container">
+          {[1, 2, 3].map((n) => (
+            <div key={n} className="skeleton" style={{ height: '220px', borderRadius: '16px', marginBottom: '16px' }} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -136,11 +144,13 @@ const OrderHistory = () => {
       <div className="orders-page-wrapper">
         <div className="orders-header-box">
           <h1>Đơn hàng của tôi</h1>
-          <p>Theo dõi hành trình giao hàng và quản lý các đơn hàng đã đặt.</p>
+          <p>Quản lý lịch sử mua sắm và theo dõi trạng thái các đơn hàng của bạn.</p>
         </div>
 
         <div className="orders-empty-state">
-          <div className="orders-empty-icon"><i className="ti ti-package"></i></div>
+          <div className="orders-empty-icon">
+            <i className="ti ti-package"></i>
+          </div>
           <h2 className="orders-empty-title">Bạn chưa có đơn hàng nào</h2>
           <p className="orders-empty-desc">
             Khám phá ngay hàng trăm sản phẩm công nghệ chính hãng với giá ưu đãi tại GHT.
@@ -153,28 +163,12 @@ const OrderHistory = () => {
     );
   }
 
-  const currentStepIdx = featuredOrder ? getStepIndex(featuredOrder.status) : 0;
-  const featuredStatus = featuredOrder ? getOrderStatus(featuredOrder.status) : null;
-  const isCancelled = featuredOrder?.status === 'CANCELLED' || featuredOrder?.status === 'EXPIRED';
-
-  let addressObj = null;
-  if (featuredOrder?.shippingAddress) {
-    try {
-      addressObj = JSON.parse(featuredOrder.shippingAddress);
-    } catch {
-      addressObj = { fullAddress: featuredOrder.shippingAddress };
-    }
-  }
-
-  const orderItems = featuredOrder?.orderItems || [];
-  const progressPercent = Math.min(100, Math.max(0, (currentStepIdx / (STEPPER_STEPS.length - 1)) * 100));
-
   return (
     <div className="orders-page-wrapper">
       {/* Header */}
       <div className="orders-header-box">
         <h1>Đơn hàng của tôi</h1>
-        <p>Theo dõi hành trình giao hàng và quản lý các đơn hàng đã đặt.</p>
+        <p>Quản lý lịch sử mua sắm và theo dõi trạng thái các đơn hàng của bạn.</p>
       </div>
 
       {/* Filter Tabs */}
@@ -216,270 +210,205 @@ const OrderHistory = () => {
         </button>
       </div>
 
-      {/* Featured Order Box */}
-      {featuredOrder && (
-        <section className="featured-order-card">
-          <div className="featured-order-header">
-            <div className="featured-order-title-group">
-              <span className="featured-order-code">
-                Đơn #GHT{featuredOrder.id}
-              </span>
-              <span className="featured-order-date">
-                Đặt ngày {new Date(featuredOrder.createdAt).toLocaleDateString('vi-VN')} • {orderItems.length} sản phẩm
-              </span>
-            </div>
-
-            <div className="featured-order-actions-header">
-              {featuredStatus && (
-                <span className={`badge ${featuredStatus.className}`}>
-                  {featuredStatus.label}
-                </span>
-              )}
-              <button
-                type="button"
-                className="btn-ghost btn-invoice-pdf"
-                onClick={() => handleDownloadInvoice(featuredOrder.id)}
-                disabled={isDownloadingPdf}
-              >
-                {isDownloadingPdf ? 'Đang tải...' : '↓ Tải hóa đơn PDF'}
-              </button>
-            </div>
+      {/* Order Cards Feed */}
+      {filteredOrders.length === 0 ? (
+        <div className="orders-empty-state" style={{ padding: '48px 24px' }}>
+          <div className="orders-empty-icon" style={{ fontSize: '36px' }}>
+            <i className="ti ti-filter-off"></i>
           </div>
+          <h3 className="orders-empty-title" style={{ fontSize: '16px' }}>Không có đơn hàng nào trong mục này</h3>
+          <p className="orders-empty-desc">Thử chọn tab khác hoặc tiếp tục khám phá sản phẩm.</p>
+        </div>
+      ) : (
+        <div className="orders-feed-container">
+          {filteredOrders.map((order) => {
+            const statusInfo = getOrderStatus(order.status);
+            const items = order.orderItems || [];
+            const isPendingPayment = order.status === 'PENDING_PAYMENT';
+            const isCancellable = ['PENDING_PAYMENT', 'PENDING_REVIEW', 'CONFIRMED', 'PROCESSING'].includes(order.status);
+            const isShipping = order.status === 'SHIPPING';
+            const isCompleted = order.status === 'COMPLETED' || order.status === 'DELIVERED';
+            const isCancelled = order.status === 'CANCELLED' || order.status === 'EXPIRED';
 
-          {/* Stepper (Horizontal on Desktop, Vertical on Mobile) */}
-          {!isCancelled && (
-            <>
-              {/* Horizontal Stepper (Desktop) */}
-              <div className="order-stepper-horizontal">
-                <div className="stepper-connecting-line">
-                  <div
-                    className="stepper-line-progress"
-                    style={{ width: `${progressPercent}%` }}
-                  />
+            return (
+              <article key={order.id} className="order-feed-card">
+                {/* Header Card */}
+                <div className="order-feed-card-header">
+                  <div className="order-feed-header-left">
+                    <Link to={`/orders/${order.id}`} className="order-feed-code">
+                      #GHT{order.id}
+                    </Link>
+                    <span className="order-feed-divider">•</span>
+                    <span className="order-feed-date">
+                      {new Date(order.createdAt).toLocaleDateString('vi-VN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric'
+                      })}
+                    </span>
+                  </div>
+                  <div className="order-feed-header-right">
+                    <span className={`badge ${statusInfo.className}`}>
+                      {statusInfo.label}
+                    </span>
+                  </div>
                 </div>
 
-                {STEPPER_STEPS.map((step, idx) => {
-                  const isDone = idx < currentStepIdx;
-                  const isCurrent = idx === currentStepIdx;
-                  return (
-                    <div
-                      key={step.id}
-                      className={`stepper-step-item ${isDone ? 'is-done' : ''} ${isCurrent ? 'is-current' : ''}`}
-                    >
-                      <div className="stepper-circle-icon">
-                        {isDone ? <i className="ti ti-check"></i> : step.icon}
+                {/* Body Card: Product list */}
+                <div className="order-feed-card-body">
+                  {items.map((item) => (
+                    <div key={item.id} className="order-feed-item-row">
+                      <img
+                        src={item.product?.images?.[0] || '/images/premium.png'}
+                        alt={item.product?.name || 'Sản phẩm'}
+                        className="order-feed-item-thumb"
+                        loading="lazy"
+                      />
+                      <div className="order-feed-item-details">
+                        <Link
+                          to={`/products/${item.product?.slug || item.productId}`}
+                          className="order-feed-item-title"
+                        >
+                          {item.product?.name || `Sản phẩm #${item.productId}`}
+                        </Link>
+                        <div className="order-feed-item-meta">
+                          {item.product?.brand && <span className="order-feed-brand-tag">{item.product.brand}</span>}
+                          <span>Số lượng: <strong>{item.quantity}</strong></span>
+                          <span>Đơn giá: {formatPrice(item.price)}</span>
+                        </div>
                       </div>
-                      <div className="stepper-step-labels">
-                        <span className="stepper-step-name">{step.label}</span>
-                        <span className="stepper-step-time">
-                          {isCurrent || isDone ? new Date(featuredOrder.createdAt).toLocaleDateString('vi-VN') : '—'}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Vertical Stepper (Mobile) */}
-              <div className="order-stepper-vertical">
-                {STEPPER_STEPS.map((step, idx) => {
-                  const isDone = idx < currentStepIdx;
-                  const isCurrent = idx === currentStepIdx;
-                  return (
-                    <div
-                      key={step.id}
-                      className={`stepper-vertical-step ${isDone ? 'is-done' : ''} ${isCurrent ? 'is-current' : ''}`}
-                    >
-                      <div className="stepper-vertical-icon">
-                        {isDone ? <i className="ti ti-check"></i> : step.icon}
-                      </div>
-                      {idx < STEPPER_STEPS.length - 1 && (
-                        <div className="stepper-vertical-line" />
-                      )}
-                      <div className="stepper-vertical-content">
-                        <span className="stepper-vertical-name">{step.label}</span>
-                        <span className="stepper-vertical-time">
-                          {isCurrent || isDone ? new Date(featuredOrder.createdAt).toLocaleDateString('vi-VN') : 'Chờ xử lý'}
-                        </span>
+                      <div className="order-feed-item-subtotal">
+                        {formatPrice(item.price * item.quantity)}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
-
-          {/* Products List */}
-          <div className="featured-order-items-list">
-            {orderItems.map((item) => (
-              <div key={item.id} className="featured-order-product-item">
-                <img
-                  src={item.product?.images?.[0] || '/images/premium.png'}
-                  alt={item.product?.name || 'Sản phẩm'}
-                  className="featured-product-image"
-                />
-                <div className="featured-product-info">
-                  <Link
-                    to={`/products/${item.product?.slug || item.productId}`}
-                    className="featured-product-name"
-                  >
-                    {item.product?.name || `Sản phẩm #${item.productId}`}
-                  </Link>
-                  <span className="featured-product-meta">
-                    {item.product?.brand || 'GHT'} • Số lượng: {item.quantity}
-                  </span>
+                  ))}
                 </div>
-                <span className="featured-product-price">
-                  {formatPrice(item.price * item.quantity)}
-                </span>
-              </div>
-            ))}
-          </div>
 
-          {/* 2 Columns Bottom: Address + Summary */}
-          <div className="featured-order-bottom-grid">
-            <div className="featured-address-box">
-              <h3 className="featured-address-title">Địa chỉ nhận hàng</h3>
-              <p>
-                <strong>{addressObj?.name || 'Khách hàng'}</strong> • {addressObj?.phone || ''}
-              </p>
-              <p>{addressObj?.fullAddress || addressObj?.address || 'Địa chỉ đang cập nhật'}</p>
-              <span className="featured-shipping-badge">
-                🚚 Vận chuyển: Giao Hàng Nhanh (GHN) • Miễn phí
-              </span>
-            </div>
+                {/* Footer Card */}
+                <div className="order-feed-card-footer">
+                  <div className="order-feed-summary">
+                    <span className="order-feed-items-count">
+                      Tổng {items.reduce((s, it) => s + it.quantity, 0)} món:
+                    </span>
+                    <span className="order-feed-total-amount">
+                      {formatPrice(order.totalPrice)}
+                    </span>
+                    {order.discountAmount > 0 && (
+                      <span className="order-feed-discount-pill">
+                        Tiết kiệm {formatPrice(order.discountAmount)}
+                      </span>
+                    )}
+                  </div>
 
-            <div className="featured-summary-price-box">
-              <div className="featured-summary-row">
-                <span>Tổng tiền gốc</span>
-                <span>{formatPrice(featuredOrder.originalAmount || featuredOrder.totalPrice)}</span>
-              </div>
-
-              {featuredOrder.discount && (
-                <div className="featured-summary-row is-code">
-                  <span>Mã đã áp dụng</span>
-                  <span>{featuredOrder.discount.code}</span>
-                </div>
-              )}
-
-              {featuredOrder.discountAmount > 0 && (
-                <div className="featured-summary-row is-discount">
-                  <span>Đã giảm</span>
-                  <span>– {formatPrice(featuredOrder.discountAmount)}</span>
-                </div>
-              )}
-
-              <div className="featured-summary-divider" />
-
-              <div className="featured-summary-total-row">
-                <span className="featured-summary-total-label">Tổng thanh toán</span>
-                <span className="featured-summary-total-amount">
-                  {formatPrice(featuredOrder.totalPrice)}
-                </span>
-              </div>
-
-              <p className="featured-summary-paid-note">
-                {featuredOrder.isPaid
-                  ? 'Đã thanh toán qua chuyển khoản ngân hàng SePay.'
-                  : 'Chờ thanh toán qua chuyển khoản ngân hàng.'}
-              </p>
-            </div>
-          </div>
-
-          {/* Footer Order Actions */}
-          <div className="featured-order-footer">
-            <div className="featured-order-support-group">
-              <span>🎧</span>
-              <span>Cần hỗ trợ đơn hàng này?</span>
-              <a href="mailto:support@ght.vn" className="auth-link">
-                Liên hệ hỗ trợ
-              </a>
-            </div>
-
-            <div className="featured-order-actions-group">
-              <Link to={`/orders/${featuredOrder.id}`} className="btn-ghost">
-                Xem chi tiết đơn
-              </Link>
-              {featuredOrder.status === 'PENDING_PAYMENT' ? (
-                <Link to={`/payment/${featuredOrder.id}`} className="btn-primary">
-                  Thanh toán ngay
-                </Link>
-              ) : (
-                <Link to={`/orders/${featuredOrder.id}`} className="btn-primary">
-                  Theo dõi giao hàng
-                </Link>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Table: Các đơn hàng khác */}
-      {otherOrders.length > 0 && (
-        <section className="other-orders-section">
-          <h2 className="other-orders-title">Các đơn hàng khác</h2>
-          <div className="other-orders-table-wrapper">
-            <table className="other-orders-table">
-              <thead>
-                <tr>
-                  <th>Mã đơn</th>
-                  <th>Ngày đặt</th>
-                  <th>Sản phẩm</th>
-                  <th>Tổng thanh toán</th>
-                  <th>Trạng thái</th>
-                  <th>Hành động</th>
-                </tr>
-              </thead>
-              <tbody>
-                {otherOrders.map((ord) => {
-                  const st = getOrderStatus(ord.status);
-                  const firstItem = ord.orderItems?.[0]?.product?.name || `${ord.orderItems?.length || 1} sản phẩm`;
-                  const moreCount = (ord.orderItems?.length || 1) - 1;
-                  return (
-                    <tr key={ord.id}>
-                      <td>
+                  <div className="order-feed-actions">
+                    {/* Contextual Action Buttons */}
+                    {isPendingPayment && (
+                      <>
                         <button
                           type="button"
-                          className="other-orders-action-link"
-                          onClick={() => setFeaturedOrderId(ord.id)}
+                          className="btn-danger-outline"
+                          onClick={() => setOrderToCancel(order)}
                         >
-                          #GHT{ord.id}
+                          Hủy đơn
                         </button>
-                      </td>
-                      <td>{new Date(ord.createdAt).toLocaleDateString('vi-VN')}</td>
-                      <td>
-                        {firstItem}
-                        {moreCount > 0 && ` (+${moreCount})`}
-                      </td>
-                      <td>
-                        <strong>{formatPrice(ord.totalPrice)}</strong>
-                      </td>
-                      <td>
-                        <span className={`badge ${st.className}`}>{st.label}</span>
-                      </td>
-                      <td>
-                        {ord.status === 'PENDING_PAYMENT' ? (
-                          <Link to={`/payment/${ord.id}`} className="other-orders-action-link">
-                            Thanh toán →
-                          </Link>
-                        ) : (
-                          <button
-                            type="button"
-                            className="other-orders-action-link"
-                            onClick={() => setFeaturedOrderId(ord.id)}
-                          >
-                            Xem chi tiết
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                        <Link to={`/payment/${order.id}`} className="btn-primary">
+                          Thanh toán ngay
+                        </Link>
+                      </>
+                    )}
+
+                    {isShipping && (
+                      <>
+                        <Link to={`/orders/${order.id}`} className="btn-primary">
+                          <i className="ti ti-truck-delivery"></i> Theo dõi hành trình
+                        </Link>
+                      </>
+                    )}
+
+                    {isCompleted && (
+                      <>
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          onClick={() => handleDownloadInvoice(order.id)}
+                          disabled={downloadingOrderId === order.id}
+                        >
+                          {downloadingOrderId === order.id ? (
+                            'Đang tải...'
+                          ) : (
+                            <>
+                              <i className="ti ti-file-download"></i> Tải hóa đơn PDF
+                            </>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => handleReorder(order)}
+                          disabled={reorderingOrderId === order.id}
+                        >
+                          {reorderingOrderId === order.id ? 'Đang thêm...' : 'Mua lại'}
+                        </button>
+                        <Link to={`/orders/${order.id}`} className="btn-outline">
+                          Xem chi tiết
+                        </Link>
+                      </>
+                    )}
+
+                    {isCancelled && (
+                      <>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => handleReorder(order)}
+                          disabled={reorderingOrderId === order.id}
+                        >
+                          {reorderingOrderId === order.id ? 'Đang thêm...' : 'Mua lại'}
+                        </button>
+                        <Link to={`/orders/${order.id}`} className="btn-ghost">
+                          Xem chi tiết
+                        </Link>
+                      </>
+                    )}
+
+                    {!isPendingPayment && isCancellable && (
+                      <>
+                        <button
+                          type="button"
+                          className="btn-danger-outline"
+                          onClick={() => setOrderToCancel(order)}
+                        >
+                          Hủy đơn
+                        </button>
+                        <Link to={`/orders/${order.id}`} className="btn-outline">
+                          Xem chi tiết
+                        </Link>
+                      </>
+                    )}
+
+                    {!isCancellable && !isShipping && !isCompleted && !isCancelled && (
+                      <Link to={`/orders/${order.id}`} className="btn-outline">
+                        Xem chi tiết
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
       )}
+
+      {/* Modal hủy đơn hàng chuẩn sàn */}
+      <CancelOrderModal
+        isOpen={!!orderToCancel}
+        order={orderToCancel}
+        isSubmitting={isCancelling}
+        onConfirm={handleConfirmCancel}
+        onCancel={() => setOrderToCancel(null)}
+      />
     </div>
   );
 };

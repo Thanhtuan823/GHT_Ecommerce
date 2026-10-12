@@ -68,11 +68,15 @@ public class OrdersController : ControllerBase
 
         int totalPrice = originalAmount - discountAmount + req.ShippingFee;
 
+        var paymentMethod = (req.PaymentMethod ?? "BANK_TRANSFER").ToUpper();
+        var initialStatus = paymentMethod == "COD" ? "PROCESSING" : "PENDING_PAYMENT";
+
         var order = new Order
         {
             UserId = userId,
-            Status = "PENDING_PAYMENT",
-            PaymentExpiredAt = DateTime.UtcNow.AddMinutes(15),
+            Status = initialStatus,
+            PaymentMethod = paymentMethod,
+            PaymentExpiredAt = paymentMethod == "COD" ? DateTime.UtcNow.AddDays(7) : DateTime.UtcNow.AddMinutes(15),
             OriginalAmount = originalAmount,
             DiscountAmount = discountAmount,
             ShippingFee = req.ShippingFee,
@@ -88,13 +92,31 @@ public class OrdersController : ControllerBase
         foreach (var item in req.Items)
         {
             var product = await _context.Products.FindAsync(item.ProductId);
+            if (product != null)
+            {
+                product.InStock = Math.Max(0, product.InStock - item.Quantity);
+            }
             _context.OrderItems.Add(new OrderItem
             {
                 OrderId = order.Id,
                 ProductId = item.ProductId,
                 Quantity = item.Quantity,
-                Price = product!.Price
+                Price = product?.Price ?? 0
             });
+        }
+
+        if (discountId.HasValue)
+        {
+            var discount = await _context.Discounts.FindAsync(discountId.Value);
+            if (discount != null)
+            {
+                discount.UsedCount++;
+                _context.UserUsedDiscounts.Add(new UserUsedDiscount
+                {
+                    UserId = userId,
+                    DiscountId = discount.Id
+                });
+            }
         }
 
         // Clear Cart
@@ -116,7 +138,7 @@ public class OrdersController : ControllerBase
             } catch { }
         });
 
-        return Created($"/api/orders/{order.Id}", new { orderId = order.Id, totalPrice = order.TotalPrice, paymentExpiredAt = order.PaymentExpiredAt });
+        return Created($"/api/orders/{order.Id}", new { orderId = order.Id, totalPrice = order.TotalPrice, status = order.Status, paymentMethod = order.PaymentMethod, paymentExpiredAt = order.PaymentExpiredAt });
     }
 
     [Authorize(Roles = "Admin,Staff")]
@@ -207,6 +229,57 @@ public class OrdersController : ControllerBase
         return Ok(new { status = "PENDING_REVIEW" });
     }
 
+    [Authorize]
+    [HttpPut("{id}/cancel")]
+    public async Task<IActionResult> CancelOrder(int id, [FromBody] CancelOrderRequest? req)
+    {
+        var userId = GetUserId();
+        var order = await _context.Orders
+            .Include(o => o.OrderItems)
+            .FirstOrDefaultAsync(o => o.Id == id);
+
+        if (order == null) return NotFound(new { message = "Đơn hàng không tồn tại" });
+        if (order.UserId != userId && !User.IsInRole("Admin")) return Forbid();
+
+        var cancellableStatuses = new[] { "PENDING_PAYMENT", "PENDING_REVIEW", "CONFIRMED", "PROCESSING" };
+        if (!cancellableStatuses.Contains(order.Status))
+        {
+            return BadRequest(new { message = "Đơn hàng đã được bàn giao vận chuyển hoặc hoàn thành, không thể hủy" });
+        }
+
+        order.Status = "CANCELLED";
+        order.CancelReason = string.IsNullOrWhiteSpace(req?.Reason) ? "Khách hàng yêu cầu hủy đơn" : req.Reason.Trim();
+        order.UpdatedAt = DateTime.UtcNow;
+
+        foreach (var item in order.OrderItems)
+        {
+            var product = await _context.Products.FindAsync(item.ProductId);
+            if (product != null)
+            {
+                product.InStock += item.Quantity;
+            }
+        }
+
+        if (order.DiscountId.HasValue)
+        {
+            var discount = await _context.Discounts.FindAsync(order.DiscountId.Value);
+            if (discount != null && discount.UsedCount > 0)
+            {
+                discount.UsedCount -= 1;
+            }
+
+            var usedDiscount = await _context.UserUsedDiscounts
+                .FirstOrDefaultAsync(u => u.UserId == order.UserId && u.DiscountId == order.DiscountId.Value);
+            if (usedDiscount != null)
+            {
+                _context.UserUsedDiscounts.Remove(usedDiscount);
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(new { message = "Đã hủy đơn hàng thành công", status = "CANCELLED", cancelReason = order.CancelReason });
+    }
+
     [Authorize(Roles = "Admin,Staff")]
     [HttpPut("{id}/status")]
     public async Task<IActionResult> UpdateOrderStatus(int id, [FromBody] UpdateOrderStatusRequest req)
@@ -266,12 +339,16 @@ public class OrdersController : ControllerBase
             var discount = await _context.Discounts.FindAsync(order.DiscountId.Value);
             if (discount != null)
             {
-                discount.UsedCount++;
-                _context.UserUsedDiscounts.Add(new UserUsedDiscount
+                var alreadyRecorded = await _context.UserUsedDiscounts.AnyAsync(u => u.UserId == order.UserId && u.DiscountId == discount.Id);
+                if (!alreadyRecorded)
                 {
-                    UserId = order.UserId,
-                    DiscountId = discount.Id
-                });
+                    discount.UsedCount++;
+                    _context.UserUsedDiscounts.Add(new UserUsedDiscount
+                    {
+                        UserId = order.UserId,
+                        DiscountId = discount.Id
+                    });
+                }
             }
         }
 

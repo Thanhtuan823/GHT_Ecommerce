@@ -1,44 +1,25 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import axiosClient from '../../utils/axiosClient';
 import { getOrderStatus } from '../../utils/orderStatusHelper';
 import { useToast } from '../../components/common/ToastContext';
+import { useCart } from '../../context/CartContext';
+import CancelOrderModal from '../../components/orders/CancelOrderModal';
 import './OrderDetail.css';
-
-const STEPPER_STEPS = [
-  { id: 'placed', label: 'Đã đặt hàng', icon: <i className="ti ti-check"></i> },
-  { id: 'paid', label: 'Đã thanh toán', icon: <i className="ti ti-credit-card"></i> },
-  { id: 'processing', label: 'Đang xử lý', icon: <i className="ti ti-settings"></i> },
-  { id: 'shipping', label: 'Đang giao', icon: <i className="ti ti-truck"></i> },
-  { id: 'completed', label: 'Hoàn thành', icon: <i className="ti ti-star"></i> }
-];
-
-const getStepIndex = (status) => {
-  switch (status) {
-    case 'PENDING_PAYMENT':
-      return 0;
-    case 'PENDING_REVIEW':
-    case 'PAID':
-    case 'CONFIRMED':
-      return 1;
-    case 'PROCESSING':
-      return 2;
-    case 'SHIPPING':
-      return 3;
-    case 'COMPLETED':
-    case 'DELIVERED':
-      return 4;
-    default:
-      return 0;
-  }
-};
 
 const OrderDetail = () => {
   const { id } = useParams();
   const toast = useToast();
+  const navigate = useNavigate();
+  const { addToCart } = useCart();
+
   const [order, setOrder] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [isReordering, setIsReordering] = useState(false);
+  const [isCopiedTracking, setIsCopiedTracking] = useState(false);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -48,6 +29,7 @@ const OrderDetail = () => {
         setOrder(res.data);
       } catch (err) {
         console.error(err);
+        toast.error('Không tìm thấy thông tin đơn hàng');
       } finally {
         setIsLoading(false);
       }
@@ -75,15 +57,76 @@ const OrderDetail = () => {
     }
   };
 
+  const handleConfirmCancel = async (reason) => {
+    if (!order) return;
+    setIsCancelling(true);
+    try {
+      await axiosClient.put(`/orders/${order.id}/cancel`, { reason });
+      toast.success(`Đã hủy thành công đơn hàng #GHT${order.id}`);
+      setOrder((prev) => (prev ? { ...prev, status: 'CANCELLED', cancelReason: reason } : null));
+      setIsCancelModalOpen(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Không thể hủy đơn hàng này.');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const handleReorder = async () => {
+    if (!order) return;
+    setIsReordering(true);
+    try {
+      const items = order.orderItems || [];
+      if (!items.length) {
+        toast.error('Đơn hàng không có sản phẩm.');
+        return;
+      }
+      let added = 0;
+      for (const item of items) {
+        if (item.product) {
+          const ok = await addToCart(item.product, item.quantity);
+          if (ok !== false) added++;
+        }
+      }
+      if (added > 0) {
+        toast.success(`Đã thêm ${added} sản phẩm vào giỏ hàng!`);
+        navigate('/cart');
+      } else {
+        toast.error('Sản phẩm trong đơn hàng hiện không khả dụng.');
+      }
+    } catch {
+      toast.error('Lỗi khi mua lại đơn hàng.');
+    } finally {
+      setIsReordering(false);
+    }
+  };
+
+  const handleOpenAiSupport = () => {
+    if (!order) return;
+    window.dispatchEvent(
+      new CustomEvent('open-ght-chatbot', {
+        detail: { message: `Tôi cần hỗ trợ về đơn hàng #GHT${order.id}` }
+      })
+    );
+  };
+
+  const handleCopyTrackingCode = (code) => {
+    navigator.clipboard.writeText(code);
+    setIsCopiedTracking(true);
+    toast.success('Đã sao chép mã vận đơn!');
+    setTimeout(() => setIsCopiedTracking(false), 2000);
+  };
+
   const formatPrice = (val) => `${new Intl.NumberFormat('vi-VN').format(val || 0)}đ`;
 
   if (isLoading) {
     return (
       <div className="order-detail-page-wrapper">
-        <div className="order-detail-breadcrumb">
-          <div className="skeleton" style={{ width: '260px', height: '16px', borderRadius: '4px' }} />
+        <div className="skeleton" style={{ width: '280px', height: '24px', borderRadius: '4px', marginBottom: '20px' }} />
+        <div className="order-detail-layout-grid">
+          <div className="skeleton" style={{ height: '500px', borderRadius: '16px' }} />
+          <div className="skeleton" style={{ height: '400px', borderRadius: '16px' }} />
         </div>
-        <div className="skeleton" style={{ height: '450px', borderRadius: '16px' }} />
       </div>
     );
   }
@@ -104,8 +147,10 @@ const OrderDetail = () => {
   }
 
   const statusInfo = getOrderStatus(order.status);
-  const currentStepIdx = getStepIndex(order.status);
+  const orderItems = order.orderItems || [];
+  const isPendingPayment = order.status === 'PENDING_PAYMENT';
   const isCancelled = order.status === 'CANCELLED' || order.status === 'EXPIRED';
+  const trackingCode = `GHN${String(order.id).padStart(8, '0')}`;
 
   let addressObj = null;
   if (order.shippingAddress) {
@@ -116,8 +161,39 @@ const OrderDetail = () => {
     }
   }
 
-  const orderItems = order.orderItems || [];
-  const progressPercent = Math.min(100, Math.max(0, (currentStepIdx / (STEPPER_STEPS.length - 1)) * 100));
+  // Calculate timeline milestone dates
+  const createdDate = new Date(order.createdAt).toLocaleDateString('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+
+  const paidDate = order.paidAt
+    ? new Date(order.paidAt).toLocaleDateString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      })
+    : null;
+
+  const updatedDate = new Date(order.updatedAt || order.createdAt).toLocaleDateString('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+
+  // Timeline Step Statuses
+  const isStep1Done = true; // Placed
+  const isStep2Done = order.isPaid || ['PAID', 'PROCESSING', 'SHIPPING', 'COMPLETED', 'DELIVERED'].includes(order.status);
+  const isStep3Done = ['PROCESSING', 'SHIPPING', 'COMPLETED', 'DELIVERED'].includes(order.status);
+  const isStep4Done = ['SHIPPING', 'COMPLETED', 'DELIVERED'].includes(order.status);
+  const isStep5Done = ['COMPLETED', 'DELIVERED'].includes(order.status);
 
   return (
     <div className="order-detail-page-wrapper">
@@ -127,193 +203,363 @@ const OrderDetail = () => {
         <span>/</span>
         <Link to="/orders">Đơn hàng của tôi</Link>
         <span>/</span>
-        <span>Chi tiết đơn #GHT{order.id}</span>
+        <span className="current">#GHT{order.id}</span>
       </nav>
 
-      {/* Main Order Card */}
-      <section className="order-detail-main-card">
-        {/* Header Row */}
-        <div className="order-detail-header-row">
-          <div className="order-detail-title-group">
-            <h1 className="order-detail-h1">Đơn #GHT{order.id}</h1>
-            <span className="order-detail-date">
-              Đặt ngày {new Date(order.createdAt).toLocaleDateString('vi-VN')} • {orderItems.length} sản phẩm
-            </span>
+      {/* Top Bar Summary */}
+      <div className="order-detail-top-bar">
+        <div className="order-detail-header-left">
+          <div className="order-detail-title-row">
+            <h1>Chi tiết đơn hàng #GHT{order.id}</h1>
+            <span className={`badge ${statusInfo.className}`}>{statusInfo.label}</span>
           </div>
+          <p className="order-detail-timestamp">
+            Thời gian đặt hàng: <strong>{createdDate}</strong>
+          </p>
+        </div>
 
-          <div className="order-detail-header-actions">
-            <span className={`badge ${statusInfo.className}`}>
-              {statusInfo.label}
-            </span>
+        <div className="order-detail-header-actions">
+          {['PENDING_PAYMENT', 'PENDING_REVIEW', 'CONFIRMED', 'PROCESSING'].includes(order.status) && (
             <button
               type="button"
-              className="btn-ghost btn-invoice-pdf"
-              onClick={handleDownloadInvoice}
-              disabled={isDownloadingPdf}
+              className="btn-danger-outline"
+              onClick={() => setIsCancelModalOpen(true)}
             >
-              {isDownloadingPdf ? 'Đang tải...' : '↓ Tải hóa đơn PDF'}
+              <i className="ti ti-x"></i> Hủy đơn hàng
             </button>
-          </div>
+          )}
+
+          {isPendingPayment && (
+            <Link to={`/payment/${order.id}`} className="btn-primary">
+              <i className="ti ti-credit-card"></i> Thanh toán ngay
+            </Link>
+          )}
+
+          {isCancelled && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={handleReorder}
+              disabled={isReordering}
+            >
+              <i className="ti ti-reload"></i> {isReordering ? 'Đang thêm...' : 'Mua lại đơn này'}
+            </button>
+          )}
+
+          {isStep5Done && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={handleReorder}
+              disabled={isReordering}
+            >
+              <i className="ti ti-reload"></i> {isReordering ? 'Đang thêm...' : 'Mua lại'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 2-Column Layout Grid (Desktop 65% / 35%) */}
+      <div className="order-detail-layout-grid">
+        {/* ================= LEFT COLUMN (65%) ================= */}
+        <div className="order-detail-left-col">
+          {/* Tracking Journey Card */}
+          <section className="order-detail-section-card">
+            <div className="order-detail-section-header">
+              <div className="section-title-with-icon">
+                <i className="ti ti-truck-delivery"></i>
+                <h2>Hành trình đơn hàng</h2>
+              </div>
+              {!isCancelled && (
+                <span className="carrier-badge">
+                  <i className="ti ti-check"></i> Đang vận chuyển qua GHN Express
+                </span>
+              )}
+            </div>
+
+            {/* Carrier Info Strip */}
+            <div className="carrier-info-strip">
+              <div className="carrier-brand">
+                <div className="carrier-icon-box">
+                  <i className="ti ti-box-seam"></i>
+                </div>
+                <div className="carrier-details">
+                  <span className="carrier-name">Giao Hàng Nhanh (GHN Express)</span>
+                  <span className="carrier-sub">Dịch vụ chuyển phát tiêu chuẩn bảo hiểm 100%</span>
+                </div>
+              </div>
+              <div className="carrier-tracking">
+                <span className="tracking-label">Mã vận đơn:</span>
+                <span className="tracking-code">{trackingCode}</span>
+                <button
+                  type="button"
+                  className="btn-copy-code"
+                  onClick={() => handleCopyTrackingCode(trackingCode)}
+                  title="Sao chép mã"
+                >
+                  <i className={isCopiedTracking ? 'ti ti-check' : 'ti ti-copy'}></i>
+                </button>
+              </div>
+            </div>
+
+            {/* Timeline Stepper */}
+            {isCancelled ? (
+              <div className="order-cancelled-banner">
+                <div className="cancelled-icon">
+                  <i className="ti ti-alert-triangle"></i>
+                </div>
+                <div>
+                  <h4>Đơn hàng đã bị hủy</h4>
+                  <p>
+                    Đơn hàng được ghi nhận hủy vào lúc {updatedDate}. Số lượng sản phẩm đã được tự động hoàn trả về kho.
+                  </p>
+                  {order.cancelReason && (
+                    <p style={{ marginTop: '6px', fontSize: '13px', fontWeight: 600 }}>
+                      Lý do hủy: <span style={{ fontWeight: 400 }}>{order.cancelReason}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="order-journey-timeline">
+                {/* Milestone 1: Placed */}
+                <div className={`timeline-milestone ${isStep1Done ? 'is-completed' : ''}`}>
+                  <div className="milestone-marker">
+                    <i className="ti ti-check"></i>
+                  </div>
+                  <div className="milestone-content">
+                    <div className="milestone-head">
+                      <span className="milestone-title">Đã đặt hàng thành công</span>
+                      <span className="milestone-time">{createdDate}</span>
+                    </div>
+                    <p className="milestone-desc">Đơn hàng đã được tạo trên hệ thống GHT Ecommerce.</p>
+                  </div>
+                </div>
+
+                {/* Milestone 2: Payment */}
+                <div className={`timeline-milestone ${isStep2Done ? 'is-completed' : isStep1Done ? 'is-active' : ''}`}>
+                  <div className="milestone-marker">
+                    {isStep2Done ? <i className="ti ti-check"></i> : <i className="ti ti-credit-card"></i>}
+                  </div>
+                  <div className="milestone-content">
+                    <div className="milestone-head">
+                      <span className="milestone-title">
+                        {isStep2Done ? 'Đã thanh toán thành công' : 'Chờ khách hàng thanh toán'}
+                      </span>
+                      <span className="milestone-time">{paidDate || 'Chờ hoàn tất'}</span>
+                    </div>
+                    <p className="milestone-desc">
+                      {isStep2Done
+                        ? 'Giao dịch chuyển khoản SePay đã được hệ thống ghi nhận thành công.'
+                        : 'Quý khách vui lòng quét mã QR thanh toán trong vòng 15 phút kể từ lúc đặt hàng.'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Milestone 3: Processing / Packing */}
+                <div className={`timeline-milestone ${isStep3Done ? 'is-completed' : isStep2Done ? 'is-active' : ''}`}>
+                  <div className="milestone-marker">
+                    {isStep3Done ? <i className="ti ti-check"></i> : <i className="ti ti-package"></i>}
+                  </div>
+                  <div className="milestone-content">
+                    <div className="milestone-head">
+                      <span className="milestone-title">Đóng gói và chuẩn bị đơn hàng</span>
+                      <span className="milestone-time">{isStep3Done ? updatedDate : '—'}</span>
+                    </div>
+                    <p className="milestone-desc">Trung tâm điều phối GHT kiểm tra chất lượng và niêm phong kiện hàng.</p>
+                  </div>
+                </div>
+
+                {/* Milestone 4: Shipping */}
+                <div className={`timeline-milestone ${isStep4Done ? 'is-completed' : isStep3Done ? 'is-active' : ''}`}>
+                  <div className="milestone-marker">
+                    {isStep4Done ? <i className="ti ti-check"></i> : <i className="ti ti-truck"></i>}
+                  </div>
+                  <div className="milestone-content">
+                    <div className="milestone-head">
+                      <span className="milestone-title">Đang giao hàng (GHN Express)</span>
+                      <span className="milestone-time">{isStep4Done ? 'Đang lưu kho trung chuyển' : '—'}</span>
+                    </div>
+                    <p className="milestone-desc">Tài xế giao nhận GHN đang trên lộ trình chuyển phát đến địa chỉ nhận.</p>
+                  </div>
+                </div>
+
+                {/* Milestone 5: Delivered */}
+                <div className={`timeline-milestone ${isStep5Done ? 'is-completed' : ''}`}>
+                  <div className="milestone-marker">
+                    <i className="ti ti-circle-check"></i>
+                  </div>
+                  <div className="milestone-content">
+                    <div className="milestone-head">
+                      <span className="milestone-title">Giao hàng thành công</span>
+                      <span className="milestone-time">{isStep5Done ? updatedDate : 'Dự kiến 2-3 ngày'}</span>
+                    </div>
+                    <p className="milestone-desc">Kiện hàng đã được giao tận tay quý khách.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* Product Items List Card */}
+          <section className="order-detail-section-card">
+            <div className="order-detail-section-header">
+              <div className="section-title-with-icon">
+                <i className="ti ti-shopping-cart"></i>
+                <h2>Sản phẩm trong đơn ({orderItems.length})</h2>
+              </div>
+            </div>
+
+            <div className="order-detail-items-table">
+              {orderItems.map((item) => (
+                <div key={item.id} className="order-detail-item-card">
+                  <img
+                    src={item.product?.images?.[0] || '/images/premium.png'}
+                    alt={item.product?.name || 'Sản phẩm'}
+                    className="order-item-image"
+                    loading="lazy"
+                  />
+                  <div className="order-item-main-info">
+                    <Link
+                      to={`/products/${item.product?.slug || item.productId}`}
+                      className="order-item-title"
+                    >
+                      {item.product?.name || `Sản phẩm #${item.productId}`}
+                    </Link>
+                    <div className="order-item-specs-row">
+                      {item.product?.brand && (
+                        <span className="order-item-badge">{item.product.brand}</span>
+                      )}
+                      <span className="order-item-qty">Số lượng: <strong>{item.quantity}</strong></span>
+                      <span className="order-item-unit-price">Đơn giá: {formatPrice(item.price)}</span>
+                    </div>
+                  </div>
+                  <div className="order-item-total-col">
+                    <span className="item-subtotal-val">{formatPrice(item.price * item.quantity)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
 
-        {/* Stepper (Horizontal desktop, Vertical mobile) */}
-        {!isCancelled && (
-          <>
-            <div className="order-detail-stepper-horizontal">
-              <div className="order-detail-connecting-line">
-                <div
-                  className="order-detail-line-progress"
-                  style={{ width: `${progressPercent}%` }}
-                />
+        {/* ================= RIGHT COLUMN (35% STICKY) ================= */}
+        <div className="order-detail-right-col">
+          {/* Recipient Information Card */}
+          <section className="order-detail-side-card">
+            <div className="side-card-header">
+              <i className="ti ti-map-pin"></i>
+              <h3>Thông tin người nhận</h3>
+            </div>
+            <div className="side-card-body recipient-details">
+              <div className="recipient-row">
+                <span className="recipient-name">
+                  {addressObj?.name || 'Khách hàng GHT'}
+                </span>
+                {addressObj?.phone && (
+                  <span className="recipient-phone">
+                    <i className="ti ti-phone"></i> {addressObj.phone}
+                  </span>
+                )}
+              </div>
+              <p className="recipient-address">
+                {addressObj?.fullAddress || addressObj?.address || 'Địa chỉ giao hàng đang cập nhật'}
+              </p>
+              <div className="delivery-method-pill">
+                <i className="ti ti-shield-check"></i> Giao tận nơi chuẩn hóa (GHN)
+              </div>
+            </div>
+          </section>
+
+          {/* Financial Breakdown Card */}
+          <section className="order-detail-side-card financial-card">
+            <div className="side-card-header">
+              <i className="ti ti-receipt-2"></i>
+              <h3>Tóm tắt thanh toán</h3>
+            </div>
+            <div className="side-card-body financial-body">
+              <div className="fin-row">
+                <span>Tạm tính sản phẩm</span>
+                <span>{formatPrice(order.originalAmount || order.totalPrice)}</span>
               </div>
 
-              {STEPPER_STEPS.map((step, idx) => {
-                const isDone = idx < currentStepIdx;
-                const isCurrent = idx === currentStepIdx;
-                return (
-                  <div
-                    key={step.id}
-                    className={`order-detail-stepper-item ${isDone ? 'is-done' : ''} ${isCurrent ? 'is-current' : ''}`}
-                  >
-                    <div className="order-detail-circle-icon">
-                      {isDone ? <i className="ti ti-check"></i> : step.icon}
-                    </div>
-                    <div className="order-detail-step-labels">
-                      <span className="order-detail-step-name">{step.label}</span>
-                      <span className="order-detail-step-time">
-                        {isCurrent || isDone ? new Date(order.createdAt).toLocaleDateString('vi-VN') : '—'}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+              {order.discount && (
+                <div className="fin-row is-coupon">
+                  <span>
+                    Voucher đã dùng (<strong>{order.discount.code}</strong>)
+                  </span>
+                  <span>– {formatPrice(order.discountAmount)}</span>
+                </div>
+              )}
 
-            {/* Vertical Stepper for Mobile */}
-            <div className="order-detail-stepper-vertical">
-              {STEPPER_STEPS.map((step, idx) => {
-                const isDone = idx < currentStepIdx;
-                const isCurrent = idx === currentStepIdx;
-                return (
-                  <div
-                    key={step.id}
-                    className={`order-detail-vstep ${isDone ? 'is-done' : ''} ${isCurrent ? 'is-current' : ''}`}
-                  >
-                    <div className="order-detail-vicon">
-                      {isDone ? <i className="ti ti-check"></i> : step.icon}
-                    </div>
-                    {idx < STEPPER_STEPS.length - 1 && (
-                      <div className="order-detail-vline" />
-                    )}
-                    <div className="order-detail-vcontent">
-                      <span className="order-detail-vname">{step.label}</span>
-                      <span className="order-detail-vtime">
-                        {isCurrent || isDone ? new Date(order.createdAt).toLocaleDateString('vi-VN') : 'Chờ xử lý'}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-
-        {/* Product Items */}
-        <div className="order-detail-items-section">
-          {orderItems.map((item) => (
-            <div key={item.id} className="order-detail-product-row">
-              <img
-                src={item.product?.images?.[0] || '/images/premium.png'}
-                alt={item.product?.name || 'Sản phẩm'}
-                className="order-detail-product-image"
-              />
-              <div className="order-detail-product-info">
-                <Link
-                  to={`/products/${item.product?.slug || item.productId}`}
-                  className="order-detail-product-name"
-                >
-                  {item.product?.name || `Sản phẩm #${item.productId}`}
-                </Link>
-                <span className="order-detail-product-meta">
-                  {item.product?.brand || 'GHT'} • Số lượng: {item.quantity}
+              <div className="fin-row">
+                <span>Phí vận chuyển</span>
+                <span>
+                  {order.shippingFee > 0 ? formatPrice(order.shippingFee) : 'Miễn phí'}
                 </span>
               </div>
-              <span className="order-detail-product-price">
-                {formatPrice(item.price * item.quantity)}
-              </span>
-            </div>
-          ))}
-        </div>
 
-        {/* 2-Column Bottom: Address + Summary */}
-        <div className="order-detail-bottom-grid">
-          <div className="order-detail-shipping-info-box">
-            <h2 className="order-detail-shipping-title">Địa chỉ nhận hàng</h2>
-            <p>
-              <strong>{addressObj?.name || 'Khách hàng'}</strong> • {addressObj?.phone || ''}
-            </p>
-            <p>{addressObj?.fullAddress || addressObj?.address || 'Địa chỉ đang cập nhật'}</p>
-            <span style={{ fontSize: '12px', color: 'var(--color-accent)', fontWeight: 600, marginTop: '4px' }}>
-              🚚 Vận chuyển: Giao Hàng Nhanh (GHN) • Miễn phí
-            </span>
-          </div>
+              <div className="fin-divider"></div>
 
-          <div className="order-detail-price-summary-box">
-            <div className="order-detail-summary-row">
-              <span>Tổng tiền gốc</span>
-              <span>{formatPrice(order.originalAmount || order.totalPrice)}</span>
-            </div>
-
-            {order.discount && (
-              <div className="order-detail-summary-row is-code">
-                <span>Mã đã áp dụng</span>
-                <span>{order.discount.code}</span>
+              <div className="fin-total-row">
+                <span className="fin-total-label">Tổng thanh toán</span>
+                <span className="fin-total-amount">{formatPrice(order.totalPrice)}</span>
               </div>
-            )}
 
-            {order.discountAmount > 0 && (
-              <div className="order-detail-summary-row is-discount">
-                <span>Đã giảm</span>
-                <span>– {formatPrice(order.discountAmount)}</span>
+              <div className="payment-status-note">
+                <i className={order.isPaid ? 'ti ti-circle-check' : 'ti ti-clock'}></i>
+                <span>
+                  {order.isPaid
+                    ? 'Đã thanh toán chuyển khoản ngân hàng'
+                    : 'Chờ thanh toán chuyển khoản ngân hàng (SePay QR)'}
+                </span>
               </div>
-            )}
-
-            <div className="order-detail-summary-divider" />
-
-            <div className="order-detail-summary-total-row">
-              <span className="order-detail-summary-total-label">Tổng thanh toán</span>
-              <span className="order-detail-summary-total-amount">
-                {formatPrice(order.totalPrice)}
-              </span>
             </div>
+          </section>
 
-            <p className="order-detail-paid-note">
-              {order.isPaid
-                ? 'Đã thanh toán qua chuyển khoản ngân hàng SePay.'
-                : 'Chờ thanh toán qua chuyển khoản ngân hàng.'}
-            </p>
-          </div>
-        </div>
+          {/* Utility Actions Card */}
+          <section className="order-detail-side-card actions-card">
+            <div className="side-card-header">
+              <i className="ti ti-tool"></i>
+              <h3>Tiện ích & Hỗ trợ</h3>
+            </div>
+            <div className="side-card-body side-actions-body">
+              <button
+                type="button"
+                className="btn-side-action"
+                onClick={handleDownloadInvoice}
+                disabled={isDownloadingPdf}
+              >
+                <i className="ti ti-file-text"></i>
+                <span>{isDownloadingPdf ? 'Đang tạo PDF...' : 'Tải hóa đơn điện tử (PDF)'}</span>
+              </button>
 
-        {/* Footer */}
-        <div className="order-detail-footer-actions">
-          <div className="order-detail-support-link">
-            <span>🎧 Cần trợ giúp?</span>
-            <a href="mailto:support@ght.vn">Liên hệ hỗ trợ GHT</a>
-          </div>
+              <button
+                type="button"
+                className="btn-side-action is-ai"
+                onClick={handleOpenAiSupport}
+              >
+                <i className="ti ti-sparkles"></i>
+                <span>Cần hỗ trợ đơn này (AI Chatbot)</span>
+              </button>
 
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <Link to="/orders" className="btn-ghost">
-              ← Quay lại danh sách
-            </Link>
-            {order.status === 'PENDING_PAYMENT' && (
-              <Link to={`/payment/${order.id}`} className="btn-primary">
-                Tiến hành thanh toán ngay
+              <Link to="/orders" className="btn-side-action is-back">
+                <i className="ti ti-arrow-left"></i>
+                <span>Quay lại lịch sử đơn hàng</span>
               </Link>
-            )}
-          </div>
+            </div>
+          </section>
         </div>
-      </section>
+      </div>
+
+      {/* Modal hủy đơn hàng chuẩn sàn */}
+      <CancelOrderModal
+        isOpen={isCancelModalOpen}
+        order={order}
+        isSubmitting={isCancelling}
+        onConfirm={handleConfirmCancel}
+        onCancel={() => setIsCancelModalOpen(false)}
+      />
     </div>
   );
 };

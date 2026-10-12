@@ -35,7 +35,7 @@ const Checkout = () => {
 
   // Options State
   const [shippingMethod] = useState('ghn'); // GHN standard
-  const [paymentMethod] = useState('sepay'); // SePay QR
+  const [paymentMethod, setPaymentMethod] = useState('sepay'); // 'sepay' | 'cod'
   const [orderNote, setOrderNote] = useState('');
 
   // Discount & Fees State
@@ -81,15 +81,51 @@ const Checkout = () => {
     loadProvinces();
   }, []);
 
-  // Pre-fill user data
+  // Pre-fill user data & default shipping address
   useEffect(() => {
     if (user) {
+      const def = user.defaultAddress || {};
       setAddress((prev) => ({
         ...prev,
-        name: prev.name || user.name || '',
-        phone: prev.phone || user.phone || '',
-        email: prev.email || user.email || ''
+        name: prev.name || def.name || user.name || '',
+        phone: prev.phone || def.phone || user.phone || '',
+        email: prev.email || user.email || '',
+        provinceId: prev.provinceId || def.provinceId || '',
+        provinceName: prev.provinceName || def.provinceName || '',
+        districtId: prev.districtId || def.districtId || '',
+        districtName: prev.districtName || def.districtName || '',
+        wardCode: prev.wardCode || def.wardCode || '',
+        wardName: prev.wardName || def.wardName || '',
+        address: prev.address || def.address || ''
       }));
+
+      if (def.provinceId) {
+        axiosClient
+          .get(`/shipping/districts/${def.provinceId}`)
+          .then((res) => setDistricts(res.data?.data || []))
+          .catch(() => {});
+      }
+      if (def.districtId) {
+        axiosClient
+          .get(`/shipping/wards/${def.districtId}`)
+          .then((res) => setWards(res.data?.data || []))
+          .catch(() => {});
+      }
+      if (def.districtId && def.wardCode) {
+        axiosClient
+          .post('/shipping/fee', {
+            provinceId: Number(def.provinceId),
+            districtId: Number(def.districtId),
+            wardCode: def.wardCode,
+            weight: 1000
+          })
+          .then((res) => {
+            setShippingFee(originalAmount >= 5000000 ? 0 : res.data?.fee || 30000);
+          })
+          .catch(() => {
+            setShippingFee(originalAmount >= 5000000 ? 0 : 30000);
+          });
+      }
     }
   }, [user]);
 
@@ -269,22 +305,27 @@ const Checkout = () => {
         shippingFee,
         orderNote,
         shippingMethod,
-        paymentMethod
+        paymentMethod: paymentMethod === 'cod' ? 'COD' : 'BANK_TRANSFER'
       };
 
       const res = await axiosClient.post('/orders', payload);
       await fetchCart();
 
-      // Set order data to display QR Payment modal
+      const newOrderId = res.data.orderId || res.data.order?.id;
       const newOrder = res.data.order || {
-        id: res.data.orderId,
+        id: newOrderId,
         totalPrice,
-        paymentExpiredAt: new Date(Date.now() + 15 * 60 * 1000).toISOString()
+        paymentExpiredAt: res.data.paymentExpiredAt || new Date(Date.now() + 15 * 60 * 1000).toISOString()
       };
 
-      setCreatedOrder(newOrder);
-      setShowQrModal(true);
-      toast.success(`Đặt hàng thành công! Mã đơn: #GHT${newOrder.id}`);
+      if (paymentMethod === 'cod') {
+        toast.success(`Đặt hàng thành công! Đơn hàng COD #GHT${newOrderId} đang được xử lý đóng gói.`);
+        navigate(`/orders/${newOrderId}`);
+      } else {
+        setCreatedOrder(newOrder);
+        setShowQrModal(true);
+        toast.success(`Đặt hàng thành công! Mã đơn: #GHT${newOrderId}`);
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi tạo đơn hàng');
     } finally {
@@ -496,52 +537,100 @@ const Checkout = () => {
           </section>
 
           {/* Section 2: Vận chuyển & thanh toán */}
+          {/* Section 2: Vận chuyển & thanh toán */}
           <section className="checkout-section-card">
             <div className="checkout-section-header">
               <h2 className="checkout-section-title">2. Vận chuyển & thanh toán</h2>
             </div>
 
-            {/* Shipping option: GHN */}
-            <div className="checkout-radio-option-card is-selected">
-              <input
-                type="radio"
-                name="shippingMethod"
-                className="checkout-radio-input"
-                checked={shippingMethod === 'ghn'}
-                readOnly
-              />
-              <div className="checkout-radio-content">
-                <div className="checkout-radio-title-row">
-                  <span className="checkout-radio-name">
-                    🚚 Giao Hàng Nhanh (GHN)
-                  </span>
-                  <span className="checkout-badge-free">Miễn phí</span>
+            {/* KHỐI TRÊN: Phương thức thanh toán (Radio group chọn 1 trong 2) */}
+            <div className="checkout-sub-section">
+              <h3 className="checkout-sub-title">
+                <i className="ti ti-wallet"></i> Phương thức thanh toán
+              </h3>
+
+              <div className="checkout-methods-group">
+                {/* Option 1: SePay QR */}
+                <div
+                  className={`checkout-radio-option-card ${paymentMethod === 'sepay' ? 'is-selected' : ''}`}
+                  onClick={() => setPaymentMethod('sepay')}
+                >
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    className="checkout-radio-input"
+                    checked={paymentMethod === 'sepay'}
+                    onChange={() => setPaymentMethod('sepay')}
+                  />
+                  <div className="checkout-radio-content">
+                    <div className="checkout-radio-title-row">
+                      <span className="checkout-radio-name">
+                        🏦 Chuyển khoản ngân hàng qua QR (SePay)
+                      </span>
+                      <span className="checkout-badge-method">SePay QR</span>
+                    </div>
+                    <p className="checkout-radio-sub">
+                      Quét mã QR qua app ngân hàng, chuyển đúng số tiền và nội dung đơn hàng để kích hoạt tự động.
+                    </p>
+                  </div>
                 </div>
-                <p className="checkout-radio-sub">
-                  Dự kiến nhận sau 2–3 ngày làm việc • Giao hàng tận nhà toàn quốc
-                </p>
+
+                {/* Option 2: COD Tiền mặt */}
+                <div
+                  className={`checkout-radio-option-card ${paymentMethod === 'cod' ? 'is-selected' : ''}`}
+                  onClick={() => setPaymentMethod('cod')}
+                >
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    className="checkout-radio-input"
+                    checked={paymentMethod === 'cod'}
+                    onChange={() => setPaymentMethod('cod')}
+                  />
+                  <div className="checkout-radio-content">
+                    <div className="checkout-radio-title-row">
+                      <span className="checkout-radio-name">
+                        💵 Thanh toán bằng tiền mặt khi nhận hàng (COD)
+                      </span>
+                      <span className="checkout-badge-cod">Tiền mặt</span>
+                    </div>
+                    <p className="checkout-radio-sub">
+                      Thanh toán tiền mặt trực tiếp cho nhân viên giao hàng khi nhận máy.
+                    </p>
+                    <div className="checkout-cod-notice-box">
+                      <i className="ti ti-info-circle"></i>
+                      <span>
+                        Với đơn hàng công nghệ giá trị cao (từ 5.000.000đ trở lên), nhân viên sẽ liên hệ hướng dẫn quý khách đặt cọc trước 200.000đ – 500.000đ qua mã QR để kích hoạt giao hàng, số tiền còn lại thanh toán cho shipper khi nhận máy.
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Payment option: SePay QR */}
-            <div className="checkout-radio-option-card is-selected">
-              <input
-                type="radio"
-                name="paymentMethod"
-                className="checkout-radio-input"
-                checked={paymentMethod === 'sepay'}
-                readOnly
-              />
-              <div className="checkout-radio-content">
-                <div className="checkout-radio-title-row">
-                  <span className="checkout-radio-name">
-                    🏦 Chuyển khoản ngân hàng qua QR
-                  </span>
-                  <span className="checkout-badge-method">SePay</span>
+            {/* KHỐI DƯỚI: Đơn vị vận chuyển (GHN Express) */}
+            <div className="checkout-sub-section">
+              <h3 className="checkout-sub-title">
+                <i className="ti ti-truck-delivery"></i> Đơn vị vận chuyển
+              </h3>
+
+              <div className="checkout-radio-option-card is-selected is-shipping-fixed">
+                <div className="checkout-shipping-icon-dot">
+                  <i className="ti ti-check"></i>
                 </div>
-                <p className="checkout-radio-sub">
-                  Quét mã QR qua app ngân hàng, chuyển đúng số tiền và nội dung đơn hàng để kích hoạt tự động.
-                </p>
+                <div className="checkout-radio-content">
+                  <div className="checkout-radio-title-row">
+                    <span className="checkout-radio-name">
+                      🚚 Giao Hàng Nhanh (GHN Express)
+                    </span>
+                    <span className="checkout-badge-free">
+                      {shippingFee > 0 ? formatPrice(shippingFee) : 'Miễn phí'}
+                    </span>
+                  </div>
+                  <p className="checkout-radio-sub">
+                    Dự kiến nhận sau 2–3 ngày làm việc • Giao hàng tận nhà toàn quốc • Bảo hiểm 100% hàng hóa
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -558,7 +647,9 @@ const Checkout = () => {
             </div>
 
             <p className="checkout-section-note">
-              Trạng thái thanh toán chỉ được cập nhật sau khi giao dịch chuyển khoản được ngân hàng xác nhận.
+              {paymentMethod === 'sepay'
+                ? 'Trạng thái thanh toán chỉ được cập nhật sau khi giao dịch chuyển khoản được ngân hàng xác nhận.'
+                : 'Đơn hàng COD sẽ được nhân viên GHT xác nhận và đóng gói chuyển phát sớm nhất.'}
             </p>
           </section>
         </div>

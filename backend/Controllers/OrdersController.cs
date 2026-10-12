@@ -119,6 +119,25 @@ public class OrdersController : ControllerBase
         return Created($"/api/orders/{order.Id}", new { orderId = order.Id, totalPrice = order.TotalPrice, paymentExpiredAt = order.PaymentExpiredAt });
     }
 
+    [Authorize(Roles = "Admin,Staff")]
+    [HttpGet]
+    public async Task<IActionResult> GetAllOrders([FromQuery] string? status)
+    {
+        var query = _context.Orders
+            .Include(o => o.User)
+            .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
+            .Include(o => o.Discount)
+            .AsQueryable();
+
+        if (!string.IsNullOrEmpty(status) && status != "ALL")
+        {
+            query = query.Where(o => o.Status == status);
+        }
+
+        var orders = await query.OrderByDescending(o => o.CreatedAt).ToListAsync();
+        return Ok(orders);
+    }
+
     [Authorize]
     [HttpGet("myorders")]
     public async Task<IActionResult> GetMyOrders()
@@ -186,6 +205,25 @@ public class OrdersController : ControllerBase
         await _context.SaveChangesAsync();
 
         return Ok(new { status = "PENDING_REVIEW" });
+    }
+
+    [Authorize(Roles = "Admin,Staff")]
+    [HttpPut("{id}/status")]
+    public async Task<IActionResult> UpdateOrderStatus(int id, [FromBody] UpdateOrderStatusRequest req)
+    {
+        var order = await _context.Orders.FindAsync(id);
+        if (order == null) return NotFound();
+
+        order.Status = req.Status;
+        if (req.Status == "PAID")
+        {
+            order.IsPaid = true;
+            order.PaidAt = DateTime.UtcNow;
+        }
+        order.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return Ok(new { status = order.Status });
     }
 
     [HttpPost("webhook/sepay")]

@@ -32,6 +32,9 @@ const AdminLayout = () => {
           <Link to="/admin/discounts" className={`admin-nav-item ${isActive('/admin/discounts')}`}>
             <span className="ti-ticket"></span> Mã giảm giá
           </Link>
+          <Link to="/staff/orders" className={`admin-nav-item ${isActive('/staff/orders')}`}>
+            <span className="ti-truck"></span> Vận hành đơn hàng
+          </Link>
         </nav>
         
         <div className="admin-user">

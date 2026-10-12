@@ -45,3 +45,9 @@ public class SePayWebhookRequest
     public string content { get; set; } = string.Empty;
     public string referenceCode { get; set; } = string.Empty;
 }
+
+public class UpdateOrderStatusRequest
+{
+    [Required]
+    public string Status { get; set; } = string.Empty;
+}

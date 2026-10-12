@@ -18,6 +18,7 @@ import Payment from './pages/checkout/Payment';
 import FloatingChatbot from './components/chat/FloatingChatbot';
 import OrderHistory from './pages/orders/OrderHistory';
 import OrderDetail from './pages/orders/OrderDetail';
+import StaffOrders from './pages/staff/StaffOrders';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { ToastProvider } from './components/common/ToastContext';
@@ -47,6 +48,11 @@ function App() {
               <Route path="payment/:orderId" element={<Payment />} />
               <Route path="orders" element={<OrderHistory />} />
               <Route path="orders/:id" element={<OrderDetail />} />
+            </Route>
+
+            {/* Staff Operations Route */}
+            <Route element={<ProtectedRoute allowedRoles={['Admin', 'Staff']} />}>
+              <Route path="staff/orders" element={<StaffOrders />} />
             </Route>
 
             {/* Fallback */}

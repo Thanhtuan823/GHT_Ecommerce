@@ -147,7 +147,7 @@ const Navbar = () => {
                     </Link>
                   )}
 
-                  {user.role === 'Staff' && (
+                  {(user.role === 'Staff' || user.role === 'Admin') && (
                     <Link
                       to="/staff/orders"
                       className="user-dropdown-item"

@@ -60,9 +60,27 @@ const Cart = () => {
     navigate('/checkout');
   };
 
-  const handleCopyCode = () => {
-    navigator.clipboard?.writeText('GHTSALE10');
-    toast.success('Đã sao chép mã ưu đãi GHTSALE10!');
+  const handleCopyCode = async () => {
+    const code = 'GHTSALE10';
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(code);
+      } else {
+        // Fallback cho HTTP hoặc IP local
+        const textarea = document.createElement('textarea');
+        textarea.value = code;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      toast.success('Đã sao chép mã GHTSALE10!');
+    } catch {
+      toast.error('Không thể sao chép, vui lòng copy thủ công: GHTSALE10');
+    }
   };
 
   const formatPrice = (val) => `${new Intl.NumberFormat('vi-VN').format(val || 0)}đ`;
@@ -77,7 +95,7 @@ const Cart = () => {
         </nav>
 
         <div className="cart-empty-state">
-          <div className="cart-empty-icon">🛒</div>
+          <div className="cart-empty-icon"><i className="ti ti-shopping-cart"></i></div>
           <h2 className="cart-empty-title">Giỏ hàng của bạn đang trống</h2>
           <p className="cart-empty-desc">
             Khám phá các thiết bị công nghệ chính hãng và thêm sản phẩm yêu thích vào giỏ hàng.
@@ -266,7 +284,7 @@ const Cart = () => {
           </p>
 
           <div className="cart-trust-note">
-            <span>🔒</span>
+            <i className="ti ti-lock"></i>
             <span>Thanh toán bảo mật qua chuyển khoản ngân hàng.</span>
           </div>
         </aside>
@@ -277,7 +295,7 @@ const Cart = () => {
         {/* Section: Mua sắm an tâm */}
         <section className="cart-trust-box-section">
           <div className="cart-trust-box-header">
-            <span>🛡️</span>
+            <i className="ti ti-shield-check"></i>
             <span>Mua sắm an tâm cùng GHT</span>
           </div>
           <p className="cart-trust-box-desc">
@@ -300,7 +318,7 @@ const Cart = () => {
             className="btn-ghost"
             onClick={handleCopyCode}
           >
-            📋 Sao chép mã
+            <i className="ti ti-copy"></i> Sao chép mã
           </button>
         </section>
       </div>

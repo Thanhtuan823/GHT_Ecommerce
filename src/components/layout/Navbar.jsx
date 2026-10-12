@@ -52,14 +52,14 @@ const Navbar = () => {
             <span>GHT_Ecom</span>
           </Link>
           <Link to="/products" className="navbar-category-btn">
-            <span>≡</span>
+            <i className="ti ti-layout-grid"></i>
             <span>Danh mục</span>
           </Link>
         </div>
 
         {/* Center: Search Bar */}
         <form className="navbar-search-form" onSubmit={handleSearchSubmit}>
-          <span className="navbar-search-icon">🔍</span>
+          <i className="ti ti-search navbar-search-icon"></i>
           <input
             type="text"
             className="navbar-search-input"
@@ -73,7 +73,7 @@ const Navbar = () => {
         <div className="navbar-actions">
           {/* Wishlist */}
           <Link to="/wishlist" className="navbar-icon-btn" title="Yêu thích">
-            <span>♡</span>
+            <i className="ti ti-heart"></i>
             {wishlist.length > 0 && (
               <span className="navbar-badge">{wishlist.length}</span>
             )}
@@ -81,7 +81,7 @@ const Navbar = () => {
 
           {/* Cart */}
           <Link to="/cart" className="navbar-icon-btn" title="Giỏ hàng">
-            <span>🛒</span>
+            <i className="ti ti-shopping-cart"></i>
             {cartCount > 0 && (
               <span className="navbar-badge">{cartCount}</span>
             )}
@@ -108,7 +108,7 @@ const Navbar = () => {
                   )}
                 </div>
                 <span className="user-name-text">{user.name}</span>
-                <span className="user-dropdown-icon">▾</span>
+                <i className="ti ti-chevron-down user-dropdown-icon"></i>
               </button>
 
               {dropdownOpen && (
@@ -123,7 +123,7 @@ const Navbar = () => {
                     className="user-dropdown-item"
                     onClick={() => setDropdownOpen(false)}
                   >
-                    <span>👤</span>
+                    <i className="ti ti-user"></i>
                     <span>Hồ sơ cá nhân</span>
                   </Link>
 
@@ -132,7 +132,7 @@ const Navbar = () => {
                     className="user-dropdown-item"
                     onClick={() => setDropdownOpen(false)}
                   >
-                    <span>📦</span>
+                    <i className="ti ti-package"></i>
                     <span>Đơn hàng của tôi</span>
                   </Link>
 
@@ -142,7 +142,7 @@ const Navbar = () => {
                       className="user-dropdown-item"
                       onClick={() => setDropdownOpen(false)}
                     >
-                      <span>⚙️</span>
+                      <i className="ti ti-settings"></i>
                       <span>Quản trị ({user.role})</span>
                     </Link>
                   )}
@@ -153,7 +153,7 @@ const Navbar = () => {
                       className="user-dropdown-item"
                       onClick={() => setDropdownOpen(false)}
                     >
-                      <span>📋</span>
+                      <i className="ti ti-clipboard-list"></i>
                       <span>Vận hành đơn hàng</span>
                     </Link>
                   )}
@@ -168,7 +168,7 @@ const Navbar = () => {
                       logout();
                     }}
                   >
-                    <span>🚪</span>
+                    <i className="ti ti-logout"></i>
                     <span>Đăng xuất</span>
                   </button>
                 </div>
@@ -178,7 +178,7 @@ const Navbar = () => {
 
           {/* Language Toggle */}
           <button type="button" className="lang-toggle-btn">
-            VI/EN
+            <i className="ti ti-world"></i> VI/EN
           </button>
         </div>
       </div>

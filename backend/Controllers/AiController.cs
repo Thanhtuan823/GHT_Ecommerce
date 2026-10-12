@@ -10,10 +10,12 @@ namespace GhtBackend.Controllers
     public class AiController : ControllerBase
     {
         private readonly AiService _aiService;
+        private readonly ILogger<AiController> _logger;
 
-        public AiController(AiService aiService)
+        public AiController(AiService aiService, ILogger<AiController> logger)
         {
             _aiService = aiService;
+            _logger = logger;
         }
 
         [HttpPost("chat")]
@@ -27,10 +29,10 @@ namespace GhtBackend.Controllers
                 var reply = await _aiService.ProcessChatAsync(request, role);
                 return Ok(new { reply });
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Timeout hoặc lỗi API Gemini
-                return StatusCode(503, new { message = "Trợ lý tạm thời không khả dụng, thử lại sau" });
+                _logger.LogError(ex, "Chatbot error: {msg}", ex.Message);
+                return StatusCode(503, new { message = "Trợ lý tạm thời không khả dụng, thử lại sau", detail = ex.Message });
             }
         }
     }

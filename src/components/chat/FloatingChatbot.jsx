@@ -64,7 +64,7 @@ const FloatingChatbot = () => {
           {/* Header */}
           <div className="chatbot-header">
             <div className="chatbot-header-title">
-              <span className="chatbot-title-main">✦ Trợ lý GHT</span>
+              <span className="chatbot-title-main"><i className="ti ti-sparkles"></i> Trợ lý GHT</span>
               <span className="chatbot-title-sub">Tư vấn chọn sản phẩm</span>
             </div>
             <div className="chatbot-header-actions">
@@ -124,7 +124,7 @@ const FloatingChatbot = () => {
               disabled={!input.trim() || isTyping}
               title="Gửi"
             >
-              ➤
+              <i className="ti ti-send"></i>
             </button>
           </form>
         </div>
@@ -137,7 +137,7 @@ const FloatingChatbot = () => {
         onClick={() => setIsOpen(!isOpen)}
         title="Trợ lý AI"
       >
-        {isOpen ? '✕' : '✦'}
+        {isOpen ? <i className="ti ti-x"></i> : <i className="ti ti-sparkles"></i>}
       </button>
     </div>
   );

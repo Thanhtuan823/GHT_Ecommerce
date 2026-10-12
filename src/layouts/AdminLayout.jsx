@@ -18,22 +18,22 @@ const AdminLayout = () => {
     <div className="admin-layout">
       <aside className="admin-sidebar">
         <div className="admin-brand">
-          <span className="ti-crown" style={{ marginRight: '8px', color: 'var(--color-accent)', fontSize: '20px' }}></span>
+          <i className="ti ti-crown" style={{ marginRight: '8px', color: 'var(--color-accent)', fontSize: '20px' }}></i>
           <span style={{ fontWeight: 'bold' }}>GHT Admin</span>
         </div>
         
         <nav className="admin-nav">
           <Link to="/admin/dashboard" className={`admin-nav-item ${isActive('/admin/dashboard')}`}>
-            <span className="ti-bar-chart"></span> Dashboard
+            <i className="ti ti-chart-bar"></i> Dashboard
           </Link>
           <Link to="/admin/products" className={`admin-nav-item ${isActive('/admin/products')}`}>
-            <span className="ti-package"></span> Sản phẩm
+            <i className="ti ti-package"></i> Sản phẩm
           </Link>
           <Link to="/admin/discounts" className={`admin-nav-item ${isActive('/admin/discounts')}`}>
-            <span className="ti-ticket"></span> Mã giảm giá
+            <i className="ti ti-ticket"></i> Mã giảm giá
           </Link>
           <Link to="/staff/orders" className={`admin-nav-item ${isActive('/staff/orders')}`}>
-            <span className="ti-truck"></span> Vận hành đơn hàng
+            <i className="ti ti-truck"></i> Vận hành đơn hàng
           </Link>
         </nav>
         

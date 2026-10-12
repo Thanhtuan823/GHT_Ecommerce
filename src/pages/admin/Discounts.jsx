@@ -176,9 +176,25 @@ export default function AdminDiscounts() {
   };
 
   // Copy code to clipboard
-  const handleCopyCode = (code) => {
-    navigator.clipboard?.writeText(code);
-    showToast(`Đã sao chép mã "${code}" vào bộ nhớ tạm`, 'success');
+  const handleCopyCode = async (code) => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(code);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = code;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      showToast(`Đã sao chép mã "${code}" vào bộ nhớ tạm`, 'success');
+    } catch {
+      showToast(`Không thể sao chép, mã: ${code}`, 'error');
+    }
   };
 
   // Toggle active status
@@ -461,7 +477,7 @@ export default function AdminDiscounts() {
       {/* 3. Filter Bar */}
       <div className="discounts-filter-bar">
         <div className="discounts-search-box">
-          <span className="discounts-search-icon">🔍</span>
+          <i className="ti ti-search discounts-search-icon"></i>
           <input
             type="text"
             className="discounts-search-input"
@@ -535,7 +551,7 @@ export default function AdminDiscounts() {
                             title="Sao chép mã"
                             onClick={() => handleCopyCode(d.code)}
                           >
-                            📋
+                            <i className="ti ti-copy"></i>
                           </button>
                         </div>
                       </td>
@@ -1073,7 +1089,7 @@ export default function AdminDiscounts() {
 
                     {/* Readonly preview thay thế */}
                     <div className="discount-preview-box">
-                      <strong>🔍 Xem trước các điều kiện thay thế:</strong>
+                      <strong><i className="ti ti-eye"></i> Xem trước các điều kiện thay thế:</strong>
                       <br />
                       {formData.conditions === 'ALL' && 'Áp dụng cho mọi nhóm sản phẩm trên toàn cửa hàng.'}
                       {formData.conditions === 'CATEGORY' &&

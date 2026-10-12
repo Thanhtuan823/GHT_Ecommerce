@@ -417,7 +417,7 @@ const ProductList = () => {
               </>
             ) : (
               <div className="empty-state">
-                <div className="empty-state-icon">🔍</div>
+                <div className="empty-state-icon"><i className="ti ti-search"></i></div>
                 <h3 className="empty-state-title">Không tìm thấy sản phẩm phù hợp</h3>
                 <p className="empty-state-desc">
                   Thử từ khóa khác hoặc xóa bớt tiêu chí trong bộ lọc.

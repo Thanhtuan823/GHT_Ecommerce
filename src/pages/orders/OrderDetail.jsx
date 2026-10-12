@@ -6,11 +6,11 @@ import { useToast } from '../../components/common/ToastContext';
 import './OrderDetail.css';
 
 const STEPPER_STEPS = [
-  { id: 'placed', label: 'Đã đặt hàng', icon: '✓' },
-  { id: 'paid', label: 'Đã thanh toán', icon: '💳' },
-  { id: 'processing', label: 'Đang xử lý', icon: '⚙️' },
-  { id: 'shipping', label: 'Đang giao', icon: '🚚' },
-  { id: 'completed', label: 'Hoàn thành', icon: '★' }
+  { id: 'placed', label: 'Đã đặt hàng', icon: <i className="ti ti-check"></i> },
+  { id: 'paid', label: 'Đã thanh toán', icon: <i className="ti ti-credit-card"></i> },
+  { id: 'processing', label: 'Đang xử lý', icon: <i className="ti ti-settings"></i> },
+  { id: 'shipping', label: 'Đang giao', icon: <i className="ti ti-truck"></i> },
+  { id: 'completed', label: 'Hoàn thành', icon: <i className="ti ti-star"></i> }
 ];
 
 const getStepIndex = (status) => {
@@ -176,7 +176,7 @@ const OrderDetail = () => {
                     className={`order-detail-stepper-item ${isDone ? 'is-done' : ''} ${isCurrent ? 'is-current' : ''}`}
                   >
                     <div className="order-detail-circle-icon">
-                      {isDone ? '✓' : step.icon}
+                      {isDone ? <i className="ti ti-check"></i> : step.icon}
                     </div>
                     <div className="order-detail-step-labels">
                       <span className="order-detail-step-name">{step.label}</span>
@@ -200,7 +200,7 @@ const OrderDetail = () => {
                     className={`order-detail-vstep ${isDone ? 'is-done' : ''} ${isCurrent ? 'is-current' : ''}`}
                   >
                     <div className="order-detail-vicon">
-                      {isDone ? '✓' : step.icon}
+                      {isDone ? <i className="ti ti-check"></i> : step.icon}
                     </div>
                     {idx < STEPPER_STEPS.length - 1 && (
                       <div className="order-detail-vline" />

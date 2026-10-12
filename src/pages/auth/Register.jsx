@@ -120,7 +120,7 @@ const Register = () => {
 
           <div className="auth-trust-box">
             <div className="auth-trust-header">
-              <span className="auth-trust-icon">🛡️</span>
+              <i className="ti ti-shield-check auth-trust-icon"></i>
               <span>An toàn & riêng tư</span>
             </div>
             <p className="auth-trust-desc">

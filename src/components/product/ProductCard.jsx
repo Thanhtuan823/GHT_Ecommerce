@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom';
 import { useWishlist } from '../../context/WishlistContext';
+import { useToast } from '../common/ToastContext';
 import './ProductCard.css';
 
 const ProductCard = ({ product }) => {
   const { wishlist, toggleWishlist } = useWishlist();
+  const toast = useToast();
   
   if (!product) return null;
 
@@ -45,10 +47,15 @@ const ProductCard = ({ product }) => {
     return 'Chính hãng • Bảo hành 24 tháng';
   };
 
-  const handleWishlistClick = (e) => {
+  const handleWishlistClick = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    toggleWishlist(product);
+    const wishlisted = await toggleWishlist(product);
+    if (wishlisted) {
+      toast.success(`Đã thêm "${product.name}" vào yêu thích`);
+    } else {
+      toast.info(`Đã xóa "${product.name}" khỏi yêu thích`);
+    }
   };
 
   const productUrl = `/products/${product.slug || product.id}`;
@@ -102,7 +109,7 @@ const ProductCard = ({ product }) => {
             aria-label={isWishlisted ? "Bỏ yêu thích" : "Thêm vào yêu thích"}
             title={isWishlisted ? "Bỏ yêu thích" : "Thêm vào yêu thích"}
           >
-            {isWishlisted ? '♥' : '♡'}
+            {isWishlisted ? <i className="ti ti-heart-filled"></i> : <i className="ti ti-heart"></i>}
           </button>
         </div>
 
@@ -111,7 +118,7 @@ const ProductCard = ({ product }) => {
             {isOutOfStock ? 'Tạm hết hàng' : 'Còn hàng • Giao nhanh'}
           </span>
           <span className="product-card-rating">
-            ⭐ {rating} ({reviewCount})
+            <i className="ti ti-star-filled" style={{color:'#F59E0B'}}></i> {rating} ({reviewCount})
           </span>
         </div>
       </div>

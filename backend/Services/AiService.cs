@@ -70,12 +70,21 @@ namespace GhtBackend.Services
             for (int i = 0; i < maxIterations; i++)
             {
                 var content = new StringContent(requestBody.ToJsonString(), Encoding.UTF8, "application/json");
-                var response = await _httpClient.PostAsync($"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={apiKey}", content);
+                var model = _config["Gemini:Model"] ?? "gemini-flash-lite-latest";
+                var response = await _httpClient.PostAsync($"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}", content);
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger.LogError("Gemini API error: {0}", await response.Content.ReadAsStringAsync());
-                    throw new Exception("Gemini API Error");
+                    var errBody = await response.Content.ReadAsStringAsync();
+                    _logger.LogWarning("Gemini model {Model} failed: {Err}. Trying fallback model gemini-flash-latest...", model, errBody);
+                    var fallbackModel = model == "gemini-flash-lite-latest" ? "gemini-flash-latest" : "gemini-flash-lite-latest";
+                    response = await _httpClient.PostAsync($"https://generativelanguage.googleapis.com/v1beta/models/{fallbackModel}:generateContent?key={apiKey}", content);
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var finalErr = await response.Content.ReadAsStringAsync();
+                        _logger.LogError("Gemini API error: {0}", finalErr);
+                        throw new Exception($"Gemini API Error: {finalErr}");
+                    }
                 }
 
                 var responseJson = JsonNode.Parse(await response.Content.ReadAsStringAsync());
@@ -98,10 +107,7 @@ namespace GhtBackend.Services
                         ["role"] = "model",
                         ["parts"] = new JsonArray
                         {
-                            new JsonObject
-                            {
-                                ["functionCall"] = functionCall?.DeepClone()
-                            }
+                            firstPart.DeepClone()
                         }
                     });
 
@@ -212,10 +218,10 @@ namespace GhtBackend.Services
                     ["description"] = "Tìm kiếm sản phẩm theo từ khóa",
                     ["parameters"] = new JsonObject
                     {
-                        ["type"] = "OBJECT",
+                        ["type"] = "object",
                         ["properties"] = new JsonObject
                         {
-                            ["keyword"] = new JsonObject { ["type"] = "STRING", ["description"] = "Từ khóa tìm kiếm" }
+                            ["keyword"] = new JsonObject { ["type"] = "string", ["description"] = "Từ khóa tìm kiếm" }
                         },
                         ["required"] = new JsonArray { "keyword" }
                     }
@@ -226,11 +232,11 @@ namespace GhtBackend.Services
                     ["description"] = "So sánh 2 sản phẩm",
                     ["parameters"] = new JsonObject
                     {
-                        ["type"] = "OBJECT",
+                        ["type"] = "object",
                         ["properties"] = new JsonObject
                         {
-                            ["productId1"] = new JsonObject { ["type"] = "INTEGER" },
-                            ["productId2"] = new JsonObject { ["type"] = "INTEGER" }
+                            ["productId1"] = new JsonObject { ["type"] = "integer" },
+                            ["productId2"] = new JsonObject { ["type"] = "integer" }
                         },
                         ["required"] = new JsonArray { "productId1", "productId2" }
                     }
@@ -241,24 +247,23 @@ namespace GhtBackend.Services
                     ["description"] = "Đề xuất sản phẩm bán chạy nhất",
                     ["parameters"] = new JsonObject
                     {
-                        ["type"] = "OBJECT",
-                        ["properties"] = new JsonObject()
+                        ["type"] = "object"
                     }
                 }
             };
 
             var staffTools = new JsonArray
             {
-                new JsonObject { ["name"] = "findProductsMissingImages", ["description"] = "Tìm sản phẩm thiếu ảnh", ["parameters"] = new JsonObject { ["type"] = "OBJECT", ["properties"] = new JsonObject() } },
-                new JsonObject { ["name"] = "findProductsMissingSpecifications", ["description"] = "Tìm sản phẩm thiếu thông số", ["parameters"] = new JsonObject { ["type"] = "OBJECT", ["properties"] = new JsonObject() } },
-                new JsonObject { ["name"] = "findProductsMissingTags", ["description"] = "Tìm sản phẩm thiếu tags", ["parameters"] = new JsonObject { ["type"] = "OBJECT", ["properties"] = new JsonObject() } }
+                new JsonObject { ["name"] = "findProductsMissingImages", ["description"] = "Tìm sản phẩm thiếu ảnh", ["parameters"] = new JsonObject { ["type"] = "object" } },
+                new JsonObject { ["name"] = "findProductsMissingSpecifications", ["description"] = "Tìm sản phẩm thiếu thông số", ["parameters"] = new JsonObject { ["type"] = "object" } },
+                new JsonObject { ["name"] = "findProductsMissingTags", ["description"] = "Tìm sản phẩm thiếu tags", ["parameters"] = new JsonObject { ["type"] = "object" } }
             };
 
             var adminTools = new JsonArray
             {
-                new JsonObject { ["name"] = "getRevenueReport", ["description"] = "Báo cáo doanh thu", ["parameters"] = new JsonObject { ["type"] = "OBJECT", ["properties"] = new JsonObject() } },
-                new JsonObject { ["name"] = "getSalesSummary", ["description"] = "Tổng quan bán hàng", ["parameters"] = new JsonObject { ["type"] = "OBJECT", ["properties"] = new JsonObject() } },
-                new JsonObject { ["name"] = "exportRevenueExcel", ["description"] = "Xuất Excel doanh thu", ["parameters"] = new JsonObject { ["type"] = "OBJECT", ["properties"] = new JsonObject() } }
+                new JsonObject { ["name"] = "getRevenueReport", ["description"] = "Báo cáo doanh thu", ["parameters"] = new JsonObject { ["type"] = "object" } },
+                new JsonObject { ["name"] = "getSalesSummary", ["description"] = "Tổng quan bán hàng", ["parameters"] = new JsonObject { ["type"] = "object" } },
+                new JsonObject { ["name"] = "exportRevenueExcel", ["description"] = "Xuất Excel doanh thu", ["parameters"] = new JsonObject { ["type"] = "object" } }
             };
 
             var tools = new JsonArray();

@@ -175,6 +175,15 @@ const ProductDetail = () => {
     }
   };
 
+  const handleWishlistClick = async () => {
+    const wishlisted = await toggleWishlist(product);
+    if (wishlisted) {
+      toast.success(`Đã thêm "${product.name}" vào yêu thích`);
+    } else {
+      toast.info(`Đã xóa "${product.name}" khỏi yêu thích`);
+    }
+  };
+
   const handleSubmitReview = async (e) => {
     e.preventDefault();
     if (!reviewComment.trim()) {
@@ -268,7 +277,7 @@ const ProductDetail = () => {
           {/* Rating + Tồn kho cùng dòng (space-between) */}
           <div className="product-rating-stock-row">
             <div className="product-rating-info">
-              <span className="product-rating-star">⭐</span>
+              <i className="ti ti-star-filled" style={{ color: '#F59E0B' }}></i>
               <span>
                 {data.avgRating ? data.avgRating.toFixed(1) : '5.0'} / 5 • {data.reviewCount || 0} đánh giá
               </span>
@@ -376,7 +385,7 @@ const ProductDetail = () => {
               disabled={inStock <= 0 || isAddingCart}
               onClick={handleAddToCart}
             >
-              {isAddingCart ? <ButtonSpinner /> : '🛒 Thêm vào giỏ'}
+              {isAddingCart ? <ButtonSpinner /> : <><i className="ti ti-shopping-cart"></i> Thêm vào giỏ</>}
             </button>
 
             <button
@@ -391,11 +400,11 @@ const ProductDetail = () => {
             <button
               type="button"
               className={`product-cta-btn-wishlist ${isWishlisted ? 'is-active' : ''}`}
-              onClick={() => toggleWishlist(product)}
+              onClick={handleWishlistClick}
               aria-label={isWishlisted ? 'Bỏ yêu thích' : 'Thêm vào yêu thích'}
               title={isWishlisted ? 'Bỏ yêu thích' : 'Thêm vào yêu thích'}
             >
-              {isWishlisted ? '♥' : '♡'}
+              {isWishlisted ? <i className="ti ti-heart-filled"></i> : <i className="ti ti-heart"></i>}
             </button>
           </div>
 

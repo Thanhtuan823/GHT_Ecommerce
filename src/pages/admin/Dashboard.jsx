@@ -229,7 +229,7 @@ export default function AdminDashboard() {
             onClick={handleExportExcel}
             disabled={isExporting}
           >
-            <span>↓</span>
+            <i className="ti ti-download"></i>
             <span>{isExporting ? 'Đang xuất...' : 'Xuất Excel'}</span>
           </button>
         </div>
@@ -240,7 +240,9 @@ export default function AdminDashboard() {
         {/* Card 1: Doanh thu */}
         <div className="dashboard-kpi-card">
           <div className="dashboard-kpi-header">
-            <span className="dashboard-kpi-icon" style={{ color: '#2563EB' }}>📈</span>
+            <span className="dashboard-kpi-icon" style={{ color: '#2563EB' }}>
+              <i className="ti ti-chart-line"></i>
+            </span>
             <span className="dashboard-kpi-label">Doanh thu</span>
           </div>
           <div className="dashboard-kpi-value">{formatCurrency(data.totalRevenue)}</div>
@@ -253,7 +255,9 @@ export default function AdminDashboard() {
         {/* Card 2: Đơn hàng */}
         <div className="dashboard-kpi-card">
           <div className="dashboard-kpi-header">
-            <span className="dashboard-kpi-icon" style={{ color: '#2563EB' }}>📦</span>
+            <span className="dashboard-kpi-icon" style={{ color: '#2563EB' }}>
+              <i className="ti ti-package"></i>
+            </span>
             <span className="dashboard-kpi-label">Đơn hàng</span>
           </div>
           <div className="dashboard-kpi-value">{data.totalOrders}</div>
@@ -266,7 +270,9 @@ export default function AdminDashboard() {
         {/* Card 3: Giá trị đơn TB */}
         <div className="dashboard-kpi-card">
           <div className="dashboard-kpi-header">
-            <span className="dashboard-kpi-icon" style={{ color: '#2563EB' }}>📊</span>
+            <span className="dashboard-kpi-icon" style={{ color: '#2563EB' }}>
+              <i className="ti ti-chart-bar"></i>
+            </span>
             <span className="dashboard-kpi-label">Giá trị đơn TB</span>
           </div>
           <div className="dashboard-kpi-value">{formatCurrency(data.averageOrderValue)}</div>
@@ -279,7 +285,9 @@ export default function AdminDashboard() {
         {/* Card 4: Chi phí KM */}
         <div className="dashboard-kpi-card">
           <div className="dashboard-kpi-header">
-            <span className="dashboard-kpi-icon" style={{ color: '#D97706' }}>🏷️</span>
+            <span className="dashboard-kpi-icon" style={{ color: '#D97706' }}>
+              <i className="ti ti-tag"></i>
+            </span>
             <span className="dashboard-kpi-label">Chi phí KM</span>
           </div>
           <div className="dashboard-kpi-value" style={{ color: '#D97706' }}>

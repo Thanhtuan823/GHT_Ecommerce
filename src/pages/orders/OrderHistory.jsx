@@ -7,11 +7,11 @@ import './OrderHistory.css';
 
 // 5 Standard Stepper Steps
 const STEPPER_STEPS = [
-  { id: 'placed', label: 'Đã đặt hàng', icon: '✓' },
-  { id: 'paid', label: 'Đã thanh toán', icon: '💳' },
-  { id: 'processing', label: 'Đang xử lý', icon: '⚙️' },
-  { id: 'shipping', label: 'Đang giao', icon: '🚚' },
-  { id: 'completed', label: 'Hoàn thành', icon: '★' }
+  { id: 'placed', label: 'Đã đặt hàng', icon: <i className="ti ti-check"></i> },
+  { id: 'paid', label: 'Đã thanh toán', icon: <i className="ti ti-credit-card"></i> },
+  { id: 'processing', label: 'Đang xử lý', icon: <i className="ti ti-settings"></i> },
+  { id: 'shipping', label: 'Đang giao', icon: <i className="ti ti-truck"></i> },
+  { id: 'completed', label: 'Hoàn thành', icon: <i className="ti ti-star"></i> }
 ];
 
 const getStepIndex = (status) => {
@@ -140,7 +140,7 @@ const OrderHistory = () => {
         </div>
 
         <div className="orders-empty-state">
-          <div className="orders-empty-icon">📦</div>
+          <div className="orders-empty-icon"><i className="ti ti-package"></i></div>
           <h2 className="orders-empty-title">Bạn chưa có đơn hàng nào</h2>
           <p className="orders-empty-desc">
             Khám phá ngay hàng trăm sản phẩm công nghệ chính hãng với giá ưu đãi tại GHT.
@@ -267,7 +267,7 @@ const OrderHistory = () => {
                       className={`stepper-step-item ${isDone ? 'is-done' : ''} ${isCurrent ? 'is-current' : ''}`}
                     >
                       <div className="stepper-circle-icon">
-                        {isDone ? '✓' : step.icon}
+                        {isDone ? <i className="ti ti-check"></i> : step.icon}
                       </div>
                       <div className="stepper-step-labels">
                         <span className="stepper-step-name">{step.label}</span>
@@ -291,7 +291,7 @@ const OrderHistory = () => {
                       className={`stepper-vertical-step ${isDone ? 'is-done' : ''} ${isCurrent ? 'is-current' : ''}`}
                     >
                       <div className="stepper-vertical-icon">
-                        {isDone ? '✓' : step.icon}
+                        {isDone ? <i className="ti ti-check"></i> : step.icon}
                       </div>
                       {idx < STEPPER_STEPS.length - 1 && (
                         <div className="stepper-vertical-line" />

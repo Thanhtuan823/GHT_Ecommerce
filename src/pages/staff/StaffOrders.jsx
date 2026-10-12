@@ -364,7 +364,7 @@ export default function StaffOrders() {
             title="Thông báo vận hành"
             onClick={() => showToast('Bạn có 3 đơn hàng mới đang chờ xác nhận.', 'info')}
           >
-            🔔
+            <i className="ti ti-bell"></i>
             <span className="staff-notif-dot" />
           </button>
 
@@ -374,7 +374,7 @@ export default function StaffOrders() {
             onClick={handleRefresh}
             title="Làm mới dữ liệu từ máy chủ"
           >
-            <span className="staff-refresh-icon">🔄</span>
+            <i className="ti ti-refresh staff-refresh-icon"></i>
             <span>Làm mới dữ liệu</span>
           </button>
         </div>
@@ -403,7 +403,7 @@ export default function StaffOrders() {
       {/* 3. Filter Bar */}
       <div className="staff-filter-bar">
         <div className="staff-search-box">
-          <span className="staff-search-icon">🔍</span>
+          <i className="ti ti-search staff-search-icon"></i>
           <input
             type="text"
             className="staff-search-input"
@@ -444,7 +444,7 @@ export default function StaffOrders() {
           className="staff-filter-btn"
           onClick={() => showToast(`Đã áp dụng bộ lọc: ${filteredOrders.length} đơn hàng`, 'info')}
         >
-          <span>🔽</span>
+          <i className="ti ti-filter"></i>
           <span>Lọc đơn</span>
         </button>
       </div>
@@ -627,7 +627,7 @@ export default function StaffOrders() {
             <div className="staff-detail-section">
               <span className="staff-detail-sec-title">Đơn vị vận chuyển</span>
               <div className="staff-shipping-info">
-                <span>🚚</span>
+                <i className="ti ti-truck"></i>
                 <span>{activeOrder.shippingProvider || 'GHN • Miễn phí vận chuyển'}</span>
               </div>
             </div>
@@ -742,7 +742,7 @@ export default function StaffOrders() {
         <div className="staff-ai-header">
           <div className="staff-ai-title-box">
             <h2>
-              <span className="staff-ai-sparkle">✦</span>
+              <i className="ti ti-sparkles staff-ai-sparkle"></i>
               <span>AI kiểm tra chất lượng sản phẩm</span>
             </h2>
             <p className="staff-ai-subtitle">
@@ -756,7 +756,7 @@ export default function StaffOrders() {
             onClick={handleRunAiCheck}
             disabled={isCheckingAi}
           >
-            <span>{isCheckingAi ? '⏳' : '✨'}</span>
+            <i className={`ti ${isCheckingAi ? 'ti-loader' : 'ti-sparkles'}`}></i>
             <span>{isCheckingAi ? 'Đang kiểm tra AI...' : 'Chạy kiểm tra mới'}</span>
           </button>
         </div>

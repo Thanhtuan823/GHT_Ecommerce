@@ -32,8 +32,8 @@ function App() {
             <WishlistProvider>
               <Routes>
               <Route path="/" element={<MainLayout />}>
-            <Route index element={<div style={{ textAlign: 'center', marginTop: '80px' }}><h1 style={{ color: 'var(--color-accent)', fontSize: '32px' }}>Trang chủ GHT_Ecom</h1><p style={{ color: 'var(--color-text-secondary)' }}>Hệ thống thương mại điện tử</p></div>} />
-            <Route path="login" element={<Login />} />
+                <Route index element={<Navigate to="/products" replace />} />
+                <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
             
             <Route path="products" element={<ProductList />} />

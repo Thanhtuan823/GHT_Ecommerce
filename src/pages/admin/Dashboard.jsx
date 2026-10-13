@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import axiosClient from '../../utils/axiosClient';
 import { useToast } from '../../components/common/ToastContext';
@@ -60,6 +60,10 @@ export default function AdminDashboard() {
   const [isExporting, setIsExporting] = useState(false);
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [activePill, setActivePill] = useState('ALL'); // 'TODAY' | '7DAYS' | '30DAYS' | 'MONTH' | 'CUSTOM' | 'ALL'
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [showCustomInputs, setShowCustomInputs] = useState(false);
+  const [customDates, setCustomDates] = useState({ from: '', to: '' });
+  const dropdownRef = useRef(null);
   const { showToast } = useToast();
 
   const formatDateYMD = (d) => {
@@ -67,6 +71,52 @@ export default function AdminDashboard() {
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+  };
+
+  // Click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDropdownOpen]);
+
+  const getDropdownLabel = () => {
+    switch (activePill) {
+      case 'TODAY':
+        return 'Hôm nay';
+      case '7DAYS':
+        return '7 ngày qua';
+      case '30DAYS':
+        return '30 ngày qua';
+      case 'MONTH':
+        return 'Tháng này';
+      case 'ALL':
+        return 'Tất cả thời gian';
+      case 'CUSTOM': {
+        const { from, to } = dateRange;
+        const formatShort = (d) => {
+          if (!d) return '';
+          const parts = d.split('-');
+          return parts.length === 3 ? `${parts[2]}/${parts[1]}` : d;
+        };
+        if (from && to) {
+          return from === to ? formatShort(from) : `${formatShort(from)} - ${formatShort(to)}`;
+        }
+        if (from) return `Từ ${formatShort(from)}`;
+        if (to) return `Đến ${formatShort(to)}`;
+        return 'Tùy chỉnh ngày';
+      }
+      default:
+        return 'Bộ lọc thời gian';
+    }
   };
 
   const fetchDashboard = async (range = dateRange) => {
@@ -136,8 +186,11 @@ export default function AdminDashboard() {
     fetchDashboard();
   }, []);
 
-  const handlePillClick = (type) => {
+  const handleSelectPreset = (type) => {
     setActivePill(type);
+    setIsDropdownOpen(false);
+    setShowCustomInputs(false);
+
     const now = new Date();
     const todayStr = formatDateYMD(now);
     let newRange = { from: '', to: '' };
@@ -155,12 +208,29 @@ export default function AdminDashboard() {
     } else if (type === 'MONTH') {
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       newRange = { from: formatDateYMD(startOfMonth), to: todayStr };
-    } else if (type === 'CUSTOM') {
-      return; // Keep existing date picker inputs
+    } else if (type === 'ALL') {
+      newRange = { from: '', to: '' };
     }
 
     setDateRange(newRange);
+    setCustomDates(newRange);
     fetchDashboard(newRange);
+  };
+
+  const handleApplyCustom = () => {
+    if (!customDates.from && !customDates.to) {
+      showToast('Vui lòng chọn ngày để lọc', 'warning');
+      return;
+    }
+    if (customDates.from && customDates.to && customDates.from > customDates.to) {
+      showToast('Ngày bắt đầu không được lớn hơn ngày kết thúc', 'warning');
+      return;
+    }
+
+    setActivePill('CUSTOM');
+    setDateRange(customDates);
+    setIsDropdownOpen(false);
+    fetchDashboard(customDates);
   };
 
   const handleExportExcel = async () => {
@@ -230,89 +300,124 @@ export default function AdminDashboard() {
           </p>
         </div>
 
-        <div className="dashboard-controls">
-          {/* Quick Filter Pills */}
-          <div className="dashboard-quick-pills">
-            <button
-              type="button"
-              className={`dashboard-pill-btn ${activePill === 'TODAY' ? 'is-active' : ''}`}
-              onClick={() => handlePillClick('TODAY')}
-            >
-              Hôm nay
-            </button>
-            <button
-              type="button"
-              className={`dashboard-pill-btn ${activePill === '7DAYS' ? 'is-active' : ''}`}
-              onClick={() => handlePillClick('7DAYS')}
-            >
-              7 ngày qua
-            </button>
-            <button
-              type="button"
-              className={`dashboard-pill-btn ${activePill === '30DAYS' ? 'is-active' : ''}`}
-              onClick={() => handlePillClick('30DAYS')}
-            >
-              30 ngày qua
-            </button>
-            <button
-              type="button"
-              className={`dashboard-pill-btn ${activePill === 'MONTH' ? 'is-active' : ''}`}
-              onClick={() => handlePillClick('MONTH')}
-            >
-              Tháng này
-            </button>
-            <button
-              type="button"
-              className={`dashboard-pill-btn ${activePill === 'CUSTOM' ? 'is-active' : ''}`}
-              onClick={() => handlePillClick('CUSTOM')}
-            >
-              Tùy chỉnh
-            </button>
-          </div>
-
-          {/* Date Picker (Visible or highlight on custom) */}
-          <div className="dashboard-date-picker-group">
-            <input
-              type="date"
-              className="dashboard-date-input"
-              value={dateRange.from}
-              onChange={(e) => {
-                setActivePill('CUSTOM');
-                setDateRange({ ...dateRange, from: e.target.value });
-              }}
-              title="Từ ngày"
-            />
-            <span className="dashboard-date-sep">→</span>
-            <input
-              type="date"
-              className="dashboard-date-input"
-              value={dateRange.to}
-              onChange={(e) => {
-                setActivePill('CUSTOM');
-                setDateRange({ ...dateRange, to: e.target.value });
-              }}
-              title="Đến ngày"
-            />
-          </div>
-
-          <button
-            type="button"
-            className="dashboard-btn-filter"
-            onClick={() => fetchDashboard(dateRange)}
-            disabled={isLoading}
-          >
-            {isLoading ? 'Đang tải...' : 'Lọc'}
-          </button>
-
+        <div className="dashboard-toolbar">
+          {/* Nút 1: Xuất Excel */}
           <button
             type="button"
             className="dashboard-btn-export"
             onClick={handleExportExcel}
             disabled={isExporting}
+            title="Xuất báo cáo Excel theo khoảng thời gian đang lọc"
           >
-            <i className="ti ti-download"></i>
+            {isExporting ? (
+              <span className="dashboard-spinner"></span>
+            ) : (
+              <i className="ti ti-file-spreadsheet"></i>
+            )}
             <span>{isExporting ? 'Đang xuất...' : 'Xuất Excel'}</span>
           </button>
+
+          {/* Nút 2: Dropdown bộ lọc thời gian */}
+          <div className="dashboard-dropdown-container" ref={dropdownRef}>
+            <button
+              type="button"
+              className={`dashboard-dropdown-trigger ${isDropdownOpen ? 'is-open' : ''}`}
+              onClick={() => setIsDropdownOpen((prev) => !prev)}
+              title="Chọn khoảng thời gian lọc"
+            >
+              <i className="ti ti-calendar"></i>
+              <span className="dashboard-dropdown-label">{getDropdownLabel()}</span>
+              <i className={`ti ti-chevron-${isDropdownOpen ? 'up' : 'down'} dashboard-dropdown-arrow`}></i>
+            </button>
+
+            {isDropdownOpen && (
+              <div className="dashboard-dropdown-menu">
+                <div className="dashboard-dropdown-presets">
+                  <button
+                    type="button"
+                    className={`dashboard-dropdown-item ${activePill === 'TODAY' ? 'is-active' : ''}`}
+                    onClick={() => handleSelectPreset('TODAY')}
+                  >
+                    <span>Hôm nay</span>
+                    {activePill === 'TODAY' && <i className="ti ti-check"></i>}
+                  </button>
+                  <button
+                    type="button"
+                    className={`dashboard-dropdown-item ${activePill === '7DAYS' ? 'is-active' : ''}`}
+                    onClick={() => handleSelectPreset('7DAYS')}
+                  >
+                    <span>7 ngày qua</span>
+                    {activePill === '7DAYS' && <i className="ti ti-check"></i>}
+                  </button>
+                  <button
+                    type="button"
+                    className={`dashboard-dropdown-item ${activePill === '30DAYS' ? 'is-active' : ''}`}
+                    onClick={() => handleSelectPreset('30DAYS')}
+                  >
+                    <span>30 ngày qua</span>
+                    {activePill === '30DAYS' && <i className="ti ti-check"></i>}
+                  </button>
+                  <button
+                    type="button"
+                    className={`dashboard-dropdown-item ${activePill === 'MONTH' ? 'is-active' : ''}`}
+                    onClick={() => handleSelectPreset('MONTH')}
+                  >
+                    <span>Tháng này</span>
+                    {activePill === 'MONTH' && <i className="ti ti-check"></i>}
+                  </button>
+                  <button
+                    type="button"
+                    className={`dashboard-dropdown-item ${activePill === 'ALL' ? 'is-active' : ''}`}
+                    onClick={() => handleSelectPreset('ALL')}
+                  >
+                    <span>Tất cả thời gian</span>
+                    {activePill === 'ALL' && <i className="ti ti-check"></i>}
+                  </button>
+
+                  <div className="dashboard-dropdown-divider"></div>
+
+                  <button
+                    type="button"
+                    className={`dashboard-dropdown-item ${activePill === 'CUSTOM' ? 'is-active' : ''}`}
+                    onClick={() => setShowCustomInputs((prev) => !prev)}
+                  >
+                    <span>Tùy chỉnh ngày...</span>
+                    <i className={`ti ti-chevron-${showCustomInputs ? 'up' : 'down'}`}></i>
+                  </button>
+                </div>
+
+                {showCustomInputs && (
+                  <div className="dashboard-dropdown-custom">
+                    <div className="dashboard-custom-field">
+                      <label>Từ ngày</label>
+                      <input
+                        type="date"
+                        className="dashboard-custom-input"
+                        value={customDates.from}
+                        onChange={(e) => setCustomDates({ ...customDates, from: e.target.value })}
+                      />
+                    </div>
+                    <div className="dashboard-custom-field">
+                      <label>Đến ngày</label>
+                      <input
+                        type="date"
+                        className="dashboard-custom-input"
+                        value={customDates.to}
+                        onChange={(e) => setCustomDates({ ...customDates, to: e.target.value })}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className="dashboard-custom-apply-btn"
+                      onClick={handleApplyCustom}
+                    >
+                      Áp dụng
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

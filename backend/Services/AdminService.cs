@@ -26,7 +26,7 @@ namespace GhtBackend.Services
 
             if (from.HasValue) 
             {
-                var fromUtc = DateTime.SpecifyKind(from.Value, DateTimeKind.Utc);
+                var fromUtc = DateTime.SpecifyKind(from.Value.Date, DateTimeKind.Utc);
                 query = query.Where(o => o.CreatedAt >= fromUtc);
             }
             if (to.HasValue) 
@@ -111,7 +111,7 @@ namespace GhtBackend.Services
                 .Where(o => validStatuses.Contains(o.Status));
             if (from.HasValue) 
             {
-                var fromUtc = DateTime.SpecifyKind(from.Value, DateTimeKind.Utc);
+                var fromUtc = DateTime.SpecifyKind(from.Value.Date, DateTimeKind.Utc);
                 query = query.Where(o => o.CreatedAt >= fromUtc);
             }
             if (to.HasValue) 
@@ -158,7 +158,7 @@ namespace GhtBackend.Services
                     Code = d.Code,
                     Type = d.DiscountType,
                     Value = d.DiscountValue,
-                    UsedCount = d.UsedCount,
+                    UsedCount = (from.HasValue || to.HasValue) ? usedOrders.Count : d.UsedCount,
                     TotalDiscountAmount = discountAmountSum,
                     RevenueFromCode = originalAmountSum,
                     ROI = roiStr,

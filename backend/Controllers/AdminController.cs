@@ -30,7 +30,7 @@ namespace GhtBackend.Controllers
         }
 
         [HttpGet("export-excel")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Staff")]
         public async Task<IActionResult> ExportExcel([FromQuery] DateTime? from, [FromQuery] DateTime? to)
         {
             var excelBytes = await _adminService.ExportExcelAsync(from, to);

@@ -222,11 +222,58 @@ public class OrdersController : ControllerBase
         if (order.Status != "PENDING_PAYMENT")
             return BadRequest(new { message = "Đơn hàng không ở trạng thái chờ thanh toán" });
 
+        var isTestMode = _config.GetValue<bool>("SePay:TestMode");
+
+        if (isTestMode)
+        {
+            order.Status = "PAID";
+            order.IsPaid = true;
+            order.PaidAt = DateTime.UtcNow;
+            order.UpdatedAt = DateTime.UtcNow;
+
+            if (order.DiscountId.HasValue)
+            {
+                var discount = await _context.Discounts.FindAsync(order.DiscountId.Value);
+                if (discount != null)
+                {
+                    var alreadyRecorded = await _context.UserUsedDiscounts.AnyAsync(u => u.UserId == order.UserId && u.DiscountId == discount.Id);
+                    if (!alreadyRecorded)
+                    {
+                        discount.UsedCount++;
+                        _context.UserUsedDiscounts.Add(new UserUsedDiscount
+                        {
+                            UserId = order.UserId,
+                            DiscountId = discount.Id
+                        });
+                    }
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Trigger background emails for confirmed payment
+            _ = Task.Run(async () => {
+                try {
+                    using var scope = HttpContext.RequestServices.CreateScope();
+                    var emailSvc = scope.ServiceProvider.GetRequiredService<EmailService>();
+                    await emailSvc.SendPaymentConfirmed(order);
+                    await emailSvc.SendPaidNotify(order);
+                } catch { }
+            });
+
+            return Ok(new 
+            { 
+                status = "PAID", 
+                testMode = true, 
+                message = "Thanh toán giả lập thành công (Test Mode)!" 
+            });
+        }
+
         order.Status = "PENDING_REVIEW";
         order.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
-        return Ok(new { status = "PENDING_REVIEW" });
+        return Ok(new { status = "PENDING_REVIEW", testMode = false });
     }
 
     [Authorize]
@@ -277,6 +324,16 @@ public class OrdersController : ControllerBase
         }
 
         await _context.SaveChangesAsync();
+
+        // Trigger background email thông báo hủy đơn kèm lý do
+        _ = Task.Run(async () => {
+            try {
+                using var scope = HttpContext.RequestServices.CreateScope();
+                var emailSvc = scope.ServiceProvider.GetRequiredService<EmailService>();
+                await emailSvc.SendOrderCancelled(order, order.CancelReason);
+            } catch { }
+        });
+
         return Ok(new { message = "Đã hủy đơn hàng thành công", status = "CANCELLED", cancelReason = order.CancelReason });
     }
 

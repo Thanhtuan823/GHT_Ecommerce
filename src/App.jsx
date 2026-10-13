@@ -11,6 +11,7 @@ import ProductDetail from './pages/products/ProductDetail';
 import AdminProducts from './pages/admin/Products';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminDiscounts from './pages/admin/Discounts';
+import AdminUsers from './pages/admin/Users';
 import Cart from './pages/cart/Cart';
 import Wishlist from './pages/wishlist/Wishlist';
 import Checkout from './pages/checkout/Checkout';
@@ -24,13 +25,22 @@ import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { ToastProvider } from './components/common/ToastContext';
 
-// Helper component to open modal if user visits /profile directly
+// Helper redirect on /profile
 const ProfileRouteRedirect = () => {
   const { openProfileModal } = useAuth();
   useEffect(() => {
     openProfileModal();
   }, [openProfileModal]);
   return <Navigate to="/" replace />;
+};
+
+// Helper redirect on /admin root based on role
+const AdminIndexRedirect = () => {
+  const { user } = useAuth();
+  if (user?.role === 'Staff') {
+    return <Navigate to="/staff/orders" replace />;
+  }
+  return <Navigate to="/admin/dashboard" replace />;
 };
 
 function App() {
@@ -41,6 +51,7 @@ function App() {
           <CartProvider>
             <WishlistProvider>
               <Routes>
+                {/* Customer & Public Facing Routes */}
                 <Route path="/" element={<MainLayout />}>
                   <Route index element={<Navigate to="/products" replace />} />
                   <Route path="login" element={<Login />} />
@@ -51,7 +62,7 @@ function App() {
                   <Route path="cart" element={<Cart />} />
                   <Route path="wishlist" element={<Wishlist />} />
                   
-                  {/* Protected Routes */}
+                  {/* Protected Customer Routes */}
                   <Route element={<ProtectedRoute />}>
                     <Route path="profile" element={<ProfileRouteRedirect />} />
                     <Route path="checkout" element={<Checkout />} />
@@ -60,22 +71,23 @@ function App() {
                     <Route path="orders/:id" element={<OrderDetail />} />
                   </Route>
 
-                  {/* Staff Operations Route */}
-                  <Route element={<ProtectedRoute allowedRoles={['Admin', 'Staff']} />}>
-                    <Route path="staff/orders" element={<StaffOrders />} />
-                  </Route>
-
-                  {/* Fallback */}
+                  {/* Fallback for public layout */}
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Route>
 
-                {/* Admin Routes with AdminLayout */}
+                {/* Operations & Admin Unified Shell (AdminLayout) */}
                 <Route element={<ProtectedRoute allowedRoles={['Admin', 'Staff']} />}>
                   <Route path="/admin" element={<AdminLayout />}>
-                    <Route index element={<Navigate to="dashboard" replace />} />
+                    <Route index element={<AdminIndexRedirect />} />
                     <Route path="dashboard" element={<AdminDashboard />} />
                     <Route path="products" element={<AdminProducts />} />
                     <Route path="discounts" element={<AdminDiscounts />} />
+                    <Route path="users" element={<AdminUsers />} />
+                  </Route>
+                  {/* Staff Route under AdminLayout Shell */}
+                  <Route path="/staff" element={<AdminLayout />}>
+                    <Route index element={<Navigate to="orders" replace />} />
+                    <Route path="orders" element={<StaffOrders />} />
                   </Route>
                 </Route>
               </Routes>

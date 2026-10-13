@@ -59,15 +59,23 @@ export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
+  const [activePill, setActivePill] = useState('ALL'); // 'TODAY' | '7DAYS' | '30DAYS' | 'MONTH' | 'CUSTOM' | 'ALL'
   const { showToast } = useToast();
 
-  const fetchDashboard = async () => {
+  const formatDateYMD = (d) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const fetchDashboard = async (range = dateRange) => {
     setIsLoading(true);
     try {
       let url = '/admin/dashboard';
       const params = new URLSearchParams();
-      if (dateRange.from) params.append('from', dateRange.from);
-      if (dateRange.to) params.append('to', dateRange.to);
+      if (range.from) params.append('from', range.from);
+      if (range.to) params.append('to', range.to);
       if (params.toString()) url += `?${params.toString()}`;
 
       const res = await axiosClient.get(url);
@@ -127,6 +135,33 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchDashboard();
   }, []);
+
+  const handlePillClick = (type) => {
+    setActivePill(type);
+    const now = new Date();
+    const todayStr = formatDateYMD(now);
+    let newRange = { from: '', to: '' };
+
+    if (type === 'TODAY') {
+      newRange = { from: todayStr, to: todayStr };
+    } else if (type === '7DAYS') {
+      const past7 = new Date();
+      past7.setDate(now.getDate() - 7);
+      newRange = { from: formatDateYMD(past7), to: todayStr };
+    } else if (type === '30DAYS') {
+      const past30 = new Date();
+      past30.setDate(now.getDate() - 30);
+      newRange = { from: formatDateYMD(past30), to: todayStr };
+    } else if (type === 'MONTH') {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      newRange = { from: formatDateYMD(startOfMonth), to: todayStr };
+    } else if (type === 'CUSTOM') {
+      return; // Keep existing date picker inputs
+    }
+
+    setDateRange(newRange);
+    fetchDashboard(newRange);
+  };
 
   const handleExportExcel = async () => {
     setIsExporting(true);
@@ -196,12 +231,55 @@ export default function AdminDashboard() {
         </div>
 
         <div className="dashboard-controls">
+          {/* Quick Filter Pills */}
+          <div className="dashboard-quick-pills">
+            <button
+              type="button"
+              className={`dashboard-pill-btn ${activePill === 'TODAY' ? 'is-active' : ''}`}
+              onClick={() => handlePillClick('TODAY')}
+            >
+              Hôm nay
+            </button>
+            <button
+              type="button"
+              className={`dashboard-pill-btn ${activePill === '7DAYS' ? 'is-active' : ''}`}
+              onClick={() => handlePillClick('7DAYS')}
+            >
+              7 ngày qua
+            </button>
+            <button
+              type="button"
+              className={`dashboard-pill-btn ${activePill === '30DAYS' ? 'is-active' : ''}`}
+              onClick={() => handlePillClick('30DAYS')}
+            >
+              30 ngày qua
+            </button>
+            <button
+              type="button"
+              className={`dashboard-pill-btn ${activePill === 'MONTH' ? 'is-active' : ''}`}
+              onClick={() => handlePillClick('MONTH')}
+            >
+              Tháng này
+            </button>
+            <button
+              type="button"
+              className={`dashboard-pill-btn ${activePill === 'CUSTOM' ? 'is-active' : ''}`}
+              onClick={() => handlePillClick('CUSTOM')}
+            >
+              Tùy chỉnh
+            </button>
+          </div>
+
+          {/* Date Picker (Visible or highlight on custom) */}
           <div className="dashboard-date-picker-group">
             <input
               type="date"
               className="dashboard-date-input"
               value={dateRange.from}
-              onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
+              onChange={(e) => {
+                setActivePill('CUSTOM');
+                setDateRange({ ...dateRange, from: e.target.value });
+              }}
               title="Từ ngày"
             />
             <span className="dashboard-date-sep">→</span>
@@ -209,7 +287,10 @@ export default function AdminDashboard() {
               type="date"
               className="dashboard-date-input"
               value={dateRange.to}
-              onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
+              onChange={(e) => {
+                setActivePill('CUSTOM');
+                setDateRange({ ...dateRange, to: e.target.value });
+              }}
               title="Đến ngày"
             />
           </div>
@@ -217,7 +298,7 @@ export default function AdminDashboard() {
           <button
             type="button"
             className="dashboard-btn-filter"
-            onClick={fetchDashboard}
+            onClick={() => fetchDashboard(dateRange)}
             disabled={isLoading}
           >
             {isLoading ? 'Đang tải...' : 'Lọc'}

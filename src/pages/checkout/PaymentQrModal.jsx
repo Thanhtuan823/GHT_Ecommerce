@@ -17,6 +17,7 @@ const PaymentQrModal = ({ order, onClose }) => {
   const toast = useToast();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccessPaid, setIsSuccessPaid] = useState(false);
   const [timeLeft, setTimeLeft] = useState(() => {
     if (!order?.paymentExpiredAt) return 15 * 60; // 15 mins default
     const diff = Math.floor((new Date(order.paymentExpiredAt).getTime() - Date.now()) / 1000);
@@ -27,7 +28,7 @@ const PaymentQrModal = ({ order, onClose }) => {
 
   // Countdown timer
   useEffect(() => {
-    if (timeLeft <= 0) return;
+    if (timeLeft <= 0 || isSuccessPaid) return;
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
@@ -40,7 +41,31 @@ const PaymentQrModal = ({ order, onClose }) => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeLeft]);
+  }, [timeLeft, isSuccessPaid]);
+
+  // Polling order status every 2.5s to detect PAID (Webhook / TestMode / Staff review)
+  useEffect(() => {
+    if (!order?.id || isSuccessPaid || isExpired) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const res = await axiosClient.get(`/orders/${order.id}`);
+        if (res.data?.status === 'PAID') {
+          clearInterval(pollInterval);
+          setIsSuccessPaid(true);
+          toast.success('Thanh toán thành công! Hệ thống đã ghi nhận đơn hàng.');
+          setTimeout(() => {
+            if (onClose) onClose();
+            navigate(`/orders/${order.id}`);
+          }, 1500);
+        }
+      } catch (err) {
+        // Silently catch polling errors to avoid disruption
+      }
+    }, 2500);
+
+    return () => clearInterval(pollInterval);
+  }, [order?.id, isSuccessPaid, isExpired, navigate, onClose, toast]);
 
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
@@ -61,11 +86,20 @@ const PaymentQrModal = ({ order, onClose }) => {
   const handleConfirmPaid = async () => {
     setIsSubmitting(true);
     try {
-      // Calls PUT /api/orders/:id/payment-confirm -> sets PENDING_REVIEW (never directly PAID)
-      await axiosClient.put(`/orders/${order.id}/payment-confirm`);
-      toast.success('Đã gửi xác nhận thanh toán! Đơn hàng đang được kiểm tra đối soát.');
-      if (onClose) onClose();
-      navigate(`/orders/${order.id}`);
+      // Calls PUT /api/orders/:id/payment-confirm
+      const res = await axiosClient.put(`/orders/${order.id}/payment-confirm`);
+      if (res.data?.status === 'PAID') {
+        setIsSuccessPaid(true);
+        toast.success(res.data?.message || 'Thanh toán thành công (Test Mode)!');
+        setTimeout(() => {
+          if (onClose) onClose();
+          navigate(`/orders/${order.id}`);
+        }, 1500);
+      } else {
+        toast.success('Đã gửi xác nhận thanh toán! Đơn hàng đang được kiểm tra đối soát.');
+        if (onClose) onClose();
+        navigate(`/orders/${order.id}`);
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Có lỗi khi gửi xác nhận thanh toán');
     } finally {
@@ -103,11 +137,15 @@ const PaymentQrModal = ({ order, onClose }) => {
 
         {/* Row 1: Status Badge & Countdown */}
         <div className="payment-qr-status-row">
-          <span className={`payment-qr-badge-status ${isExpired ? 'is-expired' : ''}`}>
-            {isExpired ? 'Hết hạn thanh toán' : 'Chờ thanh toán'}
+          <span className={`payment-qr-badge-status ${isSuccessPaid ? 'is-paid' : isExpired ? 'is-expired' : ''}`}>
+            {isSuccessPaid ? 'Đã thanh toán' : isExpired ? 'Hết hạn thanh toán' : 'Chờ thanh toán'}
           </span>
 
-          {!isExpired ? (
+          {isSuccessPaid ? (
+            <span className="payment-qr-countdown is-paid">
+              ✓ Hoàn tất
+            </span>
+          ) : !isExpired ? (
             <span className="payment-qr-countdown">
               🕐 Còn {timeFormatted}
             </span>
@@ -118,8 +156,16 @@ const PaymentQrModal = ({ order, onClose }) => {
           )}
         </div>
 
-        {/* Expired Notification if countdown reaches 0 */}
-        {isExpired ? (
+        {/* Success Notification when order is PAID */}
+        {isSuccessPaid ? (
+          <div className="payment-qr-success-box">
+            <div className="payment-qr-success-icon">✓</div>
+            <h3 className="payment-qr-success-title">Thanh toán thành công!</h3>
+            <p className="payment-qr-success-desc">
+              Hệ thống đã xác nhận thanh toán cho đơn hàng #GHT{order?.id}. Đang chuyển tiếp đến chi tiết đơn hàng...
+            </p>
+          </div>
+        ) : isExpired ? (
           <div className="payment-qr-expired-box">
             <h3 className="payment-qr-expired-title">Đơn hàng đã hết hạn thanh toán</h3>
             <p className="payment-qr-expired-desc">

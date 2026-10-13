@@ -226,6 +226,9 @@ namespace GhtBackend.Migrations
                     b.Property<int>("TotalPrice")
                         .HasColumnType("integer");
 
+                    b.Property<string>("TrackingNumber")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -387,6 +390,9 @@ namespace GhtBackend.Migrations
 
                     b.Property<string>("GoogleId")
                         .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Name")
                         .IsRequired()

@@ -24,8 +24,17 @@ namespace GhtBackend.Services
                 .Include(o => o.Discount)
                 .Where(o => validStatuses.Contains(o.Status));
 
-            if (from.HasValue) query = query.Where(o => o.CreatedAt >= from.Value);
-            if (to.HasValue) query = query.Where(o => o.CreatedAt <= to.Value);
+            if (from.HasValue) 
+            {
+                var fromUtc = DateTime.SpecifyKind(from.Value, DateTimeKind.Utc);
+                query = query.Where(o => o.CreatedAt >= fromUtc);
+            }
+            if (to.HasValue) 
+            {
+                // Include entire end day up to 23:59:59.999
+                var toUtc = DateTime.SpecifyKind(to.Value.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
+                query = query.Where(o => o.CreatedAt <= toUtc);
+            }
 
             var orders = await query.ToListAsync();
 
@@ -100,8 +109,16 @@ namespace GhtBackend.Services
             var query = _context.Orders
                 .Include(o => o.Discount)
                 .Where(o => validStatuses.Contains(o.Status));
-            if (from.HasValue) query = query.Where(o => o.CreatedAt >= from.Value);
-            if (to.HasValue) query = query.Where(o => o.CreatedAt <= to.Value);
+            if (from.HasValue) 
+            {
+                var fromUtc = DateTime.SpecifyKind(from.Value, DateTimeKind.Utc);
+                query = query.Where(o => o.CreatedAt >= fromUtc);
+            }
+            if (to.HasValue) 
+            {
+                var toUtc = DateTime.SpecifyKind(to.Value.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
+                query = query.Where(o => o.CreatedAt <= toUtc);
+            }
 
             var orders = await query.ToListAsync();
             var discounts = await _context.Discounts.ToListAsync();

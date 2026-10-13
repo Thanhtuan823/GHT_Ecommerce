@@ -438,6 +438,20 @@
   color: var(--color-danger);
 }
 
+.staff-badge-cod {
+  background: #FEF3C7;
+  color: #B45309;
+  border: 1px solid #FDE68A;
+  font-size: 11px;
+}
+
+.staff-badge-bank {
+  background: #EBF2FF;
+  color: #1D4ED8;
+  border: 1px solid #BFDBFE;
+  font-size: 11px;
+}
+
 /* Right Detail Panel (40%) */
 .staff-detail-panel {
   background: var(--color-bg-white);
@@ -640,6 +654,35 @@
 
 .staff-btn-confirm:hover {
   background: var(--color-accent-hover);
+}
+
+.staff-btn-invoice {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-white);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  width: 100%;
+}
+
+.staff-btn-invoice:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: var(--color-bg-subtle);
+}
+
+.staff-btn-invoice:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .staff-flow-note {

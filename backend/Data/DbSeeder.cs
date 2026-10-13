@@ -99,7 +99,8 @@ public static class DbSeeder
                 Name = name,
                 Email = email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
-                Role = role
+                Role = role,
+                IsActive = true
             });
             context.SaveChanges();
         }
@@ -107,6 +108,7 @@ public static class DbSeeder
         {
             existing.PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
             existing.Role = role;
+            existing.IsActive = true;
             context.SaveChanges();
         }
     }

@@ -150,7 +150,9 @@ const OrderDetail = () => {
   const orderItems = order.orderItems || [];
   const isPendingPayment = order.status === 'PENDING_PAYMENT';
   const isCancelled = order.status === 'CANCELLED' || order.status === 'EXPIRED';
-  const trackingCode = `GHN${String(order.id).padStart(8, '0')}`;
+  const isCod = order.paymentMethod === 'COD';
+  const trackingCode = order.trackingNumber || `GHN${String(order.id).padStart(8, '0')}`;
+  const isShippingOrCompleted = ['SHIPPING', 'COMPLETED', 'DELIVERED'].includes(order.status);
 
   let addressObj = null;
   if (order.shippingAddress) {
@@ -238,7 +240,7 @@ const OrderDetail = () => {
           {isCancelled && (
             <button
               type="button"
-              className="btn-secondary"
+              className="btn-outline"
               onClick={handleReorder}
               disabled={isReordering}
             >
@@ -249,7 +251,7 @@ const OrderDetail = () => {
           {isStep5Done && (
             <button
               type="button"
-              className="btn-secondary"
+              className="btn-outline"
               onClick={handleReorder}
               disabled={isReordering}
             >
@@ -290,7 +292,7 @@ const OrderDetail = () => {
               </div>
               <div className="carrier-tracking">
                 <span className="tracking-label">Mã vận đơn:</span>
-                <span className="tracking-code">{trackingCode}</span>
+                <span className="tracking-code">#{trackingCode}</span>
                 <button
                   type="button"
                   className="btn-copy-code"
@@ -299,6 +301,17 @@ const OrderDetail = () => {
                 >
                   <i className={isCopiedTracking ? 'ti ti-check' : 'ti ti-copy'}></i>
                 </button>
+                {isShippingOrCompleted && order.trackingNumber && (
+                  <a
+                    href={`https://donhang.ghn.vn/?order_code=${order.trackingNumber}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-ghn-lookup"
+                    title="Tra cứu vận đơn trực tiếp trên hệ thống GHN"
+                  >
+                    <i className="ti ti-external-link"></i> Tra cứu trên GHN
+                  </a>
+                )}
               </div>
             </div>
 
@@ -507,11 +520,13 @@ const OrderDetail = () => {
               </div>
 
               <div className="payment-status-note">
-                <i className={order.isPaid ? 'ti ti-circle-check' : 'ti ti-clock'}></i>
+                <i className={isCod ? 'ti ti-cash' : (order.isPaid ? 'ti ti-circle-check' : 'ti ti-clock')}></i>
                 <span>
-                  {order.isPaid
-                    ? 'Đã thanh toán chuyển khoản ngân hàng'
-                    : 'Chờ thanh toán chuyển khoản ngân hàng (SePay QR)'}
+                  {isCod
+                    ? `Thanh toán tiền mặt khi nhận hàng (COD): ${formatPrice(order.totalPrice)}`
+                    : (order.isPaid
+                        ? 'Đã thanh toán qua QR ngân hàng (Số tiền thu hộ: 0đ)'
+                        : 'Chờ thanh toán chuyển khoản ngân hàng (SePay QR)')}
                 </span>
               </div>
             </div>

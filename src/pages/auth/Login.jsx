@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
 import { useAuth } from '../../context/AuthContext';
 import axiosClient from '../../utils/axiosClient';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
@@ -22,8 +23,33 @@ const Login = () => {
   const { syncCart } = useCart();
   const { syncWishlist } = useWishlist();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "17023243200-v634ttcohdmthh7g1pv8d2msud64aqmq.apps.googleusercontent.com";
+
+  // Helper điều hướng theo role
+  const redirectByRole = (token) => {
+    try {
+      const decoded = jwtDecode(token);
+      const role = decoded.role || decoded['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'];
+      
+      const from = location.state?.from?.pathname;
+      if (from && from !== '/login') {
+        navigate(from, { replace: true });
+        return;
+      }
+
+      if (role === 'Admin') {
+        navigate('/admin/dashboard', { replace: true });
+      } else if (role === 'Staff') {
+        navigate('/staff/orders', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
+    } catch {
+      navigate('/', { replace: true });
+    }
+  };
 
   const handleBlur = (field, value) => {
     setTouched((prev) => ({ ...prev, [field]: true }));
@@ -58,7 +84,7 @@ const Login = () => {
       login(res.data.token);
       await syncCart();
       await syncWishlist();
-      navigate('/');
+      redirectByRole(res.data.token);
     } catch (err) {
       setError(err.response?.data?.message || 'Email hoặc mật khẩu không đúng');
     } finally {
@@ -72,7 +98,7 @@ const Login = () => {
       login(res.data.token);
       await syncCart();
       await syncWishlist();
-      navigate('/');
+      redirectByRole(res.data.token);
     } catch (err) {
       setError(err.response?.data?.message || 'Đăng nhập Google thất bại');
     }

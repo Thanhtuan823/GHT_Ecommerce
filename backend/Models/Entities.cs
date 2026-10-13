@@ -15,6 +15,7 @@ public class User
     
     [Column(TypeName = "jsonb")]
     public string? DefaultAddress { get; set; }
+    public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
@@ -91,6 +92,7 @@ public class Order
     public DateTime? PaidAt { get; set; }
     public string PaymentMethod { get; set; } = "BANK_TRANSFER";
     public string? CancelReason { get; set; }
+    public string? TrackingNumber { get; set; }
     
     [Column(TypeName = "jsonb")]
     public string ShippingAddress { get; set; } = "{}"; // JSON string

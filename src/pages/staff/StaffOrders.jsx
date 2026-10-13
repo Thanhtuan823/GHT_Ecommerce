@@ -137,6 +137,40 @@ export default function StaffOrders() {
   const [internalNotes, setInternalNotes] = useState({});
   const [aiInspections, setAiInspections] = useState(INITIAL_AI_INSPECTIONS);
   const [isCheckingAi, setIsCheckingAi] = useState(false);
+  const [shippingOrderId, setShippingOrderId] = useState(null);
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState(null);
+
+  // Download Invoice PDF
+  const handleDownloadInvoice = async (orderId) => {
+    setDownloadingInvoiceId(orderId);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/orders/${orderId}/invoice`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (!res.ok) {
+        throw new Error('Không thể tải hóa đơn');
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `HoaDon_DH${orderId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      showToast(`Đã tải hóa đơn PDF cho đơn #GHT${orderId}!`, 'success');
+    } catch {
+      showToast('Có lỗi xảy ra khi tải hóa đơn PDF', 'error');
+    } finally {
+      setDownloadingInvoiceId(null);
+    }
+  };
 
   // Initialize internal notes map
   useEffect(() => {
@@ -185,7 +219,9 @@ export default function StaffOrders() {
               },
               totalPrice: o.totalPrice,
               status: o.status,
-              shippingProvider: 'GHN • Miễn phí vận chuyển',
+              paymentMethod: o.paymentMethod || 'BANK_TRANSFER',
+              trackingNumber: o.trackingNumber || null,
+              shippingProvider: o.trackingNumber ? `GHN • Mã vận đơn ${o.trackingNumber}` : 'GHN • Tiêu chuẩn E-commerce',
               internalNote: internalNotes[o.id] || '',
               items: (o.orderItems || []).map((it) => ({
                 id: it.id,
@@ -259,6 +295,72 @@ export default function StaffOrders() {
   const activeOrder = useMemo(() => {
     return orders.find((o) => o.id === activeOrderId) || filteredOrders[0] || orders[0];
   }, [orders, activeOrderId, filteredOrders]);
+
+  // Create GHN Order Handler
+  const handleCreateGhnOrder = async (orderId) => {
+    const targetOrder = orders.find((o) => o.id === orderId);
+    if (!targetOrder) return;
+
+    setShippingOrderId(orderId);
+    const token = localStorage.getItem('token');
+
+    try {
+      let ghnTrackingNumber = `GHN${orderId}${Math.floor(100000 + Math.random() * 900000)}`;
+      let isCodOrder = targetOrder.paymentMethod === 'COD';
+
+      if (token) {
+        const res = await fetch(`/api/shipping/create-ghn-order/${orderId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        if (res.ok) {
+          const resData = await res.json();
+          if (resData.trackingNumber) {
+            ghnTrackingNumber = resData.trackingNumber;
+          }
+          if (resData.paymentMethod) {
+            isCodOrder = resData.paymentMethod === 'COD';
+          }
+        }
+      }
+
+      // Update local state
+      setOrders((prev) =>
+        prev.map((ord) =>
+          ord.id === orderId
+            ? {
+                ...ord,
+                status: 'SHIPPING',
+                trackingNumber: ghnTrackingNumber,
+                shippingProvider: `GHN • Mã vận đơn ${ghnTrackingNumber}`
+              }
+            : ord
+        )
+      );
+
+      // Toast notification per requirements
+      if (isCodOrder) {
+        showToast(
+          `Tạo vận đơn GHN thành công: ${ghnTrackingNumber} (COD: ${targetOrder.totalPrice.toLocaleString('vi-VN')}đ - Đã hủy điều phối tài xế thật)`,
+          'success'
+        );
+      } else {
+        showToast(
+          `Tạo vận đơn GHN thành công: ${ghnTrackingNumber} (Đã thanh toán trước - Đã hủy điều phối tài xế thật)`,
+          'success'
+        );
+      }
+    } catch (err) {
+      console.error('Lỗi gọi API tạo vận đơn GHN:', err);
+      showToast('Có lỗi xảy ra khi tạo vận đơn GHN.', 'error');
+    } finally {
+      setShippingOrderId(null);
+    }
+  };
 
   // Update order status handler
   const handleUpdateStatus = async (orderId, newStatus) => {
@@ -496,8 +598,26 @@ export default function StaffOrders() {
                         </td>
                         <td className="staff-table-amount">
                           {formatPrice(ord.totalPrice)}
+                          <div style={{ marginTop: '4px' }}>
+                            {ord.paymentMethod === 'COD' ? (
+                              <span className="staff-badge staff-badge-cod" title="Thu hộ tiền mặt khi phát hàng">
+                                💵 COD: {formatPrice(ord.totalPrice)}
+                              </span>
+                            ) : (
+                              <span className="staff-badge staff-badge-bank" title="Đã thanh toán trước qua QR SePay">
+                                🏦 Chuyển khoản (0đ)
+                              </span>
+                            )}
+                          </div>
                         </td>
-                        <td>{getStatusBadge(ord.status)}</td>
+                        <td>
+                          {getStatusBadge(ord.status)}
+                          {ord.trackingNumber && (
+                            <div style={{ marginTop: '4px', fontSize: '11px', fontFamily: 'monospace', color: 'var(--color-accent)' }}>
+                              #{ord.trackingNumber}
+                            </div>
+                          )}
+                        </td>
                         <td>
                           {/* Status specific actions */}
                           {ord.status === 'PENDING_REVIEW' && (
@@ -546,13 +666,14 @@ export default function StaffOrders() {
                             <button
                               type="button"
                               className="staff-action-link"
+                              disabled={shippingOrderId === ord.id}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setActiveOrderId(ord.id);
-                                handleUpdateStatus(ord.id, 'SHIPPING');
+                                handleCreateGhnOrder(ord.id);
                               }}
                             >
-                              Giao hàng →
+                              {shippingOrderId === ord.id ? 'Đang tạo GHN...' : 'Bàn giao GHN →'}
                             </button>
                           )}
                           {ord.status === 'SHIPPING' && (
@@ -628,7 +749,30 @@ export default function StaffOrders() {
               <span className="staff-detail-sec-title">Đơn vị vận chuyển</span>
               <div className="staff-shipping-info">
                 <i className="ti ti-truck"></i>
-                <span>{activeOrder.shippingProvider || 'GHN • Miễn phí vận chuyển'}</span>
+                <div>
+                  <div>{activeOrder.shippingProvider || 'GHN • Tiêu chuẩn'}</div>
+                  {activeOrder.trackingNumber && (
+                    <div style={{ marginTop: '4px', fontSize: '12px', fontWeight: 600, color: 'var(--color-accent)' }}>
+                      Mã vận đơn: #{activeOrder.trackingNumber}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Payment Method Details */}
+            <div className="staff-detail-section">
+              <span className="staff-detail-sec-title">Phương thức thanh toán</span>
+              <div style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {activeOrder.paymentMethod === 'COD' ? (
+                  <span className="staff-badge staff-badge-cod">
+                    💵 Thu tiền mặt khi giao (COD: {formatPrice(activeOrder.totalPrice)})
+                  </span>
+                ) : (
+                  <span className="staff-badge staff-badge-bank">
+                    🏦 Chuyển khoản QR SePay (Thu hộ: 0đ)
+                  </span>
+                )}
               </div>
             </div>
 
@@ -700,9 +844,10 @@ export default function StaffOrders() {
                 <button
                   type="button"
                   className="staff-btn-confirm"
-                  onClick={() => handleUpdateStatus(activeOrder.id, 'SHIPPING')}
+                  disabled={shippingOrderId === activeOrder.id}
+                  onClick={() => handleCreateGhnOrder(activeOrder.id)}
                 >
-                  Bàn giao vận chuyển
+                  {shippingOrderId === activeOrder.id ? 'Đang tạo vận đơn GHN...' : 'Bàn giao vận chuyển (GHN)'}
                 </button>
               )}
               {activeOrder.status === 'SHIPPING' && (
@@ -725,6 +870,26 @@ export default function StaffOrders() {
                 </button>
               )}
             </div>
+
+            {/* Print Invoice Button for Valid Statuses */}
+            {['CONFIRMED', 'PROCESSING', 'SHIPPING', 'COMPLETED'].includes(activeOrder.status) && (
+              <div style={{ marginTop: '4px' }}>
+                <button
+                  type="button"
+                  className="staff-btn-invoice"
+                  onClick={() => handleDownloadInvoice(activeOrder.id)}
+                  disabled={downloadingInvoiceId === activeOrder.id}
+                >
+                  {downloadingInvoiceId === activeOrder.id ? (
+                    'Đang tạo hóa đơn PDF...'
+                  ) : (
+                    <>
+                      <i className="ti ti-printer"></i> In Hóa Đơn PDF
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
 
             <p className="staff-flow-note">
               Sau xác nhận: Đã xác nhận → Đang xử lý → Đang giao.

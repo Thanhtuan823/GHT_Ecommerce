@@ -345,7 +345,7 @@ const OrderHistory = () => {
                         </button>
                         <button
                           type="button"
-                          className="btn-secondary"
+                          className="btn-outline"
                           onClick={() => handleReorder(order)}
                           disabled={reorderingOrderId === order.id}
                         >
@@ -361,13 +361,13 @@ const OrderHistory = () => {
                       <>
                         <button
                           type="button"
-                          className="btn-secondary"
+                          className="btn-outline"
                           onClick={() => handleReorder(order)}
                           disabled={reorderingOrderId === order.id}
                         >
                           {reorderingOrderId === order.id ? 'Đang thêm...' : 'Mua lại'}
                         </button>
-                        <Link to={`/orders/${order.id}`} className="btn-ghost">
+                        <Link to={`/orders/${order.id}`} className="btn-outline">
                           Xem chi tiết
                         </Link>
                       </>

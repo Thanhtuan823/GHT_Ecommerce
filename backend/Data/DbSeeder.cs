@@ -81,15 +81,15 @@ public static class DbSeeder
 
     private static void SeedUsers(AppDbContext context)
     {
-        SeedUser(context, "Quản trị viên", "admin@ght.vn", "Admin@123", "Admin");
-        SeedUser(context, "Quản trị viên", "admin@ght.com", "Admin@123456", "Admin");
-        SeedUser(context, "Nhân viên GHT", "staff@ght.vn", "Staff@123", "Staff");
-        SeedUser(context, "Nhân viên GHT", "staff@ght.com", "Staff@123456", "Staff");
-        SeedUser(context, "Khách hàng mẫu", "customer@ght.vn", "Customer@123", "Customer");
-        SeedUser(context, "Khách hàng mẫu", "customer@ght.com", "Customer@123456", "Customer");
+        SeedUser(context, "Quản trị viên", "admin@ght.vn", "Admin@123", "Admin", "0988888888");
+        SeedUser(context, "Quản trị viên", "admin@ght.com", "Admin@123456", "Admin", "0988888888");
+        SeedUser(context, "Nhân viên GHT", "staff@ght.vn", "Staff@123", "Staff", "0988888888");
+        SeedUser(context, "Nhân viên GHT", "staff@ght.com", "Staff@123456", "Staff", "0988888888");
+        SeedUser(context, "Khách hàng mẫu", "customer@ght.vn", "Customer@123", "Customer", "0988888888");
+        SeedUser(context, "Khách hàng mẫu", "customer@ght.com", "Customer@123456", "Customer", "0988888888");
     }
 
-    private static void SeedUser(AppDbContext context, string name, string email, string password, string role)
+    private static void SeedUser(AppDbContext context, string name, string email, string password, string role, string phone = "0988888888")
     {
         var existing = context.Users.FirstOrDefault(u => u.Email == email);
         if (existing == null)
@@ -98,6 +98,7 @@ public static class DbSeeder
             {
                 Name = name,
                 Email = email,
+                Phone = phone,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
                 Role = role,
                 IsActive = true
@@ -106,6 +107,10 @@ public static class DbSeeder
         }
         else
         {
+            if (string.IsNullOrEmpty(existing.Phone))
+            {
+                existing.Phone = phone;
+            }
             existing.PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
             existing.Role = role;
             existing.IsActive = true;

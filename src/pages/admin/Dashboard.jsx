@@ -64,7 +64,7 @@ export default function AdminDashboard() {
   const [showCustomInputs, setShowCustomInputs] = useState(false);
   const [customDates, setCustomDates] = useState({ from: '', to: '' });
   const dropdownRef = useRef(null);
-  const { showToast } = useToast();
+  const toast = useToast();
 
   const formatDateYMD = (d) => {
     const year = d.getFullYear();
@@ -256,9 +256,9 @@ export default function AdminDashboard() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(downloadUrl);
-      showToast('Xuất báo cáo Excel thành công!', 'success');
+      toast?.success ? toast.success('Xuất báo cáo Excel thành công!') : null;
     } catch {
-      showToast('Lỗi khi xuất file Excel từ máy chủ', 'error');
+      toast?.error ? toast.error('Lỗi khi xuất file Excel từ máy chủ') : null;
     } finally {
       setIsExporting(false);
     }

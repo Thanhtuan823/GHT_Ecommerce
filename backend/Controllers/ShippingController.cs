@@ -121,16 +121,33 @@ public class ShippingController : ControllerBase
         {
             try
             {
-                shippingAddress = JsonSerializer.Deserialize<ShippingAddressDto>(order.ShippingAddress);
+                var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                shippingAddress = JsonSerializer.Deserialize<ShippingAddressDto>(order.ShippingAddress, jsonOptions);
             }
             catch { }
         }
 
-        var toName = !string.IsNullOrWhiteSpace(shippingAddress?.Name) ? shippingAddress.Name : (order.User?.Name ?? "Khách hàng GHT");
-        var toPhone = !string.IsNullOrWhiteSpace(shippingAddress?.Phone) ? shippingAddress.Phone : (order.User?.Phone ?? "0901234567");
-        var toAddress = !string.IsNullOrWhiteSpace(shippingAddress?.Address) ? shippingAddress.Address : "Số 1 Đại Cồ Việt";
-        var toDistrictId = int.TryParse(shippingAddress?.DistrictId, out int parsedDistrict) ? parsedDistrict : 1454;
-        var toWardCode = !string.IsNullOrWhiteSpace(shippingAddress?.WardCode) ? shippingAddress.WardCode : "21211";
+        // Kiểm tra thông tin Quận/Huyện và Phường/Xã GHN hợp lệ
+        if (shippingAddress == null || 
+            !int.TryParse(shippingAddress.DistrictId, out int toDistrictId) || toDistrictId <= 0 ||
+            string.IsNullOrWhiteSpace(shippingAddress.WardCode))
+        {
+            return BadRequest(new { message = "Đơn hàng thiếu thông tin Quận/Huyện hoặc Phường/Xã GHN hợp lệ." });
+        }
+        var toWardCode = shippingAddress.WardCode.Trim();
+
+        // Chuẩn hóa thông tin người nhận
+        var toName = !string.IsNullOrWhiteSpace(shippingAddress.Name) 
+            ? shippingAddress.Name.Trim() 
+            : (!string.IsNullOrWhiteSpace(order.User?.Name) ? order.User.Name.Trim() : "Khách hàng GHT");
+
+        var toPhone = !string.IsNullOrWhiteSpace(shippingAddress.Phone) 
+            ? shippingAddress.Phone.Trim() 
+            : (!string.IsNullOrWhiteSpace(order.User?.Phone) ? order.User.Phone.Trim() : "0988888888");
+
+        var toAddress = !string.IsNullOrWhiteSpace(shippingAddress.FullAddress) 
+            ? shippingAddress.FullAddress.Trim() 
+            : (!string.IsNullOrWhiteSpace(shippingAddress.Address) ? shippingAddress.Address.Trim() : "Địa chỉ giao hàng");
 
         // Logic COD theo phương thức thanh toán
         var isCod = string.Equals(order.PaymentMethod, "COD", StringComparison.OrdinalIgnoreCase);

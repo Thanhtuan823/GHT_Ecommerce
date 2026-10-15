@@ -101,7 +101,8 @@ public static class DbSeeder
                 Phone = phone,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
                 Role = role,
-                IsActive = true
+                IsActive = true,
+                EmailVerified = true
             });
             context.SaveChanges();
         }
@@ -114,6 +115,7 @@ public static class DbSeeder
             existing.PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
             existing.Role = role;
             existing.IsActive = true;
+            existing.EmailVerified = true;
             context.SaveChanges();
         }
     }

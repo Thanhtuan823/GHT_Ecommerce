@@ -5,8 +5,12 @@ import axiosClient from '../utils/axiosClient';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
+  const getStoredToken = () => {
+    return localStorage.getItem('token') || sessionStorage.getItem('token');
+  };
+
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [token, setToken] = useState(getStoredToken);
   const [isLoading, setIsLoading] = useState(true);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
@@ -51,13 +55,20 @@ export const AuthProvider = ({ children }) => {
     setIsLoading(false);
   }, [token, fetchProfile]);
 
-  const login = (newToken) => {
-    localStorage.setItem('token', newToken);
+  const login = (newToken, remember = true) => {
+    if (remember) {
+      localStorage.setItem('token', newToken);
+      sessionStorage.removeItem('token');
+    } else {
+      sessionStorage.setItem('token', newToken);
+      localStorage.removeItem('token');
+    }
     setToken(newToken);
   };
 
   const logout = () => {
     localStorage.removeItem('token');
+    sessionStorage.removeItem('token');
     setToken(null);
     setUser(null);
     setIsProfileModalOpen(false);

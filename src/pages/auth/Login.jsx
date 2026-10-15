@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import { useAuth } from '../../context/AuthContext';
@@ -26,6 +26,15 @@ const Login = () => {
   const location = useLocation();
 
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "17023243200-v634ttcohdmthh7g1pv8d2msud64aqmq.apps.googleusercontent.com";
+
+  // Tự động nạp email đã lưu nếu trước đó đã bật "Ghi nhớ đăng nhập"
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('savedEmail');
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
 
   // Helper điều hướng theo role
   const redirectByRole = (token) => {
@@ -81,11 +90,29 @@ const Login = () => {
 
     try {
       const res = await axiosClient.post('/auth/login', { email, password });
-      login(res.data.token);
+
+      // Lưu hoặc xóa email đã ghi nhớ
+      if (rememberMe) {
+        localStorage.setItem('savedEmail', email.trim());
+      } else {
+        localStorage.removeItem('savedEmail');
+      }
+
+      login(res.data.token, rememberMe);
       await syncCart();
       await syncWishlist();
       redirectByRole(res.data.token);
     } catch (err) {
+      if (err.response?.status === 403 && err.response?.data?.requireVerification) {
+        navigate('/register', {
+          state: {
+            step: 2,
+            email: err.response?.data?.email || email,
+            notice: err.response?.data?.message || 'Tài khoản chưa được kích hoạt email. Vui lòng nhập mã OTP để kích hoạt.'
+          }
+        });
+        return;
+      }
       setError(err.response?.data?.message || 'Email hoặc mật khẩu không đúng');
     } finally {
       setIsSubmitting(false);
@@ -95,7 +122,7 @@ const Login = () => {
   const handleGoogleSuccess = async (credentialResponse) => {
     try {
       const res = await axiosClient.post('/auth/google', { idToken: credentialResponse.credential });
-      login(res.data.token);
+      login(res.data.token, rememberMe);
       await syncCart();
       await syncWishlist();
       redirectByRole(res.data.token);
@@ -216,8 +243,9 @@ const Login = () => {
                   onClick={() => setShowPassword((prev) => !prev)}
                   tabIndex={-1}
                   title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                  aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                 >
-                  {showPassword ? '👁️' : '👁️‍🗨️'}
+                  <i className={`ti ${showPassword ? 'ti-eye-off' : 'ti-eye'}`}></i>
                 </button>
               </div>
               {fieldErrors.password && (

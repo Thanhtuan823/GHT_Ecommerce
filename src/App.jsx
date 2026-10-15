@@ -6,6 +6,7 @@ import AdminLayout from './layouts/AdminLayout';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import ForgotPassword from './pages/auth/ForgotPassword';
 import ProductList from './pages/products/ProductList';
 import ProductDetail from './pages/products/ProductDetail';
 import AdminProducts from './pages/admin/Products';
@@ -56,6 +57,7 @@ function App() {
                   <Route index element={<Navigate to="/products" replace />} />
                   <Route path="login" element={<Login />} />
                   <Route path="register" element={<Register />} />
+                  <Route path="forgot-password" element={<ForgotPassword />} />
                   
                   <Route path="products" element={<ProductList />} />
                   <Route path="products/:slug" element={<ProductDetail />} />

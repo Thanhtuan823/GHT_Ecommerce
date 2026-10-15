@@ -40,6 +40,7 @@ public class UserDto
     public ShippingAddressDto? DefaultAddress { get; set; }
     public bool HasPassword { get; set; }
     public bool IsGoogleLinked { get; set; }
+    public bool EmailVerified { get; set; }
 }
 
 public class AuthResponse
@@ -71,3 +72,38 @@ public class SetPasswordRequest
     [Required, MinLength(8)]
     public string NewPassword { get; set; } = string.Empty;
 }
+
+public class ForgotPasswordRequest
+{
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+}
+
+public class ResetPasswordRequest
+{
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+
+    [Required]
+    public string Otp { get; set; } = string.Empty;
+
+    [Required, MinLength(6)]
+    public string NewPassword { get; set; } = string.Empty;
+}
+
+public class VerifyEmailRequest
+{
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+
+    [Required]
+    public string Otp { get; set; } = string.Empty;
+}
+
+public class ResendVerificationOtpRequest
+{
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+}
+
+

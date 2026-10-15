@@ -295,7 +295,40 @@ const ProfileModal = () => {
                   {user.role === 'Admin' ? 'Quản trị viên' : user.role === 'Staff' ? 'Nhân viên' : 'Khách hàng'}
                 </span>
               </div>
-              <p className="profile-modal-email">{user.email}</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <p className="profile-modal-email" style={{ margin: 0 }}>{user.email}</p>
+                {(user.emailVerified ?? true) ? (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    color: '#15803d',
+                    backgroundColor: '#dcfce7',
+                    padding: '2px 8px',
+                    borderRadius: '12px',
+                    lineHeight: '1.2'
+                  }}>
+                    <i className="ti ti-circle-check"></i> Đã xác thực
+                  </span>
+                ) : (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    color: '#b45309',
+                    backgroundColor: '#fef3c7',
+                    padding: '2px 8px',
+                    borderRadius: '12px',
+                    lineHeight: '1.2'
+                  }}>
+                    <i className="ti ti-alert-circle"></i> Chưa xác thực
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <button
@@ -372,9 +405,15 @@ const ProfileModal = () => {
                       value={user.email}
                       disabled
                     />
-                    <span className="profile-verified-badge">
-                      <i className="ti ti-check"></i> Đã xác thực
-                    </span>
+                    {(user.emailVerified ?? true) ? (
+                      <span className="profile-verified-badge">
+                        <i className="ti ti-check"></i> Đã xác thực
+                      </span>
+                    ) : (
+                      <span className="profile-verified-badge" style={{ backgroundColor: '#FEF3C7', color: '#92400E' }}>
+                        <i className="ti ti-alert-circle"></i> Chưa xác thực
+                      </span>
+                    )}
                   </div>
                 </div>
 

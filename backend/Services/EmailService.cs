@@ -674,4 +674,105 @@ public class EmailService
         var fullHtml = WrapWithGhtLayout(subject, contentHtml);
         await SendEmailAsync(adminEmail, "Admin GHT", $"[Báo cáo GHT] {subject}", fullHtml);
     }
+
+    public async Task SendPasswordResetOtp(User user, string otp)
+    {
+        if (string.IsNullOrEmpty(user.Email)) return;
+
+        var userName = !string.IsNullOrWhiteSpace(user.Name) ? user.Name : "Quý khách";
+
+        var contentHtml = $@"
+        <div style=""margin-bottom: 20px;"">
+          <span style=""display: inline-block; background-color: #FEF3C7; color: #92400E; padding: 4px 12px; border-radius: 16px; font-weight: 700; font-size: 12px; text-transform: uppercase;"">
+            Xác thực bảo mật tài khoản
+          </span>
+          <h2 style=""margin: 12px 0 6px 0; font-size: 20px; color: #111827;"">Yêu cầu đặt lại mật khẩu</h2>
+          <p style=""margin: 0; font-size: 14px; color: #4B5563; line-height: 1.5;"">
+            Xin chào <strong>{userName}</strong>, chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản liên kết với email <strong>{user.Email}</strong> trên hệ thống GHT E-Commerce.
+          </p>
+        </div>
+
+        <div style=""background-color: #EFF6FF; border: 2px dashed #BFDBFE; border-radius: 12px; padding: 24px; text-align: center; margin: 24px 0;"">
+          <div style=""font-size: 13px; font-weight: 600; color: #1D4ED8; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 1px;"">
+            Mã xác thực OTP của bạn
+          </div>
+          <div style=""font-family: 'Courier New', Courier, monospace; font-size: 34px; font-weight: 800; color: #1E40AF; letter-spacing: 8px; margin: 8px 0;"">
+            {otp}
+          </div>
+          <div style=""font-size: 13px; color: #60A5FA; margin-top: 6px;"">
+            (Mã này chỉ có hiệu lực trong vòng <strong>10 phút</strong>)
+          </div>
+        </div>
+
+        <div style=""background-color: #FFFBEB; border-left: 4px solid #F59E0B; padding: 12px 16px; border-radius: 4px; margin-bottom: 20px;"">
+          <div style=""font-size: 13px; color: #B45309; font-weight: 600;"">Lưu ý quan trọng:</div>
+          <div style=""font-size: 13px; color: #92400E; line-height: 1.5; margin-top: 2px;"">
+            Tuyệt đối không chia sẻ mã này cho bất kỳ ai, kể cả nhân viên của GHT. Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email hoặc đổi mật khẩu ngay để bảo vệ tài khoản.
+          </div>
+        </div>
+
+        <p style=""font-size: 13px; color: #6B7280; line-height: 1.5; margin: 0;"">
+          Trân trọng,<br />
+          <strong>Đội ngũ Kỹ thuật & Bảo mật GHT E-Commerce</strong>
+        </p>";
+
+        var fullHtml = WrapWithGhtLayout("Đặt lại mật khẩu - GHT E-Commerce", contentHtml);
+        await SendEmailAsync(
+            user.Email,
+            userName,
+            "[GHT E-Commerce] Mã xác nhận đặt lại mật khẩu của bạn",
+            fullHtml);
+    }
+
+    public async Task SendEmailVerificationOtp(User user, string otp)
+    {
+        if (string.IsNullOrEmpty(user.Email)) return;
+
+        var userName = !string.IsNullOrWhiteSpace(user.Name) ? user.Name : "Quý khách";
+
+        var contentHtml = $@"
+        <div style=""margin-bottom: 20px;"">
+          <span style=""display: inline-block; background-color: #DCFCE7; color: #15803D; padding: 4px 12px; border-radius: 16px; font-weight: 700; font-size: 12px; text-transform: uppercase;"">
+            Kích hoạt tài khoản mới
+          </span>
+          <h2 style=""margin: 12px 0 6px 0; font-size: 20px; color: #111827;"">Xác thực địa chỉ email của bạn</h2>
+          <p style=""margin: 0; font-size: 14px; color: #4B5563; line-height: 1.5;"">
+            Xin chào <strong>{userName}</strong>, cảm ơn bạn đã đăng ký tài khoản tại <strong>GHT E-Commerce</strong>. Để kích hoạt tài khoản và nhận thông báo đơn hàng, hóa đơn điện tử cũng như các ưu đãi độc quyền, vui lòng nhập mã xác thực OTP bên dưới:
+          </p>
+        </div>
+
+        <div style=""background-color: #F0FDF4; border: 2px dashed #86EFAC; border-radius: 12px; padding: 24px; text-align: center; margin: 24px 0;"">
+          <div style=""font-size: 13px; font-weight: 600; color: #16A34A; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 1px;"">
+            Mã OTP kích hoạt tài khoản
+          </div>
+          <div style=""font-family: 'Courier New', Courier, monospace; font-size: 34px; font-weight: 800; color: #15803D; letter-spacing: 8px; margin: 8px 0;"">
+            {otp}
+          </div>
+          <div style=""font-size: 13px; color: #16A34A; margin-top: 6px;"">
+            (Mã xác thực có hiệu lực trong vòng <strong>10 phút</strong>)
+          </div>
+        </div>
+
+        <div style=""background-color: #EFF6FF; border-left: 4px solid #3B82F6; padding: 12px 16px; border-radius: 4px; margin-bottom: 20px;"">
+          <div style=""font-size: 13px; color: #1D4ED8; font-weight: 600;"">Lợi ích sau khi kích hoạt:</div>
+          <div style=""font-size: 13px; color: #2563EB; line-height: 1.5; margin-top: 2px;"">
+            ✓ Nhận thông báo xác nhận đơn hàng và mã vận đơn GHN Express tức thì.<br />
+            ✓ Tự động nhận hóa đơn điện tử PDF sau khi thanh toán.<br />
+            ✓ Bảo vệ tài khoản và dễ dàng khôi phục mật khẩu khi cần thiết.
+          </div>
+        </div>
+
+        <p style=""font-size: 13px; color: #6B7280; line-height: 1.5; margin: 0;"">
+          Trân trọng,<br />
+          <strong>Đội ngũ GHT E-Commerce</strong>
+        </p>";
+
+        var fullHtml = WrapWithGhtLayout("Xác thực email - GHT E-Commerce", contentHtml);
+        await SendEmailAsync(
+            user.Email,
+            userName,
+            "[GHT E-Commerce] Xác thực địa chỉ email kích hoạt tài khoản của bạn",
+            fullHtml);
+    }
 }
+

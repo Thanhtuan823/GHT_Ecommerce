@@ -52,7 +52,8 @@ public class UsersController : ControllerBase
             Phone = user.Phone,
             DefaultAddress = defaultAddress,
             HasPassword = !string.IsNullOrEmpty(user.PasswordHash),
-            IsGoogleLinked = !string.IsNullOrEmpty(user.GoogleId)
+            IsGoogleLinked = !string.IsNullOrEmpty(user.GoogleId),
+            EmailVerified = user.EmailVerified
         });
     }
 
@@ -94,7 +95,8 @@ public class UsersController : ControllerBase
             Phone = user.Phone,
             DefaultAddress = savedAddress,
             HasPassword = !string.IsNullOrEmpty(user.PasswordHash),
-            IsGoogleLinked = !string.IsNullOrEmpty(user.GoogleId)
+            IsGoogleLinked = !string.IsNullOrEmpty(user.GoogleId),
+            EmailVerified = user.EmailVerified
         });
     }
 

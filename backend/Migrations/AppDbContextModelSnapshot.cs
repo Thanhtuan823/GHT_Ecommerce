@@ -388,6 +388,15 @@ namespace GhtBackend.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("EmailVerificationOtp")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("EmailVerificationOtpExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("EmailVerified")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("GoogleId")
                         .HasColumnType("text");
 
@@ -403,6 +412,12 @@ namespace GhtBackend.Migrations
 
                     b.Property<string>("Phone")
                         .HasColumnType("text");
+
+                    b.Property<string>("ResetPasswordOtp")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ResetPasswordOtpExpiresAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Role")
                         .IsRequired()

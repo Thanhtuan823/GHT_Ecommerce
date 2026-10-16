@@ -55,6 +55,8 @@ public class Product
     
     public string[] Tags { get; set; } = Array.Empty<string>();
     public int SoldCount { get; set; }
+    public int? OriginalPrice { get; set; }
+    public int ViewCount { get; set; } = 0;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     
@@ -151,7 +153,11 @@ public class UserUsedDiscount
     public User User { get; set; } = null!;
     public int DiscountId { get; set; }
     public Discount Discount { get; set; } = null!;
-    public DateTime UsedAt { get; set; } = DateTime.UtcNow;
+    public bool IsUsed { get; set; } = false;
+    public int? OrderId { get; set; }
+    public Order? Order { get; set; }
+    public DateTime SavedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UsedAt { get; set; }
 }
 
 public class Review

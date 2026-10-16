@@ -11,88 +11,220 @@
   gap: var(--space-6);
 }
 
-/* 3. Hero Banner (#EBF2FF, 2 columns) */
+/* 3. Hero Banner (Royal Blue / Indigo gradient, high-tech card) */
 .products-hero-banner {
-  background-color: var(--color-accent-bg);
-  border: 1px solid var(--color-accent-border);
-  border-radius: var(--radius-lg);
-  padding: 24px 32px;
+  background: linear-gradient(135deg, #EFF6FF 0%, #E0EDFD 50%, #F0F7FF 100%);
+  border: 1px solid #BFDBFE;
+  border-radius: var(--radius-xl);
+  padding: 32px 36px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-6);
+  gap: var(--space-8);
   box-sizing: border-box;
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+.products-hero-banner::after {
+  content: '';
+  position: absolute;
+  top: -80px;
+  right: -80px;
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.12) 0%, rgba(37, 99, 235, 0) 70%);
+  border-radius: 50%;
+  pointer-events: none;
 }
 
 .hero-banner-content {
   flex: 1;
-  max-width: 650px;
+  max-width: 680px;
+  z-index: 1;
 }
 
 .hero-banner-label {
   font-size: 12px;
-  font-weight: 600;
-  color: var(--color-accent);
-  display: block;
-  margin-bottom: var(--space-1);
+  font-weight: 700;
+  color: #2563EB;
+  display: inline-block;
+  margin-bottom: var(--space-2);
+  letter-spacing: 0.5px;
+  background: rgba(37, 99, 235, 0.1);
+  padding: 4px 10px;
+  border-radius: 20px;
 }
 
 .hero-banner-title {
-  font-size: 26px;
-  font-weight: 800;
-  color: var(--color-text-primary);
-  line-height: 1.3;
-  margin: 0 0 var(--space-2) 0;
-  letter-spacing: -0.3px;
+  font-size: 30px;
+  font-weight: 900;
+  color: #0F172A;
+  line-height: 1.25;
+  margin: 0 0 var(--space-3) 0;
+  letter-spacing: -0.5px;
 }
 
 .hero-banner-sub {
-  font-size: 14px;
-  color: var(--color-text-secondary);
-  margin: 0 0 var(--space-3) 0;
-  line-height: 1.5;
+  font-size: 15px;
+  color: #475569;
+  margin: 0 0 var(--space-5) 0;
+  line-height: 1.6;
 }
 
 .hero-banner-trust {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--color-success);
+  color: #059669;
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
-.hero-banner-voucher {
-  background-color: var(--color-bg-white);
-  border: 1px dashed var(--color-accent-border);
-  border-radius: var(--radius-md);
-  padding: 16px 20px;
-  min-width: 260px;
+.hero-banner-trust span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #FFFFFF;
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid #D1FAE5;
+  box-shadow: 0 1px 3px rgba(5, 150, 105, 0.1);
+}
+
+/* Right Card */
+.hero-banner-card {
+  background: #FFFFFF;
+  border: 1px solid #BFDBFE;
+  border-radius: 16px;
+  padding: 22px 24px;
+  min-width: 300px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  box-shadow: var(--shadow-sm);
+  gap: 10px;
+  box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.15);
+  z-index: 1;
 }
 
-.hero-voucher-label {
-  font-size: 11px;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  font-weight: 600;
-  letter-spacing: 0.3px;
-}
-
-.hero-voucher-code {
-  font-size: 18px;
+.hero-card-badge {
+  align-self: flex-start;
+  background: linear-gradient(135deg, #DC2626, #EA580C);
+  color: #FFFFFF;
+  font-size: 10px;
   font-weight: 800;
-  color: var(--color-accent);
+  padding: 3px 8px;
+  border-radius: 4px;
   letter-spacing: 0.5px;
 }
 
-.hero-voucher-desc {
-  font-size: 12px;
-  color: var(--color-text-secondary);
-  margin-bottom: var(--space-2);
+.hero-card-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #1E3A8A;
+  letter-spacing: -0.2px;
+}
+
+.hero-card-desc {
+  font-size: 13px;
+  color: #64748B;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.hero-card-stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px dashed #E2E8F0;
+}
+
+.hero-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.hero-stat-item strong {
+  font-size: 15px;
+  font-weight: 800;
+  color: #2563EB;
+}
+
+.hero-stat-item span {
+  font-size: 11px;
+  color: #64748B;
+}
+
+.hero-stat-divider {
+  width: 1px;
+  height: 24px;
+  background: #E2E8F0;
+}
+
+/* 4. Catalog Explorer Section */
+.catalog-explorer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.catalog-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.catalog-section-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0F172A;
+  margin: 0 0 4px 0;
+  letter-spacing: -0.2px;
+}
+
+.catalog-section-sub {
+  font-size: 13px;
+  color: #64748B;
+  margin: 0;
+}
+
+.btn-back-home-view {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #EFF6FF;
+  color: #2563EB;
+  border: 1px solid #BFDBFE;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-back-home-view:hover {
+  background: #2563EB;
+  color: #FFFFFF;
+  border-color: #2563EB;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+.products-main-heading {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0F172A;
+  margin: 0 0 2px 0;
 }
 
 /* 4. Products Layout (Sidebar 200px + Main Grid) */
@@ -368,10 +500,12 @@
   .products-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
   .products-hero-banner {
     flex-direction: column;
     align-items: flex-start;
   }
+
   .hero-banner-voucher {
     width: 100%;
     box-sizing: border-box;
@@ -382,9 +516,11 @@
   .products-body-layout {
     flex-direction: column;
   }
+
   .products-sidebar {
     width: 100%;
   }
+
   .products-grid {
     grid-template-columns: 1fr;
   }

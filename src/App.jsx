@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import MainLayout from './components/layout/MainLayout';
 import AdminLayout from './layouts/AdminLayout';
@@ -19,6 +19,7 @@ import Checkout from './pages/checkout/Checkout';
 import Payment from './pages/checkout/Payment';
 import FloatingChatbot from './components/chat/FloatingChatbot';
 import ProfileModal from './components/profile/ProfileModal';
+import VouchersModal from './components/voucher/VouchersModal';
 import OrderHistory from './pages/orders/OrderHistory';
 import OrderDetail from './pages/orders/OrderDetail';
 import StaffOrders from './pages/staff/StaffOrders';
@@ -29,10 +30,23 @@ import { ToastProvider } from './components/common/ToastContext';
 // Helper redirect on /profile
 const ProfileRouteRedirect = () => {
   const { openProfileModal } = useAuth();
+  const navigate = useNavigate();
   useEffect(() => {
     openProfileModal();
-  }, [openProfileModal]);
-  return <Navigate to="/" replace />;
+    navigate('/', { replace: true });
+  }, [openProfileModal, navigate]);
+  return null;
+};
+
+// Helper redirect on /vouchers
+const VouchersRouteRedirect = () => {
+  const { openVouchersModal } = useAuth();
+  const navigate = useNavigate();
+  useEffect(() => {
+    openVouchersModal();
+    navigate('/', { replace: true });
+  }, [openVouchersModal, navigate]);
+  return null;
 };
 
 // Helper redirect on /admin root based on role
@@ -63,6 +77,7 @@ function App() {
                   <Route path="products/:slug" element={<ProductDetail />} />
                   <Route path="cart" element={<Cart />} />
                   <Route path="wishlist" element={<Wishlist />} />
+                  <Route path="vouchers" element={<VouchersRouteRedirect />} />
                   
                   {/* Protected Customer Routes */}
                   <Route element={<ProtectedRoute />}>
@@ -95,6 +110,7 @@ function App() {
               </Routes>
               <FloatingChatbot />
               <ProfileModal />
+              <VouchersModal />
             </WishlistProvider>
           </CartProvider>
         </AuthProvider>

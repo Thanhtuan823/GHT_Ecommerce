@@ -1,11 +1,13 @@
 import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../components/common/ToastContext';
 import './Cart.css';
 
 const Cart = () => {
   const { cart, removeFromCart, updateQuantity } = useCart();
+  const { openVouchersModal } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
 
@@ -279,8 +281,38 @@ const Cart = () => {
             Thanh toán ({selectedItems.length} sản phẩm)
           </button>
 
+          <div className="cart-voucher-banner-btn-box" style={{ marginTop: '12px', marginBottom: '8px' }}>
+            <button
+              id="cart-open-vouchers-btn"
+              type="button"
+              className="btn-ghost"
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                borderColor: 'var(--color-primary, #2563eb)',
+                color: 'var(--color-primary, #2563eb)',
+                fontWeight: '600',
+                padding: '10px 14px',
+                borderRadius: '8px'
+              }}
+              onClick={() => openVouchersModal({
+                currentOrderAmount: totalPrice,
+                onApply: (selectedCode) => {
+                  toast.success(`Đã chọn mã ${selectedCode}! Tiến hành thanh toán để áp dụng.`);
+                  handleCheckout();
+                }
+              })}
+            >
+              <i className="ti ti-ticket"></i>
+              <span>🎟️ Chọn mã ưu đãi</span>
+            </button>
+          </div>
+
           <p className="cart-discount-hint">
-            Bạn có thể áp mã giảm giá ở bước thanh toán.
+            Bạn có thể áp mã giảm giá ở bước này hoặc thanh toán.
           </p>
 
           <div className="cart-trust-note">
@@ -310,16 +342,36 @@ const Cart = () => {
         <section className="cart-promo-voucher-box">
           <div className="cart-promo-text">
             <h3>Đừng bỏ lỡ ưu đãi cho đơn hàng này</h3>
-            <p>Mã <strong>GHTSALE10</strong> giảm 10%, tối đa 50.000đ • Áp dụng cho đơn từ 1.000.000đ</p>
+            <p>Mã <strong>GHTSALE10</strong> giảm 10%, tối đa 500.000đ • Áp dụng cho đơn từ 1.000.000đ</p>
           </div>
 
-          <button
-            type="button"
-            className="btn-ghost"
-            onClick={handleCopyCode}
-          >
-            <i className="ti ti-copy"></i> Sao chép mã
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => openVouchersModal({
+                currentOrderAmount: selectedTotal,
+                onApply: (code) => {
+                  toast.success(`Đã chọn mã ${code}! Đang chuyển đến trang thanh toán...`);
+                  navigate('/checkout');
+                }
+              })}
+              style={{
+                borderColor: '#2563eb',
+                color: '#2563eb',
+                fontWeight: '600'
+              }}
+            >
+              <i className="ti ti-ticket"></i> 🎟️ Chọn mã ưu đãi
+            </button>
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={handleCopyCode}
+            >
+              <i className="ti ti-copy"></i> Sao chép mã
+            </button>
+          </div>
         </section>
       </div>
     </div>

@@ -20,46 +20,52 @@ public class DiscountService
             throw new Exception("Mã giảm giá không tồn tại");
 
         if (!discount.IsActive)
-            throw new Exception("Mã đã bị tắt");
+            throw new Exception("Mã giảm giá này hiện đang tạm khóa");
 
         var now = DateTime.UtcNow;
         if (now < discount.StartDate)
-            throw new Exception("Mã chưa có hiệu lực");
+            throw new Exception("Mã giảm giá chưa đến thời gian áp dụng");
         if (now > discount.EndDate)
-            throw new Exception("Mã đã hết hạn");
+            throw new Exception("Mã giảm giá đã hết hạn sử dụng");
 
         if (discount.UsageLimit.HasValue && discount.UsedCount >= discount.UsageLimit.Value)
-            throw new Exception("Mã đã hết lượt sử dụng");
+            throw new Exception("Mã giảm giá đã hết lượt sử dụng");
 
-        var userUsedCount = await _context.UserUsedDiscounts.CountAsync(u => u.UserId == userId && u.DiscountId == discount.Id);
-        if (userUsedCount >= discount.PerUserLimit)
-            throw new Exception("Bạn đã dùng hết lượt sử dụng mã này");
+        if (userId > 0)
+        {
+            var userUsedCount = await _context.UserUsedDiscounts.CountAsync(u => u.UserId == userId && u.DiscountId == discount.Id);
+            if (userUsedCount >= discount.PerUserLimit)
+                throw new Exception("Bạn đã dùng hết lượt sử dụng mã này");
+        }
 
         if (originalAmount < discount.MinOrderAmount)
-            throw new Exception($"Đơn hàng tối thiểu {discount.MinOrderAmount}đ để dùng mã này");
+            throw new Exception($"Đơn hàng tối thiểu phải từ {discount.MinOrderAmount:N0}đ để áp dụng mã này");
 
         // Validate conditions
-        var productIds = orderItems.Select(i => i.ProductId).ToList();
-        var products = await _context.Products.Where(p => productIds.Contains(p.Id)).ToListAsync();
+        if (orderItems != null && orderItems.Any())
+        {
+            var productIds = orderItems.Select(i => i.ProductId).ToList();
+            var products = await _context.Products.Where(p => productIds.Contains(p.Id)).ToListAsync();
 
-        if (discount.Conditions == "CATEGORY")
-        {
-            bool hasValidProduct = products.Any(p => discount.ConditionValues.Contains(p.CategoryId.ToString()));
-            if (!hasValidProduct) throw new Exception("Không có sản phẩm nào thoả điều kiện của mã này");
-        }
-        else if (discount.Conditions == "BRAND")
-        {
-            bool hasValidProduct = products.Any(p => p.Brand != null && discount.ConditionValues.Contains(p.Brand));
-            if (!hasValidProduct) throw new Exception("Không có sản phẩm nào thoả điều kiện của mã này");
-        }
-        else if (discount.Conditions == "NEW_ARRIVAL")
-        {
-            int days = 30; // default
-            if (discount.ConditionValues.Length > 0 && int.TryParse(discount.ConditionValues[0], out int parsedDays))
-                days = parsedDays;
-                
-            bool hasValidProduct = products.Any(p => p.CreatedAt >= DateTime.UtcNow.AddDays(-days));
-            if (!hasValidProduct) throw new Exception("Không có sản phẩm nào thoả điều kiện của mã này");
+            if (discount.Conditions == "CATEGORY")
+            {
+                bool hasValidProduct = products.Any(p => discount.ConditionValues.Contains(p.CategoryId.ToString()));
+                if (!hasValidProduct) throw new Exception("Không có sản phẩm nào thoả điều kiện của mã này");
+            }
+            else if (discount.Conditions == "BRAND")
+            {
+                bool hasValidProduct = products.Any(p => p.Brand != null && discount.ConditionValues.Contains(p.Brand));
+                if (!hasValidProduct) throw new Exception("Không có sản phẩm nào thoả điều kiện của mã này");
+            }
+            else if (discount.Conditions == "NEW_ARRIVAL")
+            {
+                int days = 30; // default
+                if (discount.ConditionValues.Length > 0 && int.TryParse(discount.ConditionValues[0], out int parsedDays))
+                    days = parsedDays;
+                    
+                bool hasValidProduct = products.Any(p => p.CreatedAt >= DateTime.UtcNow.AddDays(-days));
+                if (!hasValidProduct) throw new Exception("Không có sản phẩm nào thoả điều kiện của mã này");
+            }
         }
 
         // Calculate discount
@@ -72,13 +78,19 @@ public class DiscountService
         }
         else if (discount.DiscountType == "FIXED")
         {
-            discountAmount = discount.DiscountValue;
+            discountAmount = Math.Min(discount.DiscountValue, originalAmount);
         }
+
+        int finalAmount = Math.Max(0, originalAmount - discountAmount);
 
         return new ApplyDiscountResponse
         {
+            Success = true,
+            DiscountId = discount.Id,
+            Code = discount.Code,
             DiscountAmount = discountAmount,
-            DiscountId = discount.Id
+            FinalAmount = finalAmount,
+            Message = "Áp dụng mã thành công!"
         };
     }
 }

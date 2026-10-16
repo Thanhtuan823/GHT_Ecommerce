@@ -73,6 +73,32 @@
 .product-card-badge.badge-discount {
   background-color: var(--color-danger-bg);
   color: var(--color-danger);
+  font-weight: 700;
+}
+
+.product-card-badge.badge-rank {
+  background: linear-gradient(135deg, #2563EB, #1D4ED8);
+  color: #FFFFFF;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
+  font-weight: 700;
+}
+
+.product-card-badge.badge-rank.rank-1 {
+  background: linear-gradient(135deg, #DC2626, #B91C1C);
+  color: #FFFFFF;
+  box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3);
+}
+
+.product-card-badge.badge-rank.rank-2 {
+  background: linear-gradient(135deg, #EA580C, #C2410C);
+  color: #FFFFFF;
+  box-shadow: 0 2px 4px rgba(234, 88, 12, 0.3);
+}
+
+.product-card-badge.badge-rank.rank-3 {
+  background: linear-gradient(135deg, #D97706, #B45309);
+  color: #FFFFFF;
+  box-shadow: 0 2px 4px rgba(217, 119, 6, 0.3);
 }
 
 .product-card-badge.badge-out-of-stock {

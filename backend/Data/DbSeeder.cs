@@ -77,6 +77,180 @@ public static class DbSeeder
         }
 
         SeedUsers(context);
+        SeedDiscounts(context);
+        UpdateProductMetrics(context);
+    }
+
+    private static void UpdateProductMetrics(AppDbContext context)
+    {
+        var products = context.Products.ToList();
+        if (!products.Any()) return;
+
+        bool changed = false;
+        foreach (var p in products)
+        {
+            if (p.OriginalPrice == null || p.OriginalPrice == 0)
+            {
+                // Add 10% - 20% to price as original price for on-sale items
+                p.OriginalPrice = (int)Math.Round(p.Price * 1.15 / 100000) * 100000;
+                changed = true;
+            }
+
+            if (p.SoldCount == 0)
+            {
+                if (p.Slug.Contains("master")) p.SoldCount = 120;
+                else if (p.Slug.Contains("macbook")) p.SoldCount = 89;
+                else if (p.Slug.Contains("zephyrus")) p.SoldCount = 52;
+                else if (p.Slug.Contains("thinkpad")) p.SoldCount = 42;
+                else if (p.Slug.Contains("xps")) p.SoldCount = 38;
+                else if (p.Slug.Contains("spectre")) p.SoldCount = 31;
+                else if (p.Slug.Contains("gram")) p.SoldCount = 18;
+                else p.SoldCount = 10;
+                changed = true;
+            }
+
+            if (p.ViewCount == 0)
+            {
+                p.ViewCount = p.SoldCount * 8 + 45;
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            context.SaveChanges();
+        }
+    }
+
+    private static void SeedDiscounts(AppDbContext context)
+    {
+        var discounts = new List<Discount>
+        {
+            new Discount
+            {
+                Code = "GHTSALE10",
+                Description = "Giảm 10% tối đa 500.000đ cho đơn hàng từ 1.000.000đ (Khuyến mãi toàn sàn)",
+                DiscountType = "PERCENTAGE",
+                DiscountValue = 10,
+                MaxDiscountAmount = 500000,
+                MinOrderAmount = 1000000,
+                UsageLimit = 1000,
+                UsedCount = 0,
+                PerUserLimit = 1,
+                StartDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                EndDate = new DateTime(2026, 12, 31, 23, 59, 59, DateTimeKind.Utc),
+                IsActive = true,
+                Conditions = "ALL",
+                ConditionValues = Array.Empty<string>(),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            },
+            new Discount
+            {
+                Code = "TECHFEST20",
+                Description = "Đại tiệc công nghệ: Giảm 20% tối đa 300.000đ cho đơn từ 500.000đ",
+                DiscountType = "PERCENTAGE",
+                DiscountValue = 20,
+                MaxDiscountAmount = 300000,
+                MinOrderAmount = 500000,
+                UsageLimit = 500,
+                UsedCount = 0,
+                PerUserLimit = 1,
+                StartDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                EndDate = new DateTime(2026, 12, 31, 23, 59, 59, DateTimeKind.Utc),
+                IsActive = true,
+                Conditions = "ALL",
+                ConditionValues = Array.Empty<string>(),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            },
+            new Discount
+            {
+                Code = "LAPTOP500",
+                Description = "Giảm trực tiếp 500.000đ khi mua laptop cao cấp từ 15.000.000đ",
+                DiscountType = "FIXED",
+                DiscountValue = 500000,
+                MaxDiscountAmount = null,
+                MinOrderAmount = 15000000,
+                UsageLimit = 200,
+                UsedCount = 0,
+                PerUserLimit = 1,
+                StartDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                EndDate = new DateTime(2026, 12, 31, 23, 59, 59, DateTimeKind.Utc),
+                IsActive = true,
+                Conditions = "ALL",
+                ConditionValues = Array.Empty<string>(),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            },
+            new Discount
+            {
+                Code = "FREESHIP",
+                Description = "Hỗ trợ 30.000đ phí vận chuyển cho đơn hàng từ 2.000.000đ",
+                DiscountType = "FIXED",
+                DiscountValue = 30000,
+                MaxDiscountAmount = null,
+                MinOrderAmount = 2000000,
+                UsageLimit = 1000,
+                UsedCount = 0,
+                PerUserLimit = 1,
+                StartDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                EndDate = new DateTime(2026, 12, 31, 23, 59, 59, DateTimeKind.Utc),
+                IsActive = true,
+                Conditions = "ALL",
+                ConditionValues = Array.Empty<string>(),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            },
+            new Discount
+            {
+                Code = "NEWBIE10",
+                Description = "Ưu đãi chào bạn mới: Giảm 10% tối đa 200.000đ cho đơn từ 500.000đ",
+                DiscountType = "PERCENTAGE",
+                DiscountValue = 10,
+                MaxDiscountAmount = 200000,
+                MinOrderAmount = 500000,
+                UsageLimit = 500,
+                UsedCount = 0,
+                PerUserLimit = 1,
+                StartDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                EndDate = new DateTime(2026, 12, 31, 23, 59, 59, DateTimeKind.Utc),
+                IsActive = true,
+                Conditions = "ALL",
+                ConditionValues = Array.Empty<string>(),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            },
+            new Discount
+            {
+                Code = "VIPOFF",
+                Description = "Đặc quyền khách hàng VIP: Giảm 15% tối đa 1.000.000đ cho đơn từ 5.000.000đ (Tạm khóa)",
+                DiscountType = "PERCENTAGE",
+                DiscountValue = 15,
+                MaxDiscountAmount = 1000000,
+                MinOrderAmount = 5000000,
+                UsageLimit = 100,
+                UsedCount = 0,
+                PerUserLimit = 1,
+                StartDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                EndDate = new DateTime(2026, 12, 31, 23, 59, 59, DateTimeKind.Utc),
+                IsActive = false,
+                Conditions = "ALL",
+                ConditionValues = Array.Empty<string>(),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            }
+        };
+
+        foreach (var d in discounts)
+        {
+            var existing = context.Discounts.FirstOrDefault(x => x.Code == d.Code);
+            if (existing == null)
+            {
+                context.Discounts.Add(d);
+            }
+        }
+        context.SaveChanges();
     }
 
     private static void SeedUsers(AppDbContext context)
@@ -120,3 +294,4 @@ public static class DbSeeder
         }
     }
 }
+

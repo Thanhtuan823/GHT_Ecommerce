@@ -1,0 +1,355 @@
+/* src/components/home/CouponRail.css - GHT Brand Modern Ticket Rail */
+
+.coupon-rail-wrapper {
+  background: linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%);
+  border: 1px solid #DBEAFE;
+  border-radius: 16px;
+  padding: 20px 24px;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.06);
+  margin-bottom: 28px;
+  position: relative;
+  overflow: hidden;
+}
+
+.coupon-rail-wrapper::before {
+  content: '';
+  position: absolute;
+  top: -60px;
+  right: -60px;
+  width: 160px;
+  height: 160px;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.1) 0%, rgba(37, 99, 235, 0) 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Header */
+.coupon-rail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 16px;
+}
+
+.coupon-rail-title-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.coupon-rail-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #2563EB, #1D4ED8);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+  flex-shrink: 0;
+}
+
+.coupon-rail-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0F172A;
+  margin: 0 0 2px 0;
+  letter-spacing: -0.3px;
+}
+
+.coupon-rail-sub {
+  font-size: 13px;
+  color: #64748B;
+  margin: 0;
+}
+
+.coupon-rail-view-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid #BFDBFE;
+  color: #2563EB;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.coupon-rail-view-all:hover {
+  background: #2563EB;
+  color: #FFFFFF;
+  border-color: #2563EB;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+/* Ticket List Rail */
+.coupon-rail-list {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: #BFDBFE #F1F5F9;
+}
+
+.coupon-rail-list::-webkit-scrollbar {
+  height: 6px;
+}
+
+.coupon-rail-list::-webkit-scrollbar-track {
+  background: #F1F5F9;
+  border-radius: 4px;
+}
+
+.coupon-rail-list::-webkit-scrollbar-thumb {
+  background: #BFDBFE;
+  border-radius: 4px;
+}
+
+.coupon-rail-list::-webkit-scrollbar-thumb:hover {
+  background: #93C5FD;
+}
+
+/* Individual Ticket Card */
+.coupon-ticket-item {
+  display: flex;
+  flex: 0 0 280px;
+  background: #FFFFFF;
+  border-radius: 12px;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+  overflow: hidden;
+  transition: all 0.2s ease;
+  position: relative;
+  min-height: 108px;
+}
+
+.coupon-ticket-item:hover {
+  transform: translateY(-2px);
+  border-color: #93C5FD;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.12);
+}
+
+.coupon-ticket-item.is-claimed {
+  background: #F8FAFC;
+  border-color: #CBD5E1;
+}
+
+/* Left Stamp */
+.coupon-ticket-left {
+  width: 96px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 8px;
+  color: #FFFFFF;
+  text-align: center;
+  position: relative;
+}
+
+.coupon-ticket-left.pct-val {
+  background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+}
+
+.coupon-ticket-left.fixed-val {
+  background: linear-gradient(135deg, #4F46E5 0%, #4338CA 100%);
+}
+
+.is-claimed .coupon-ticket-left {
+  background: linear-gradient(135deg, #64748B 0%, #475569 100%);
+  opacity: 0.9;
+}
+
+.coupon-tag {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  opacity: 0.85;
+  text-transform: uppercase;
+}
+
+.coupon-value-big {
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.2;
+  margin: 3px 0;
+  letter-spacing: -0.2px;
+}
+
+.coupon-type-badge {
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+/* Divider with Cutout Notches */
+.coupon-ticket-divider {
+  position: relative;
+  width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.coupon-notch {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: #F8FAFC;
+  border-radius: 50%;
+  left: -7px;
+  z-index: 2;
+  border: 1px solid #E2E8F0;
+}
+
+.coupon-notch.notch-top {
+  top: -8px;
+  clip-path: polygon(0 50%, 100% 50%, 100% 100%, 0 100%);
+}
+
+.coupon-notch.notch-bottom {
+  bottom: -8px;
+  clip-path: polygon(0 0, 100% 0, 100% 50%, 0 50%);
+}
+
+.coupon-dash-line {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 0;
+  border-left: 1.5px dashed #CBD5E1;
+}
+
+/* Right Content */
+.coupon-ticket-right {
+  flex: 1;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.coupon-code-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.coupon-code-pill {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 13px;
+  font-weight: 800;
+  color: #1E40AF;
+  letter-spacing: 0.5px;
+  background: #EFF6FF;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px dashed #93C5FD;
+}
+
+.coupon-claimed-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: #059669;
+  background: #D1FAE5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.coupon-condition-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.condition-main {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.condition-cap {
+  font-size: 11px;
+  color: #64748B;
+}
+
+/* Claim Button */
+.btn-claim-voucher {
+  background: #2563EB;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+  width: 100%;
+}
+
+.btn-claim-voucher:hover:not(:disabled) {
+  background: #1D4ED8;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.btn-claim-voucher.is-claimed,
+.btn-claim-voucher:disabled {
+  background: #E2E8F0;
+  color: #64748B;
+  cursor: default;
+  box-shadow: none;
+}
+
+.btn-claim-voucher.is-claimed {
+  background: #ECFDF5;
+  color: #059669;
+  border: 1px solid #A7F3D0;
+}
+
+/* Skeleton Loading */
+.coupon-ticket-skeleton {
+  height: 108px;
+  border-radius: 12px;
+  background: #E2E8F0;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .coupon-rail-wrapper {
+    padding: 16px;
+  }
+  .coupon-rail-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

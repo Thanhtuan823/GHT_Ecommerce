@@ -31,6 +31,9 @@ public class ProductDto
     public JsonElement? Specs { get; set; }
     public string[]? Tags { get; set; }
     public int SoldCount { get; set; }
+    public int? OriginalPrice { get; set; }
+    public int ViewCount { get; set; }
+    public int? DiscountPercent { get; set; }
     public DateTime CreatedAt { get; set; }
     
     // Virtual fields added in DTO

@@ -24,7 +24,7 @@ const getCategoryIcon = (catName = '') => {
 };
 
 const Navbar = () => {
-  const { user, logout, openProfileModal } = useAuth();
+  const { user, logout, openProfileModal, openVouchersModal } = useAuth();
   const { cartCount } = useCart();
   const { wishlist } = useWishlist();
   const navigate = useNavigate();
@@ -66,8 +66,8 @@ const Navbar = () => {
         setCategoryDropdownOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
   const handleCategoryMouseEnter = () => {
@@ -225,9 +225,13 @@ const Navbar = () => {
           ) : (
             <div className="user-profile-wrapper" ref={dropdownRef}>
               <button
+                id="user-profile-btn"
                 type="button"
                 className="user-profile-btn"
-                onClick={() => setDropdownOpen((prev) => !prev)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDropdownOpen((prev) => !prev);
+                }}
               >
                 <div className="user-avatar-circle">
                   {user.avatar ? (
@@ -241,13 +245,14 @@ const Navbar = () => {
               </button>
 
               {dropdownOpen && (
-                <div className="user-dropdown-menu">
+                <div className="user-dropdown-menu" id="user-dropdown-menu">
                   <div className="user-dropdown-header">
                     <div className="user-name-text">{user.name}</div>
                     <div className="user-dropdown-email">{user.email}</div>
                   </div>
 
                   <button
+                    id="user-menu-profile"
                     type="button"
                     className="user-dropdown-item"
                     onClick={() => {
@@ -257,6 +262,19 @@ const Navbar = () => {
                   >
                     <i className="ti ti-user"></i>
                     <span>Hồ sơ cá nhân</span>
+                  </button>
+
+                  <button
+                    id="user-menu-vouchers"
+                    type="button"
+                    className="user-dropdown-item"
+                    onClick={() => {
+                      setDropdownOpen(false);
+                      openVouchersModal();
+                    }}
+                  >
+                    <i className="ti ti-ticket"></i>
+                    <span>Mã ưu đãi</span>
                   </button>
 
                   <Link

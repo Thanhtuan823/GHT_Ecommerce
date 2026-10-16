@@ -12,6 +12,7 @@ export const CartProvider = ({ children }) => {
   const toast = useToast();
   const [cart, setCart] = useState({ items: [], totalPrice: 0 });
   const [cartCount, setCartCount] = useState(0);
+  const [isCartLoading, setIsCartLoading] = useState(true);
 
   const getGuestCart = () => {
     try {
@@ -31,6 +32,7 @@ export const CartProvider = ({ children }) => {
   };
 
   const fetchCart = async () => {
+    setIsCartLoading(true);
     if (token) {
       try {
         const res = await axiosClient.get('/cart');
@@ -38,10 +40,13 @@ export const CartProvider = ({ children }) => {
         setCartCount(res.data.items.reduce((sum, item) => sum + item.quantity, 0));
       } catch (err) {
         console.error('Lỗi lấy giỏ hàng', err);
+      } finally {
+        setIsCartLoading(false);
       }
     } else {
       const items = getGuestCart();
       setGuestCart(items);
+      setIsCartLoading(false);
     }
   };
 
@@ -142,7 +147,7 @@ export const CartProvider = ({ children }) => {
   };
 
   return (
-    <CartContext.Provider value={{ cart, cartCount, addToCart, removeFromCart, updateQuantity, syncCart, fetchCart }}>
+    <CartContext.Provider value={{ cart, cartCount, isCartLoading, addToCart, removeFromCart, updateQuantity, syncCart, fetchCart }}>
       {children}
     </CartContext.Provider>
   );

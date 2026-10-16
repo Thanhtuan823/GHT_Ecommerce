@@ -98,6 +98,11 @@ public class ProductsController : ControllerBase
             Specs = string.IsNullOrEmpty(p.Specs) ? null : JsonSerializer.Deserialize<JsonElement>(p.Specs),
             Tags = p.Tags,
             SoldCount = p.SoldCount,
+            OriginalPrice = p.OriginalPrice,
+            ViewCount = p.ViewCount,
+            DiscountPercent = (p.OriginalPrice != null && p.OriginalPrice > p.Price)
+                ? (int?)Math.Round((double)(p.OriginalPrice.Value - p.Price) / p.OriginalPrice.Value * 100)
+                : null,
             CreatedAt = p.CreatedAt,
             AvgRating = reviewsStats.ContainsKey(p.Id) ? reviewsStats[p.Id].AvgRating : 0,
             ReviewCount = reviewsStats.ContainsKey(p.Id) ? reviewsStats[p.Id].ReviewCount : 0
@@ -179,7 +184,99 @@ public class ProductsController : ControllerBase
         });
     }
 
-    [HttpGet("{id}")]
+    [HttpGet("home-featured")]
+    public async Task<IActionResult> GetHomeFeatured([FromQuery] int limit = 6)
+    {
+        if (limit < 1) limit = 6;
+        if (limit > 12) limit = 12;
+
+        // 1. On Sale: OriginalPrice != null && OriginalPrice > Price, ordered by % discount DESC
+        var onSaleDb = await _context.Products
+            .AsNoTracking()
+            .Where(p => p.OriginalPrice != null && p.OriginalPrice > p.Price)
+            .OrderByDescending(p => (double)(p.OriginalPrice!.Value - p.Price) / p.OriginalPrice!.Value)
+            .Take(limit)
+            .ToListAsync();
+
+        // 2. Best Sellers: ordered by SoldCount DESC
+        var bestSellersDb = await _context.Products
+            .AsNoTracking()
+            .OrderByDescending(p => p.SoldCount)
+            .Take(limit)
+            .ToListAsync();
+
+        // 3. New Arrivals: ordered by CreatedAt DESC
+        var newArrivalsDb = await _context.Products
+            .AsNoTracking()
+            .OrderByDescending(p => p.CreatedAt)
+            .Take(limit)
+            .ToListAsync();
+
+        // 4. Featured: ordered by ViewCount DESC
+        var featuredDb = await _context.Products
+            .AsNoTracking()
+            .OrderByDescending(p => p.ViewCount)
+            .Take(limit)
+            .ToListAsync();
+
+        // Collect all distinct product IDs to batch query review stats
+        var allProductIds = onSaleDb.Select(p => p.Id)
+            .Concat(bestSellersDb.Select(p => p.Id))
+            .Concat(newArrivalsDb.Select(p => p.Id))
+            .Concat(featuredDb.Select(p => p.Id))
+            .Distinct()
+            .ToList();
+
+        var reviewStats = await _context.Reviews
+            .AsNoTracking()
+            .Where(r => allProductIds.Contains(r.ProductId))
+            .GroupBy(r => r.ProductId)
+            .Select(g => new
+            {
+                ProductId = g.Key,
+                AvgRating = g.Average(r => (double?)r.Rating) ?? 0,
+                ReviewCount = g.Count()
+            })
+            .ToDictionaryAsync(x => x.ProductId);
+
+        ProductDto MapToDto(Product p)
+        {
+            var discountPct = (p.OriginalPrice != null && p.OriginalPrice > p.Price)
+                ? (int?)Math.Round((double)(p.OriginalPrice.Value - p.Price) / p.OriginalPrice.Value * 100)
+                : null;
+
+            return new ProductDto
+            {
+                Id = p.Id,
+                Name = p.Name,
+                Slug = p.Slug,
+                Price = p.Price,
+                OriginalPrice = p.OriginalPrice,
+                ViewCount = p.ViewCount,
+                DiscountPercent = discountPct,
+                InStock = p.InStock,
+                CategoryId = p.CategoryId,
+                Brand = p.Brand,
+                Images = p.Images,
+                Specs = string.IsNullOrEmpty(p.Specs) ? null : JsonSerializer.Deserialize<JsonElement>(p.Specs),
+                Tags = p.Tags,
+                SoldCount = p.SoldCount,
+                CreatedAt = p.CreatedAt,
+                AvgRating = reviewStats.ContainsKey(p.Id) ? reviewStats[p.Id].AvgRating : 5.0,
+                ReviewCount = reviewStats.ContainsKey(p.Id) ? reviewStats[p.Id].ReviewCount : 0
+            };
+        }
+
+        return Ok(new
+        {
+            onSale = onSaleDb.Select(MapToDto),
+            bestSellers = bestSellersDb.Select(MapToDto),
+            newArrivals = newArrivalsDb.Select(MapToDto),
+            featured = featuredDb.Select(MapToDto)
+        });
+    }
+
+    [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
     {
         var product = await _context.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id);

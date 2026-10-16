@@ -1,5 +1,8 @@
+using System.Security.Claims;
 using GhtBackend.Data;
+using GhtBackend.DTOs;
 using GhtBackend.Models;
+using GhtBackend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,10 +14,75 @@ namespace GhtBackend.Controllers
     public class DiscountsController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly DiscountService _discountService;
 
-        public DiscountsController(AppDbContext context)
+        public DiscountsController(AppDbContext context, DiscountService discountService)
         {
             _context = context;
+            _discountService = discountService;
+        }
+
+        [HttpGet("available")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetAvailable()
+        {
+            var now = DateTime.UtcNow;
+            var discounts = await _context.Discounts
+                .Where(d => d.IsActive && d.StartDate <= now && d.EndDate >= now && (!d.UsageLimit.HasValue || d.UsedCount < d.UsageLimit.Value))
+                .OrderByDescending(d => d.CreatedAt)
+                .ThenByDescending(d => d.DiscountValue)
+                .Select(d => new
+                {
+                    d.Id,
+                    d.Code,
+                    d.Description,
+                    d.DiscountType,
+                    d.DiscountValue,
+                    d.MaxDiscountAmount,
+                    d.MinOrderAmount,
+                    d.StartDate,
+                    d.EndDate,
+                    d.UsageLimit,
+                    d.UsedCount,
+                    d.PerUserLimit,
+                    d.Conditions,
+                    d.ConditionValues
+                })
+                .ToListAsync();
+
+            return Ok(discounts);
+        }
+
+        [HttpPost("apply")]
+        [AllowAnonymous]
+        public async Task<IActionResult> Apply([FromBody] ApplyDiscountRequest req)
+        {
+            if (string.IsNullOrWhiteSpace(req.Code))
+            {
+                return BadRequest(new { message = "Vui lòng nhập mã ưu đãi" });
+            }
+
+            var userId = 0;
+            if (User?.Identity?.IsAuthenticated == true)
+            {
+                int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out userId);
+            }
+
+            try
+            {
+                var result = await _discountService.ValidateAndApply(
+                    req.Code.Trim().ToUpper(),
+                    userId,
+                    req.Items,
+                    req.OriginalAmount
+                );
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpGet]
@@ -81,7 +149,6 @@ namespace GhtBackend.Controllers
             var discount = await _context.Discounts.FindAsync(id);
             if (discount == null) return NotFound();
 
-            // Only delete if never used, or just deactivate? We will delete.
             _context.Discounts.Remove(discount);
             await _context.SaveChangesAsync();
             return NoContent();

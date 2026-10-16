@@ -9,8 +9,8 @@ import PaymentQrModal from './PaymentQrModal';
 import './Checkout.css';
 
 const Checkout = () => {
-  const { cart, fetchCart } = useCart();
-  const { user } = useAuth();
+  const { cart, isCartLoading, fetchCart } = useCart();
+  const { user, openVouchersModal } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
 
@@ -59,14 +59,15 @@ const Checkout = () => {
   const originalAmount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const totalPrice = Math.max(0, originalAmount - discountAmount + shippingFee);
 
-  // Redirect if cart is empty
+  // Redirect if cart is empty (only after cart is loaded)
   useEffect(() => {
+    if (isCartLoading) return;
     if (!items || items.length === 0) {
       if (!createdOrder) {
         navigate('/cart');
       }
     }
-  }, [items, navigate, createdOrder]);
+  }, [items, isCartLoading, navigate, createdOrder]);
 
   // Load Provinces
   useEffect(() => {
@@ -236,30 +237,36 @@ const Checkout = () => {
   };
 
   // Apply Discount
-  const handleApplyDiscount = async () => {
-    if (!discountCode.trim()) return;
+  const triggerApplyDiscount = async (codeToApply) => {
+    const code = (codeToApply || discountCode).trim().toUpperCase();
+    if (!code) return;
     setIsApplyingDiscount(true);
     setDiscountMessage('');
     try {
       const res = await axiosClient.post('/discounts/apply', {
-        code: discountCode.trim().toUpperCase(),
+        code,
         originalAmount,
         items: items.map((i) => ({ productId: i.productId, quantity: i.quantity }))
       });
+      setDiscountCode(code);
       setDiscountAmount(res.data.discountAmount || 0);
       setDiscountStatus('success');
       setDiscountMessage(
-        `Đã áp dụng mã ${discountCode.toUpperCase()}. Tiết kiệm được ${new Intl.NumberFormat('vi-VN').format(res.data.discountAmount)}đ`
+        res.data.message || `Đã áp dụng mã ${code}. Tiết kiệm được ${new Intl.NumberFormat('vi-VN').format(res.data.discountAmount)}đ`
       );
-      toast.success('Áp dụng mã giảm giá thành công!');
+      toast.success(res.data.message || 'Áp dụng mã giảm giá thành công!');
     } catch (err) {
       setDiscountAmount(0);
       setDiscountStatus('error');
-      setDiscountMessage(err.response?.data?.message || 'Mã giảm giá không hợp lệ hoặc đã hết lượt');
+      const errMsg = err.response?.data?.message || 'Mã giảm giá không hợp lệ hoặc không đủ điều kiện';
+      setDiscountMessage(errMsg);
+      toast.error(errMsg);
     } finally {
       setIsApplyingDiscount(false);
     }
   };
+
+  const handleApplyDiscount = () => triggerApplyDiscount(discountCode);
 
   const handleRemoveDiscount = () => {
     setDiscountCode('');
@@ -334,6 +341,15 @@ const Checkout = () => {
   };
 
   const formatPrice = (val) => `${new Intl.NumberFormat('vi-VN').format(val || 0)}đ`;
+
+  if (isCartLoading) {
+    return (
+      <div className="checkout-loading-box" style={{ textAlign: 'center', padding: '100px 0' }}>
+        <ButtonSpinner />
+        <p style={{ marginTop: '12px', color: '#64748b' }}>Đang tải thông tin đơn hàng...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="checkout-page-wrapper">
@@ -702,13 +718,42 @@ const Checkout = () => {
                 Tiết kiệm được {formatPrice(discountAmount)}
               </p>
               <p className="checkout-discount-sub">
-                Giảm 10%, tối đa 50.000đ • Áp dụng cho đơn từ 1.000.000đ
+                {discountMessage || 'Mã ưu đãi đã được áp dụng thành công'}
               </p>
             </div>
           ) : (
             <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--color-text-secondary)' }}>Mã ưu đãi / Voucher</span>
+                <button
+                  id="checkout-open-vouchers-btn"
+                  type="button"
+                  onClick={() => openVouchersModal({
+                    currentOrderAmount: originalAmount,
+                    onApply: (selectedCode) => {
+                      setDiscountCode(selectedCode);
+                      triggerApplyDiscount(selectedCode);
+                    }
+                  })}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--color-primary, #2563eb)',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '0'
+                  }}
+                >
+                  <i className="ti ti-ticket"></i> 🎟️ Chọn mã ưu đãi
+                </button>
+              </div>
               <div className="checkout-discount-input-row">
                 <input
+                  id="checkout-discount-input"
                   type="text"
                   className={`input checkout-discount-input ${discountStatus === 'error' ? 'is-error' : ''}`}
                   placeholder="Nhập mã ưu đãi (VD: GHTSALE10)"
@@ -720,6 +765,7 @@ const Checkout = () => {
                   disabled={isApplyingDiscount}
                 />
                 <button
+                  id="checkout-apply-discount-btn"
                   type="button"
                   className="btn-dark"
                   onClick={handleApplyDiscount}
@@ -729,7 +775,7 @@ const Checkout = () => {
                 </button>
               </div>
               {discountStatus === 'error' && (
-                <span className="error-message checkout-discount-error-msg">
+                <span id="checkout-discount-error-msg" className="error-message checkout-discount-error-msg">
                   {discountMessage}
                 </span>
               )}

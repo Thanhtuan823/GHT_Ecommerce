@@ -14,6 +14,10 @@ public class ApplyDiscountRequest
 
 public class ApplyDiscountResponse
 {
-    public int DiscountAmount { get; set; }
+    public bool Success { get; set; } = true;
     public int DiscountId { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public int DiscountAmount { get; set; }
+    public int FinalAmount { get; set; }
+    public string Message { get; set; } = "Áp dụng mã thành công!";
 }

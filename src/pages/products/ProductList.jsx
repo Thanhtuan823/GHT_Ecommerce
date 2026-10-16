@@ -1,7 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axiosClient from '../../utils/axiosClient';
+import { useToast } from '../../components/common/ToastContext';
 import ProductCard from '../../components/product/ProductCard';
+import CouponRail from '../../components/home/CouponRail';
+import HomeFeaturedSections from '../../components/home/HomeFeaturedSections';
 import './ProductList.css';
 
 const DEFAULT_CATEGORIES = [
@@ -33,6 +36,7 @@ const PILL_FILTERS = [
 
 const ProductList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const toast = useToast();
   const [products, setProducts] = useState([]);
   const [dbCategories, setDbCategories] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
@@ -159,43 +163,97 @@ const ProductList = () => {
     );
   };
 
+  const isFilteringOrSearching = useMemo(() => {
+    return Boolean(
+      search ||
+      categoryParam ||
+      brandParam ||
+      (priceParam && priceParam !== 'all') ||
+      page > 1 ||
+      selectedUsage.length > 0 ||
+      selectedRam.length > 0
+    );
+  }, [search, categoryParam, brandParam, priceParam, page, selectedUsage, selectedRam]);
+
   return (
     <div className="product-list-page-wrapper">
       {/* Main Content Container */}
       <div className="products-page-container">
-        {/* 2. Hero Banner (#EBF2FF, 2 columns) */}
+        {/* 1. Hero Banner */}
         <section className="products-hero-banner">
           <div className="hero-banner-content">
-            <span className="hero-banner-label">Công nghệ cho nhịp sống của bạn</span>
-            <h2 className="hero-banner-title">Chọn đúng laptop. Làm được nhiều hơn.</h2>
+            <span className="hero-banner-label">🚀 GHT E-COMMERCE • ĐỈNH CAO CÔNG NGHỆ</span>
+            <h1 className="hero-banner-title">Chọn Đúng Thiết Bị. Bứt Phá Năng Suất.</h1>
             <p className="hero-banner-sub">
-              Trang bị phần cứng thế hệ mới, tối ưu hiệu năng làm việc và giải trí với mức giá ưu đãi nhất thị trường.
+              Trang bị laptop, PC đồ họa và phụ kiện thế hệ mới từ các thương hiệu hàng đầu thế giới với mức giá ưu đãi và bảo hành 24 tháng chính hãng.
             </p>
             <div className="hero-banner-trust">
-              <span>✓ Giao nhanh toàn quốc</span>
-              <span>✓ Đổi trả trong 7 ngày</span>
-              <span>✓ Bảo hành 24 tháng</span>
+              <span><i className="ti ti-truck-delivery"></i> Giao nhanh toàn quốc</span>
+              <span><i className="ti ti-shield-check"></i> 100% Chính hãng</span>
+              <span><i className="ti ti-rotate-2"></i> Đổi trả 7 ngày</span>
+              <span><i className="ti ti-percentage"></i> Trả góp 0%</span>
             </div>
           </div>
 
-          <div className="hero-banner-voucher">
-            <span className="hero-voucher-label">Ưu đãi cho đơn đầu tiên</span>
-            <div className="hero-voucher-code">GHTSALE10</div>
-            <div className="hero-voucher-desc">Giảm 10% • tối đa 50.000đ</div>
-            <button
-              type="button"
-              className="btn-ghost btn-sm"
-              onClick={() => {
-                navigator.clipboard?.writeText('GHTSALE10');
-              }}
-            >
-              Sao chép mã ưu đãi
-            </button>
+          <div className="hero-banner-card">
+            <div className="hero-card-badge">HOT PROMO 2026</div>
+            <div className="hero-card-title">Săn Voucher Giảm Tới 20%</div>
+            <p className="hero-card-desc">Lưu mã vào ví ngay bên dưới để nhận chiết khấu trực tiếp khi đặt hàng</p>
+            <div className="hero-card-stats">
+              <div className="hero-stat-item">
+                <strong>1000+</strong>
+                <span>Sản phẩm</span>
+              </div>
+              <div className="hero-stat-divider"></div>
+              <div className="hero-stat-item">
+                <strong>24/7</strong>
+                <span>Hỗ trợ kỹ thuật</span>
+              </div>
+              <div className="hero-stat-divider"></div>
+              <div className="hero-stat-item">
+                <strong>100%</strong>
+                <span>Chính hãng</span>
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* 3. Products Body Layout (Sidebar 200px + Main Grid) */}
-        <div className="products-body-layout">
+        {/* 2. Kho Voucher Độc Quyền Hôm Nay (Coupon Rail) */}
+        <CouponRail />
+
+        {/* 3. Cụm Sản Phẩm Trang Chủ: Flash Sale, Best Sellers, New Arrivals (Khi không lọc) */}
+        {!isFilteringOrSearching && (
+          <HomeFeaturedSections />
+        )}
+
+        {/* 4. Section Toàn Bộ Danh Mục & Bộ Lọc (Catalog Explorer) */}
+        <section className="catalog-explorer-section">
+          <div className="catalog-section-header">
+            <div className="catalog-header-title-box">
+              <h2 className="catalog-section-title">
+                {isFilteringOrSearching ? '🔍 Kết Quả Lọc & Tìm Kiếm' : '💻 Toàn Bộ Sản Phẩm & Danh Mục'}
+              </h2>
+              <p className="catalog-section-sub">
+                {isFilteringOrSearching
+                  ? `Tìm thấy ${pagination.total || displayedProducts.length} sản phẩm phù hợp với tiêu chí lọc`
+                  : 'Duyệt theo danh mục, thương hiệu, khoảng giá và cấu hình phần cứng'}
+              </p>
+            </div>
+
+            {isFilteringOrSearching && (
+              <button
+                type="button"
+                className="btn-back-home-view"
+                onClick={handleResetFilters}
+              >
+                <i className="ti ti-arrow-back-up"></i>
+                <span>Xem lại toàn bộ trang chủ</span>
+              </button>
+            )}
+          </div>
+
+          {/* Products Body Layout (Sidebar 200px + Main Grid) */}
+          <div className="products-body-layout">
           {/* Sidebar Filters (200px) */}
           <aside className="products-sidebar">
             <div className="products-sidebar-header">
@@ -291,7 +349,7 @@ const ProductList = () => {
             {/* Header row: Title + Count + Sort */}
             <div className="products-header-row">
               <div className="products-title-box">
-                <h1>Laptop & công nghệ</h1>
+                <h3 className="products-main-heading">Danh mục thiết bị</h3>
                 <p>
                   {pagination.total || displayedProducts.length} sản phẩm phù hợp với bạn
                 </p>
@@ -400,6 +458,7 @@ const ProductList = () => {
             )}
           </main>
         </div>
+        </section>
       </div>
     </div>
   );

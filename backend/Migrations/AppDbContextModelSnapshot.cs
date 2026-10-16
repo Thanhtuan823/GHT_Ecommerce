@@ -301,6 +301,9 @@ namespace GhtBackend.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int?>("OriginalPrice")
+                        .HasColumnType("integer");
+
                     b.Property<int>("Price")
                         .HasColumnType("integer");
 
@@ -321,6 +324,9 @@ namespace GhtBackend.Migrations
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ViewCount")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
@@ -445,7 +451,16 @@ namespace GhtBackend.Migrations
                     b.Property<int>("DiscountId")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime>("UsedAt")
+                    b.Property<bool>("IsUsed")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("OrderId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("SavedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("UsedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("UserId")
@@ -454,6 +469,8 @@ namespace GhtBackend.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("DiscountId");
+
+                    b.HasIndex("OrderId");
 
                     b.HasIndex("UserId");
 
@@ -591,6 +608,10 @@ namespace GhtBackend.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("GhtBackend.Models.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId");
+
                     b.HasOne("GhtBackend.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -598,6 +619,8 @@ namespace GhtBackend.Migrations
                         .IsRequired();
 
                     b.Navigation("Discount");
+
+                    b.Navigation("Order");
 
                     b.Navigation("User");
                 });

@@ -140,13 +140,7 @@ export default function AdminDiscounts() {
     try {
       const res = await axiosClient.get('/discounts');
       if (Array.isArray(res.data) && res.data.length > 0) {
-        // Merge backend items with demo items to keep comprehensive demo experience
-        const apiIds = new Set(res.data.map((d) => d.id));
-        const combined = [
-          ...res.data,
-          ...INITIAL_DEMO_DISCOUNTS.filter((d) => !apiIds.has(d.id))
-        ];
-        setDiscounts(combined);
+        setDiscounts(res.data);
       }
     } catch {
       // Keep demo items

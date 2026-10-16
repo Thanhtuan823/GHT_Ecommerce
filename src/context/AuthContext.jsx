@@ -81,8 +81,19 @@ export const AuthProvider = ({ children }) => {
     }));
   };
 
-  const openProfileModal = () => setIsProfileModalOpen(true);
-  const closeProfileModal = () => setIsProfileModalOpen(false);
+  const [isVouchersModalOpen, setIsVouchersModalOpen] = useState(false);
+  const [voucherModalOptions, setVoucherModalOptions] = useState({});
+  const openProfileModal = useCallback(() => setIsProfileModalOpen(true), []);
+  const closeProfileModal = useCallback(() => setIsProfileModalOpen(false), []);
+
+  const openVouchersModal = useCallback((options = {}) => {
+    setVoucherModalOptions(options);
+    setIsVouchersModalOpen(true);
+  }, []);
+  const closeVouchersModal = useCallback(() => {
+    setIsVouchersModalOpen(false);
+    setVoucherModalOptions({});
+  }, []);
 
   return (
     <AuthContext.Provider
@@ -95,6 +106,10 @@ export const AuthProvider = ({ children }) => {
         isProfileModalOpen,
         openProfileModal,
         closeProfileModal,
+        isVouchersModalOpen,
+        voucherModalOptions,
+        openVouchersModal,
+        closeVouchersModal,
         updateUser,
         fetchProfile
       }}

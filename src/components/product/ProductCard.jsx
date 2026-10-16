@@ -6,12 +6,12 @@ import './ProductCard.css';
 const ProductCard = ({ product }) => {
   const { wishlist, toggleWishlist } = useWishlist();
   const toast = useToast();
-  
+
   if (!product) return null;
 
   const isWishlisted = wishlist?.some(w => w.id === product.id) || false;
   const isOutOfStock = product.inStock !== undefined && product.inStock <= 0;
-  
+
   // Format currency
   const formatPrice = (val) => {
     if (!val && val !== 0) return '0đ';
@@ -23,14 +23,23 @@ const ProductCard = ({ product }) => {
     if (isOutOfStock) {
       return <span className="product-card-badge badge-out-of-stock">Hết hàng</span>;
     }
-    if (product.isBestSeller || product.badge === 'bestseller') {
-      return <span className="product-card-badge badge-best-seller">Bán chạy</span>;
+    if (product.badgeRank) {
+      const rankNum = String(product.badgeRank).replace('#', '');
+      const rankClass = rankNum === '1' ? 'rank-1' : rankNum === '2' ? 'rank-2' : rankNum === '3' ? 'rank-3' : 'rank-other';
+      return <span className={`product-card-badge badge-rank ${rankClass}`}>{product.badgeRank} Bán chạy</span>;
     }
-    if (product.isNew || product.badge === 'new') {
-      return <span className="product-card-badge badge-new">Mới</span>;
+    if (product.badgeText) {
+      return <span className={`product-card-badge ${product.badgeClass || 'badge-accent'}`}>{product.badgeText}</span>;
     }
     if (product.originalPrice && product.originalPrice > product.price) {
-      return <span className="product-card-badge badge-discount">Giảm giá</span>;
+      const pct = product.discountPercent || Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
+      return <span className="product-card-badge badge-discount">-{pct}%</span>;
+    }
+    if (product.isBestSeller || product.badge === 'bestseller') {
+      return <span className="product-card-badge badge-best-seller">🔥 Bán chạy</span>;
+    }
+    if (product.isNew || product.badge === 'new') {
+      return <span className="product-card-badge badge-new">✨ Mới</span>;
     }
     return null;
   };
@@ -70,9 +79,9 @@ const ProductCard = ({ product }) => {
       <div className="product-card-image-box">
         {renderBadge()}
         <Link to={productUrl} className="product-card-image-link" tabIndex={-1}>
-          <img 
-            src={imageUrl} 
-            alt={product.name} 
+          <img
+            src={imageUrl}
+            alt={product.name}
             className="product-card-image"
             loading="lazy"
           />
@@ -101,8 +110,8 @@ const ProductCard = ({ product }) => {
               </span>
             )}
           </div>
-          
-          <button 
+
+          <button
             type="button"
             className={`product-card-wishlist-btn ${isWishlisted ? 'is-active' : ''}`}
             onClick={handleWishlistClick}
@@ -115,10 +124,10 @@ const ProductCard = ({ product }) => {
 
         <div className="product-card-meta-row">
           <span className={`product-card-stock ${isOutOfStock ? 'is-out' : ''}`}>
-            {isOutOfStock ? 'Tạm hết hàng' : 'Còn hàng • Giao nhanh'}
+            {isOutOfStock ? 'Tạm hết hàng' : (product.soldCount && product.soldCount > 0 ? `🔥 Đã bán ${product.soldCount}` : 'Còn hàng • Giao nhanh')}
           </span>
           <span className="product-card-rating">
-            <i className="ti ti-star-filled" style={{color:'#F59E0B'}}></i> {rating} ({reviewCount})
+            <i className="ti ti-star-filled" style={{ color: '#F59E0B' }}></i> {rating} ({reviewCount})
           </span>
         </div>
       </div>

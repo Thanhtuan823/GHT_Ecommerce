@@ -22,7 +22,7 @@ namespace GhtBackend.Services
             _logger = logger;
         }
 
-        public async Task<string> ProcessChatAsync(ChatRequestDto request, string role)
+        public async Task<ChatResult> ProcessChatAsync(ChatRequestDto request, string role)
         {
             var apiKey = _config["Gemini:ApiKey"];
             if (string.IsNullOrEmpty(apiKey)) throw new Exception("Gemini API Key missing.");
@@ -48,7 +48,7 @@ namespace GhtBackend.Services
                 {
                     ["parts"] = new JsonArray
                     {
-                        new JsonObject { ["text"] = "Bạn là trợ lý mua hàng GHT. Chỉ dùng data từ tool calls." }
+                        new JsonObject { ["text"] = "Bạn là trợ lý mua hàng GHT. Hãy tư vấn nhiệt tình, ngắn gọn và chỉ dùng data từ tool calls." }
                     }
                 },
                 ["contents"] = contents,
@@ -61,10 +61,17 @@ namespace GhtBackend.Services
                 }
             };
 
-            return await CallGeminiLoopAsync(requestBody, apiKey, allowedTools!, contents);
+            var suggestedProducts = new List<ProductSummaryDto>();
+            var reply = await CallGeminiLoopAsync(requestBody, apiKey, allowedTools!, contents, suggestedProducts);
+
+            return new ChatResult
+            {
+                Reply = reply,
+                Products = suggestedProducts.DistinctBy(p => p.Id).ToList()
+            };
         }
 
-        private async Task<string> CallGeminiLoopAsync(JsonObject requestBody, string apiKey, List<string> allowedTools, JsonArray contentsHistory)
+        private async Task<string> CallGeminiLoopAsync(JsonObject requestBody, string apiKey, List<string> allowedTools, JsonArray contentsHistory, List<ProductSummaryDto> suggestedProducts)
         {
             int maxIterations = 3;
             for (int i = 0; i < maxIterations; i++)
@@ -116,7 +123,7 @@ namespace GhtBackend.Services
                         return "Tính năng này không khả dụng cho tài khoản của bạn.";
                     }
 
-                    object functionResult = await ExecuteFunctionAsync(name, args);
+                    object functionResult = await ExecuteFunctionAsync(name, args, suggestedProducts);
 
                     contentsHistory.Add(new JsonObject
                     {
@@ -148,7 +155,7 @@ namespace GhtBackend.Services
             return "Trợ lý tạm thời không khả dụng do giới hạn đệ quy.";
         }
 
-        private async Task<object> ExecuteFunctionAsync(string name, JsonNode? args)
+        private async Task<object> ExecuteFunctionAsync(string name, JsonNode? args, List<ProductSummaryDto> suggestedProducts)
         {
             try
             {
@@ -156,24 +163,84 @@ namespace GhtBackend.Services
                 {
                     case "searchProducts":
                         var kw = args?["keyword"]?.ToString()?.ToLower() ?? "";
-                        return await _context.Products
+                        var matched = await _context.Products
                             .Where(p => p.Name.ToLower().Contains(kw))
-                            .Select(p => new { p.Id, p.Name, p.Price, p.InStock })
-                            .Take(5).ToListAsync();
+                            .Select(p => new {
+                                p.Id, p.Name, p.Slug, p.Price, p.OriginalPrice, p.Brand, p.InStock,
+                                Image = (p.Images != null && p.Images.Length > 0) ? p.Images[0] : null
+                            })
+                            .Take(4).ToListAsync();
+
+                        foreach (var p in matched)
+                        {
+                            suggestedProducts.Add(new ProductSummaryDto
+                            {
+                                Id = p.Id,
+                                Name = p.Name,
+                                Slug = p.Slug,
+                                Price = p.Price,
+                                OriginalPrice = p.OriginalPrice,
+                                Image = p.Image,
+                                Brand = p.Brand,
+                                InStock = p.InStock > 0
+                            });
+                        }
+
+                        return matched.Select(p => new { p.Id, p.Name, p.Price, p.InStock, p.Brand }).ToList();
 
                     case "compareProducts":
                         var id1 = args?["productId1"]?.GetValue<int>();
                         var id2 = args?["productId2"]?.GetValue<int>();
-                        return await _context.Products
+                        var compared = await _context.Products
                             .Where(p => p.Id == id1 || p.Id == id2)
-                            .Select(p => new { p.Id, p.Name, p.Price, p.Specs })
+                            .Select(p => new {
+                                p.Id, p.Name, p.Slug, p.Price, p.OriginalPrice, p.Brand, p.InStock, p.Specs,
+                                Image = (p.Images != null && p.Images.Length > 0) ? p.Images[0] : null
+                            })
                             .ToListAsync();
 
+                        foreach (var p in compared)
+                        {
+                            suggestedProducts.Add(new ProductSummaryDto
+                            {
+                                Id = p.Id,
+                                Name = p.Name,
+                                Slug = p.Slug,
+                                Price = p.Price,
+                                OriginalPrice = p.OriginalPrice,
+                                Image = p.Image,
+                                Brand = p.Brand,
+                                InStock = p.InStock > 0
+                            });
+                        }
+
+                        return compared.Select(p => new { p.Id, p.Name, p.Price, p.Specs }).ToList();
+
                     case "recommendProducts":
-                        return await _context.Products
+                        var topProducts = await _context.Products
                             .OrderByDescending(p => p.SoldCount)
-                            .Select(p => new { p.Id, p.Name, p.Price, p.SoldCount })
-                            .Take(5).ToListAsync();
+                            .Select(p => new {
+                                p.Id, p.Name, p.Slug, p.Price, p.OriginalPrice, p.Brand, p.InStock,
+                                Image = (p.Images != null && p.Images.Length > 0) ? p.Images[0] : null
+                            })
+                            .Take(4).ToListAsync();
+
+                        foreach (var p in topProducts)
+                        {
+                            suggestedProducts.Add(new ProductSummaryDto
+                            {
+                                Id = p.Id,
+                                Name = p.Name,
+                                Slug = p.Slug,
+                                Price = p.Price,
+                                OriginalPrice = p.OriginalPrice,
+                                Image = p.Image,
+                                Brand = p.Brand,
+                                InStock = p.InStock > 0
+                            });
+                        }
+
+                        return topProducts.Select(p => new { p.Id, p.Name, p.Price, p.InStock, p.Brand }).ToList();
 
                     case "findProductsMissingImages":
                         var p1 = await _context.Products.ToListAsync();

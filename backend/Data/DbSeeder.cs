@@ -8,13 +8,12 @@ public static class DbSeeder
     {
         context.Database.EnsureCreated();
 
-        if (!context.Categories.Any())
-        {
-            var laptops = new Category { Name = "Laptop", Slug = "laptop", Description = "Máy tính xách tay" };
-            context.Categories.Add(laptops);
-            context.SaveChanges();
+        SeedCategories(context);
 
-            if (!context.Products.Any())
+        if (!context.Products.Any())
+        {
+            var laptops = context.Categories.FirstOrDefault(c => c.Slug == "laptop");
+            if (laptops != null)
             {
                 context.Products.AddRange(
                     new Product { 
@@ -79,6 +78,32 @@ public static class DbSeeder
         SeedUsers(context);
         SeedDiscounts(context);
         UpdateProductMetrics(context);
+    }
+
+    private static void SeedCategories(AppDbContext context)
+    {
+        var defaultCategories = new[]
+        {
+            new Category { Name = "Laptop", Slug = "laptop", Description = "Máy tính xách tay" },
+            new Category { Name = "PC & Màn hình", Slug = "pc", Description = "Dàn PC hiệu năng cao & màn hình đồ họa" },
+            new Category { Name = "Điện thoại", Slug = "dienthoai", Description = "Smartphone flagship & gaming phone chính hãng" },
+            new Category { Name = "Phụ kiện", Slug = "phukien", Description = "Chuột, bàn phím cơ, tai nghe & củ cáp sạc" }
+        };
+
+        bool changed = false;
+        foreach (var cat in defaultCategories)
+        {
+            if (!context.Categories.Any(c => c.Slug == cat.Slug))
+            {
+                context.Categories.Add(cat);
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            context.SaveChanges();
+        }
     }
 
     private static void UpdateProductMetrics(AppDbContext context)

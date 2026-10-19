@@ -228,236 +228,212 @@ const ProductList = () => {
 
         {/* 4. Section Toàn Bộ Danh Mục & Bộ Lọc (Catalog Explorer) */}
         <section className="catalog-explorer-section">
-          <div className="catalog-section-header">
-            <div className="catalog-header-title-box">
-              <h2 className="catalog-section-title">
-                {isFilteringOrSearching ? '🔍 Kết Quả Lọc & Tìm Kiếm' : '💻 Toàn Bộ Sản Phẩm & Danh Mục'}
-              </h2>
-              <p className="catalog-section-sub">
-                {isFilteringOrSearching
-                  ? `Tìm thấy ${pagination.total || displayedProducts.length} sản phẩm phù hợp với tiêu chí lọc`
-                  : 'Duyệt theo danh mục, thương hiệu, khoảng giá và cấu hình phần cứng'}
-              </p>
-            </div>
-
-            {isFilteringOrSearching && (
-              <button
-                type="button"
-                className="btn-back-home-view"
-                onClick={handleResetFilters}
-              >
-                <i className="ti ti-arrow-back-up"></i>
-                <span>Xem lại toàn bộ trang chủ</span>
-              </button>
-            )}
-          </div>
-
           {/* Products Body Layout (Sidebar 200px + Main Grid) */}
           <div className="products-body-layout">
-          {/* Sidebar Filters (200px) */}
-          <aside className="products-sidebar">
-            <div className="products-sidebar-header">
-              <h3 className="products-sidebar-title">Bộ lọc</h3>
-              <button
-                type="button"
-                className="products-sidebar-reset"
-                onClick={handleResetFilters}
-              >
-                Đặt lại
-              </button>
-            </div>
-
-            {/* Thương hiệu */}
-            <div className="filter-group">
-              <h4 className="filter-group-title">Thương hiệu</h4>
-              <div className="filter-options-list">
-                {BRANDS.map((b) => (
-                  <label key={b} className="filter-checkbox-item">
-                    <input
-                      type="radio"
-                      name="brand"
-                      checked={brandParam === b}
-                      onChange={() => updateParam('brand', brandParam === b ? '' : b)}
-                    />
-                    <span>{b}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="filter-group-divider" />
-
-            {/* Khoảng giá */}
-            <div className="filter-group">
-              <h4 className="filter-group-title">Khoảng giá</h4>
-              <div className="filter-options-list">
-                {PRICE_RANGES.map((r) => (
-                  <label key={r.id} className="filter-checkbox-item">
-                    <input
-                      type="radio"
-                      name="priceRange"
-                      checked={priceParam === r.id}
-                      onChange={() => updateParam('priceRange', r.id)}
-                    />
-                    <span>{r.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="filter-group-divider" />
-
-            {/* Nhu cầu sử dụng */}
-            <div className="filter-group">
-              <h4 className="filter-group-title">Nhu cầu sử dụng</h4>
-              <div className="filter-options-list">
-                {USAGE_TAGS.map((u) => (
-                  <label key={u} className="filter-checkbox-item">
-                    <input
-                      type="checkbox"
-                      checked={selectedUsage.includes(u)}
-                      onChange={() => toggleUsage(u)}
-                    />
-                    <span>{u}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="filter-group-divider" />
-
-            {/* Bộ nhớ RAM */}
-            <div className="filter-group">
-              <h4 className="filter-group-title">Bộ nhớ RAM</h4>
-              <div className="filter-options-list">
-                {RAM_OPTIONS.map((ram) => (
-                  <label key={ram} className="filter-checkbox-item">
-                    <input
-                      type="checkbox"
-                      checked={selectedRam.includes(ram)}
-                      onChange={() => toggleRam(ram)}
-                    />
-                    <span>{ram}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </aside>
-
-          {/* Main Content Column */}
-          <main className="products-main-content">
-            {/* Header row: Title + Count + Sort */}
-            <div className="products-header-row">
-              <div className="products-title-box">
-                <h3 className="products-main-heading">Danh mục thiết bị</h3>
-                <p>
-                  {pagination.total || displayedProducts.length} sản phẩm phù hợp với bạn
-                </p>
-              </div>
-
-              <div className="products-sort-wrapper">
-                <select
-                  className="products-sort-select"
-                  value={sortParam}
-                  onChange={(e) => updateParam('sort', e.target.value)}
-                  aria-label="Sắp xếp sản phẩm"
-                >
-                  <option value="bestseller">Sắp xếp: Bán chạy nhất ▾</option>
-                  <option value="newest">Sắp xếp: Mới nhất</option>
-                  <option value="price_asc">Giá: Thấp đến cao</option>
-                  <option value="price_desc">Giá: Cao đến thấp</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Filter pills dạng underline (không phải button) */}
-            <div className="products-filter-pills">
-              {PILL_FILTERS.map((pill) => (
-                <button
-                  key={pill.id}
-                  type="button"
-                  className={`filter-pill-underline ${activePill === pill.id ? 'is-active' : ''}`}
-                  onClick={() => setActivePill(pill.id)}
-                >
-                  {pill.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Grid 4 columns or Skeleton */}
-            {isLoading ? (
-              <div className="products-grid">
-                {Array.from({ length: 8 }).map((_, idx) => (
-                  <div key={idx} className="product-skeleton-card">
-                    <div className="skeleton-card-image skeleton" />
-                    <div className="skeleton-card-body">
-                      <div className="skeleton-card-line short skeleton" />
-                      <div className="skeleton-card-line long skeleton" />
-                      <div className="skeleton-card-line medium skeleton" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : displayedProducts.length > 0 ? (
-              <>
-                <div className="products-grid">
-                  {displayedProducts.map((p) => (
-                    <ProductCard key={p.id} product={p} />
-                  ))}
-                </div>
-
-                {/* Pagination */}
-                {pagination.totalPages > 1 && (
-                  <div className="products-pagination">
-                    <button
-                      type="button"
-                      className="pagination-btn"
-                      disabled={page <= 1}
-                      onClick={() => updateParam('page', (page - 1).toString())}
-                    >
-                      ‹
-                    </button>
-
-                    {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((pageNum) => (
-                      <button
-                        key={pageNum}
-                        type="button"
-                        className={`pagination-btn ${pageNum === page ? 'is-active' : ''}`}
-                        onClick={() => updateParam('page', pageNum.toString())}
-                      >
-                        {pageNum}
-                      </button>
-                    ))}
-
-                    <button
-                      type="button"
-                      className="pagination-btn"
-                      disabled={page >= pagination.totalPages}
-                      onClick={() => updateParam('page', (page + 1).toString())}
-                    >
-                      ›
-                    </button>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="empty-state">
-                <div className="empty-state-icon"><i className="ti ti-search"></i></div>
-                <h3 className="empty-state-title">Không tìm thấy sản phẩm phù hợp</h3>
-                <p className="empty-state-desc">
-                  Thử từ khóa khác hoặc xóa bớt tiêu chí trong bộ lọc.
-                </p>
+            {/* Sidebar Filters (200px) */}
+            <aside className="products-sidebar">
+              <div className="products-sidebar-header">
+                <h3 className="products-sidebar-title">Bộ lọc</h3>
                 <button
                   type="button"
-                  className="btn-primary"
+                  className="products-sidebar-reset"
                   onClick={handleResetFilters}
                 >
-                  Xóa bộ lọc
+                  Đặt lại
                 </button>
               </div>
-            )}
-          </main>
-        </div>
+
+              {/* Thương hiệu */}
+              <div className="filter-group">
+                <h4 className="filter-group-title">Thương hiệu</h4>
+                <div className="filter-options-list">
+                  {BRANDS.map((b) => (
+                    <label key={b} className="filter-checkbox-item">
+                      <input
+                        type="radio"
+                        name="brand"
+                        checked={brandParam === b}
+                        onChange={() => updateParam('brand', brandParam === b ? '' : b)}
+                      />
+                      <span>{b}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="filter-group-divider" />
+
+              {/* Khoảng giá */}
+              <div className="filter-group">
+                <h4 className="filter-group-title">Khoảng giá</h4>
+                <div className="filter-options-list">
+                  {PRICE_RANGES.map((r) => (
+                    <label key={r.id} className="filter-checkbox-item">
+                      <input
+                        type="radio"
+                        name="priceRange"
+                        checked={priceParam === r.id}
+                        onChange={() => updateParam('priceRange', r.id)}
+                      />
+                      <span>{r.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="filter-group-divider" />
+
+              {/* Nhu cầu sử dụng */}
+              <div className="filter-group">
+                <h4 className="filter-group-title">Nhu cầu sử dụng</h4>
+                <div className="filter-options-list">
+                  {USAGE_TAGS.map((u) => (
+                    <label key={u} className="filter-checkbox-item">
+                      <input
+                        type="checkbox"
+                        checked={selectedUsage.includes(u)}
+                        onChange={() => toggleUsage(u)}
+                      />
+                      <span>{u}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="filter-group-divider" />
+
+              {/* Bộ nhớ RAM */}
+              <div className="filter-group">
+                <h4 className="filter-group-title">Bộ nhớ RAM</h4>
+                <div className="filter-options-list">
+                  {RAM_OPTIONS.map((ram) => (
+                    <label key={ram} className="filter-checkbox-item">
+                      <input
+                        type="checkbox"
+                        checked={selectedRam.includes(ram)}
+                        onChange={() => toggleRam(ram)}
+                      />
+                      <span>{ram}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </aside>
+
+            {/* Main Content Column */}
+            <main className="products-main-content">
+              {/* Header row: Title + Count + Sort */}
+              <div className="products-header-row">
+                <div className="products-title-box">
+                  <h3 className="products-main-heading">Danh mục thiết bị</h3>
+                  <p>
+                    {pagination.total || displayedProducts.length} sản phẩm phù hợp với bạn
+                  </p>
+                </div>
+
+                <div className="products-sort-wrapper">
+                  <select
+                    className="products-sort-select"
+                    value={sortParam}
+                    onChange={(e) => updateParam('sort', e.target.value)}
+                    aria-label="Sắp xếp sản phẩm"
+                  >
+                    <option value="bestseller">Sắp xếp: Bán chạy nhất ▾</option>
+                    <option value="newest">Sắp xếp: Mới nhất</option>
+                    <option value="price_asc">Giá: Thấp đến cao</option>
+                    <option value="price_desc">Giá: Cao đến thấp</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Filter pills dạng underline (không phải button) */}
+              <div className="products-filter-pills">
+                {PILL_FILTERS.map((pill) => (
+                  <button
+                    key={pill.id}
+                    type="button"
+                    className={`filter-pill-underline ${activePill === pill.id ? 'is-active' : ''}`}
+                    onClick={() => setActivePill(pill.id)}
+                  >
+                    {pill.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Grid 4 columns or Skeleton */}
+              {isLoading ? (
+                <div className="products-grid">
+                  {Array.from({ length: 8 }).map((_, idx) => (
+                    <div key={idx} className="product-skeleton-card">
+                      <div className="skeleton-card-image skeleton" />
+                      <div className="skeleton-card-body">
+                        <div className="skeleton-card-line short skeleton" />
+                        <div className="skeleton-card-line long skeleton" />
+                        <div className="skeleton-card-line medium skeleton" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : displayedProducts.length > 0 ? (
+                <>
+                  <div className="products-grid">
+                    {displayedProducts.map((p) => (
+                      <ProductCard key={p.id} product={p} />
+                    ))}
+                  </div>
+
+                  {/* Pagination */}
+                  {pagination.totalPages > 1 && (
+                    <div className="products-pagination">
+                      <button
+                        type="button"
+                        className="pagination-btn"
+                        disabled={page <= 1}
+                        onClick={() => updateParam('page', (page - 1).toString())}
+                      >
+                        ‹
+                      </button>
+
+                      {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((pageNum) => (
+                        <button
+                          key={pageNum}
+                          type="button"
+                          className={`pagination-btn ${pageNum === page ? 'is-active' : ''}`}
+                          onClick={() => updateParam('page', pageNum.toString())}
+                        >
+                          {pageNum}
+                        </button>
+                      ))}
+
+                      <button
+                        type="button"
+                        className="pagination-btn"
+                        disabled={page >= pagination.totalPages}
+                        onClick={() => updateParam('page', (page + 1).toString())}
+                      >
+                        ›
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="empty-state">
+                  <div className="empty-state-icon"><i className="ti ti-search"></i></div>
+                  <h3 className="empty-state-title">Không tìm thấy sản phẩm phù hợp</h3>
+                  <p className="empty-state-desc">
+                    Thử từ khóa khác hoặc xóa bớt tiêu chí trong bộ lọc.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={handleResetFilters}
+                  >
+                    Xóa bộ lọc
+                  </button>
+                </div>
+              )}
+            </main>
+          </div>
         </section>
       </div>
     </div>

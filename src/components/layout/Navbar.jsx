@@ -7,18 +7,18 @@ import axiosClient from '../../utils/axiosClient';
 import './Navbar.css';
 
 const DEFAULT_CATEGORIES = [
-  { id: '1', name: 'Laptop', description: 'Gaming, Văn phòng, Đồ họa' },
-  { id: '2', name: 'PC & Màn hình', description: 'Máy bộ, Màn hình gaming' },
-  { id: '3', name: 'Phụ kiện', description: 'Bàn phím, Chuột, Tai nghe' },
-  { id: '4', name: 'Linh kiện', description: 'CPU, RAM, Ổ cứng SSD' }
+  { id: '1', name: 'Laptop', description: 'Máy tính xách tay' },
+  { id: '2', name: 'PC & Màn hình', description: 'Dàn PC hiệu năng cao & màn hình đồ họa' },
+  { id: '3', name: 'Điện thoại', description: 'Smartphone flagship & gaming phone chính hãng' },
+  { id: '4', name: 'Phụ kiện', description: 'Chuột, bàn phím cơ, tai nghe & củ cáp sạc' }
 ];
 
 const getCategoryIcon = (catName = '') => {
   const lower = catName.toLowerCase();
   if (lower.includes('laptop')) return 'ti-device-laptop';
   if (lower.includes('pc') || lower.includes('màn hình') || lower.includes('máy tính')) return 'ti-device-desktop';
+  if (lower.includes('điện thoại') || lower.includes('phone') || lower.includes('mobile')) return 'ti-device-mobile';
   if (lower.includes('phụ kiện') || lower.includes('tai nghe') || lower.includes('chuột') || lower.includes('bàn phím')) return 'ti-headphones';
-  if (lower.includes('điện thoại') || lower.includes('phone') || lower.includes('tablet')) return 'ti-device-mobile';
   if (lower.includes('linh kiện') || lower.includes('cpu') || lower.includes('vga') || lower.includes('ram')) return 'ti-cpu';
   return 'ti-device-laptop';
 };

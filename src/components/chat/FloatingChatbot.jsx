@@ -1,10 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import axiosClient from '../../utils/axiosClient';
+import { useCart } from '../../context/CartContext';
+import { useToast } from '../common/ToastContext';
 import './FloatingChatbot.css';
 
 const FloatingChatbot = () => {
+  const navigate = useNavigate();
+  const { addToCart } = useCart();
+  const toast = useToast();
+
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     { role: 'ai', content: 'Xin chào! Tôi là trợ lý mua hàng GHT. Tôi có thể giúp gì cho bạn?' }
@@ -54,7 +61,14 @@ const FloatingChatbot = () => {
       };
 
       const res = await axiosClient.post('/ai/chat', payload);
-      setMessages((prev) => [...prev, { role: 'ai', content: res.data.reply }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'ai',
+          content: res.data.reply,
+          products: res.data.products || []
+        }
+      ]);
     } catch (err) {
       setMessages((prev) => [
         ...prev,
@@ -103,7 +117,84 @@ const FloatingChatbot = () => {
             {messages.map((msg, idx) => (
               <div key={idx} className={`message-bubble ${msg.role}`}>
                 {msg.role === 'ai' ? (
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                  <>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                    {msg.products && msg.products.length > 0 && (
+                      <div className="chatbot-product-list">
+                        {msg.products.map((prod) => (
+                          <div
+                            key={prod.id}
+                            className="chatbot-product-card"
+                            onClick={() => {
+                              navigate(`/products/${prod.slug || prod.id}`);
+                              setIsOpen(false);
+                            }}
+                          >
+                            <img
+                              src={prod.image || '/images/premium.png'}
+                              alt={prod.name}
+                              className="chatbot-prod-img"
+                            />
+                            <div className="chatbot-prod-details">
+                              <span className="chatbot-prod-brand">{prod.brand || 'GHT'}</span>
+                              <h4 className="chatbot-prod-name" title={prod.name}>{prod.name}</h4>
+                              <div className="chatbot-prod-price-box">
+                                <span className="chatbot-prod-price">
+                                  {Number(prod.price).toLocaleString('vi-VN')} đ
+                                </span>
+                                {prod.originalPrice && prod.originalPrice > prod.price && (
+                                  <span className="chatbot-prod-old-price">
+                                    {Number(prod.originalPrice).toLocaleString('vi-VN')} đ
+                                  </span>
+                                )}
+                              </div>
+                              
+                              <div className="chatbot-prod-actions">
+                                <button
+                                  type="button"
+                                  className="btn-chat-cart"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    const ok = await addToCart({
+                                      id: prod.id,
+                                      name: prod.name,
+                                      slug: prod.slug,
+                                      price: prod.price,
+                                      inStock: prod.inStock ? 10 : 0,
+                                      images: prod.image ? [prod.image] : []
+                                    }, 1);
+                                    if (ok) toast.success(`Đã thêm ${prod.name} vào giỏ hàng!`);
+                                  }}
+                                >
+                                  <i className="ti ti-shopping-cart-plus"></i> Thêm giỏ
+                                </button>
+                                
+                                <button
+                                  type="button"
+                                  className="btn-chat-buy"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    await addToCart({
+                                      id: prod.id,
+                                      name: prod.name,
+                                      slug: prod.slug,
+                                      price: prod.price,
+                                      inStock: prod.inStock ? 10 : 0,
+                                      images: prod.image ? [prod.image] : []
+                                    }, 1);
+                                    setIsOpen(false);
+                                    navigate('/cart');
+                                  }}
+                                >
+                                  ⚡ Mua ngay
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 ) : (
                   msg.content
                 )}

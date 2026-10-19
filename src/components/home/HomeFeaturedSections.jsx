@@ -54,7 +54,6 @@ const HomeFeaturedSections = () => {
     return (
       <div className="home-featured-skeleton-container">
         <div className="section-skeleton-box skeleton"></div>
-        <div className="section-skeleton-box skeleton"></div>
       </div>
     );
   }
@@ -107,79 +106,6 @@ const HomeFeaturedSections = () => {
                   ...product,
                   badgeText: `-${product.discountPercent || Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}%`,
                   badgeClass: 'badge-discount'
-                }}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* SECTION 2: Sản phẩm Bán chạy nhất (Best Sellers) */}
-      {bestSellers && bestSellers.length > 0 && (
-        <section className="featured-section section-best-sellers">
-          <div className="featured-section-header">
-            <div className="section-title-wrap">
-              <div className="section-icon-badge fire-icon">
-                <i className="ti ti-flame"></i>
-              </div>
-              <div>
-                <h3 className="featured-section-title">Sản Phẩm Bán Chạy Nhất</h3>
-                <p className="featured-section-sub">
-                  Được cộng đồng tin tưởng và lựa chọn nhiều nhất theo số lượng đơn thực tế
-                </p>
-              </div>
-            </div>
-
-            <div className="section-trust-stat">
-              <i className="ti ti-trophy"></i>
-              <span>Top Doanh Số Tháng</span>
-            </div>
-          </div>
-
-          <div className="featured-product-grid">
-            {bestSellers.slice(0, 4).map((product, idx) => (
-              <ProductCard
-                key={`best-${product.id}`}
-                product={{
-                  ...product,
-                  badgeRank: `#${idx + 1}`
-                }}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* SECTION 3: Sản phẩm Mới cập bến (New Arrivals) */}
-      {newArrivals && newArrivals.length > 0 && (
-        <section className="featured-section section-new-arrivals">
-          <div className="featured-section-header">
-            <div className="section-title-wrap">
-              <div className="section-icon-badge new-icon">
-                <i className="ti ti-sparkles"></i>
-              </div>
-              <div>
-                <h3 className="featured-section-title">Sản Phẩm Mới Lên Kệ</h3>
-                <p className="featured-section-sub">
-                  Các model cấu hình thế hệ mới nhất vừa cập bến hệ thống GHT
-                </p>
-              </div>
-            </div>
-
-            <div className="section-trust-stat new-tag">
-              <i className="ti ti-certificate"></i>
-              <span>Hàng Mới 100% Nguyên Seal</span>
-            </div>
-          </div>
-
-          <div className="featured-product-grid">
-            {newArrivals.slice(0, 4).map((product) => (
-              <ProductCard
-                key={`new-${product.id}`}
-                product={{
-                  ...product,
-                  badgeText: '✨ Mới ra mắt',
-                  badgeClass: 'badge-new'
                 }}
               />
             ))}

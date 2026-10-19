@@ -26,8 +26,8 @@ namespace GhtBackend.Controllers
             
             try
             {
-                var reply = await _aiService.ProcessChatAsync(request, role);
-                return Ok(new { reply });
+                var result = await _aiService.ProcessChatAsync(request, role);
+                return Ok(new { reply = result.Reply, products = result.Products });
             }
             catch (Exception ex)
             {

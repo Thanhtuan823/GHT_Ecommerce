@@ -93,7 +93,7 @@
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
-  width: 290px;
+  width: 320px;
   background: #ffffff;
   border: 1px solid var(--color-border);
   border-radius: 14px;
@@ -142,7 +142,7 @@
 }
 
 .category-dropdown-item:hover {
-  background: #f1f5f9;
+  background: #eff6ff;
   color: var(--color-accent, #2563eb);
   transform: translateX(2px);
 }

@@ -23,10 +23,12 @@ namespace GhtBackend.Controllers
         public async Task<IActionResult> Chat([FromBody] ChatRequestDto request)
         {
             var role = User.FindFirst(ClaimTypes.Role)?.Value ?? "Guest";
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            int? userId = int.TryParse(userIdClaim, out var uid) ? uid : null;
             
             try
             {
-                var result = await _aiService.ProcessChatAsync(request, role);
+                var result = await _aiService.ProcessChatAsync(request, role, userId);
                 return Ok(new { reply = result.Reply, products = result.Products });
             }
             catch (Exception ex)

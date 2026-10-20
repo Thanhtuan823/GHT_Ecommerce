@@ -21,6 +21,19 @@
   gap: var(--space-1);
 }
 
+.footer-brand-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.footer-logo-img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .footer-logo {
   font-size: 16px;
   font-weight: 800;

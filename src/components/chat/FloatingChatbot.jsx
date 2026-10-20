@@ -13,6 +13,7 @@ const FloatingChatbot = () => {
   const toast = useToast();
 
   const [isOpen, setIsOpen] = useState(false);
+  const [showPromptBubble, setShowPromptBubble] = useState(false);
   const [messages, setMessages] = useState([
     { role: 'ai', content: 'Xin chào! Tôi là trợ lý mua hàng GHT. Tôi có thể giúp gì cho bạn?' }
   ]);
@@ -20,10 +21,21 @@ const FloatingChatbot = () => {
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
 
-  // Extract productId if currently on a detail page
-  const productId = window.location.pathname.includes('/products/')
-    ? parseInt(window.location.pathname.split('/').pop(), 10)
-    : null;
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowPromptBubble(true);
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Extract product slug or Id if currently on a detail page (/products/:slug)
+  const isProductDetailPage = window.location.pathname.startsWith('/products/') && 
+                              window.location.pathname !== '/products' && 
+                              window.location.pathname !== '/products/';
+  const urlParam = isProductDetailPage ? window.location.pathname.split('/products/')[1]?.split('/')[0] : null;
+  const productId = urlParam && !isNaN(urlParam) ? parseInt(urlParam, 10) : null;
+  const productSlug = urlParam && isNaN(urlParam) ? urlParam : null;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -54,10 +66,17 @@ const FloatingChatbot = () => {
     setIsTyping(true);
 
     try {
+      const historyPayload = messages.slice(-6).map((m) => ({
+        role: m.role === 'ai' ? 'model' : 'user',
+        content: m.content
+      }));
+
       const payload = {
         message: userMsg,
         currentUrl: window.location.href,
-        currentProductId: isNaN(productId) ? null : productId
+        currentProductId: productId,
+        currentProductSlug: productSlug,
+        history: historyPayload
       };
 
       const res = await axiosClient.post('/ai/chat', payload);
@@ -89,26 +108,15 @@ const FloatingChatbot = () => {
           {/* Header */}
           <div className="chatbot-header">
             <div className="chatbot-header-title">
-              <span className="chatbot-title-main"><i className="ti ti-sparkles"></i> Trợ lý GHT</span>
-              <span className="chatbot-title-sub">Tư vấn chọn sản phẩm</span>
-            </div>
-            <div className="chatbot-header-actions">
-              <button
-                type="button"
-                className="chatbot-header-btn"
-                onClick={() => setIsOpen(false)}
-                title="Thu nhỏ"
-              >
-                –
-              </button>
-              <button
-                type="button"
-                className="chatbot-header-btn"
-                onClick={() => setIsOpen(false)}
-                title="Đóng"
-              >
-                &times;
-              </button>
+              <img
+                src="/images/logo_GHT_tron.jpg"
+                alt="GHT AI Avatar"
+                className="chatbot-avatar-img"
+              />
+              <div>
+                <span className="chatbot-title-main">Trợ lý GHT</span>
+                <span className="chatbot-title-sub">Tư vấn chọn sản phẩm</span>
+              </div>
             </div>
           </div>
 
@@ -148,7 +156,7 @@ const FloatingChatbot = () => {
                                   </span>
                                 )}
                               </div>
-                              
+
                               <div className="chatbot-prod-actions">
                                 <button
                                   type="button"
@@ -168,7 +176,7 @@ const FloatingChatbot = () => {
                                 >
                                   <i className="ti ti-shopping-cart-plus"></i> Thêm giỏ
                                 </button>
-                                
+
                                 <button
                                   type="button"
                                   className="btn-chat-buy"
@@ -232,14 +240,52 @@ const FloatingChatbot = () => {
         </div>
       )}
 
-      {/* Floating Action Button */}
+      {/* Popup bong bóng lời thoại chào mời tư vấn */}
+      {!isOpen && showPromptBubble && (
+        <div 
+          className="chatbot-prompt-bubble"
+          onClick={() => {
+            setIsOpen(true);
+            setShowPromptBubble(false);
+          }}
+        >
+          <span className="chatbot-prompt-icon">✨</span>
+          <span className="chatbot-prompt-text">
+            Hãy để tôi tư vấn chọn lựa cùng bạn!
+          </span>
+          <button
+            type="button"
+            className="chatbot-prompt-close"
+            title="Đóng lời nhắc"
+            onClick={(e) => {
+              e.stopPropagation(); // Ngăn mở chat khi chỉ muốn tắt bóng thoại
+              setShowPromptBubble(false);
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Nút bấm tròn mở/đóng Chatbot */}
       <button
         type="button"
         className="chatbot-toggle"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          setIsOpen(!isOpen);
+          if (!isOpen) setShowPromptBubble(false);
+        }}
         title="Trợ lý AI"
       >
-        {isOpen ? <i className="ti ti-x"></i> : <i className="ti ti-sparkles"></i>}
+        {isOpen ? (
+          <i className="ti ti-x"></i>
+        ) : (
+          <img
+            src="/images/logo_GHT_tron.jpg"
+            alt="AI Assistant"
+            className="chatbot-toggle-img"
+          />
+        )}
       </button>
     </div>
   );

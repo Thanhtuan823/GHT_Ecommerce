@@ -58,6 +58,15 @@
   color: var(--color-accent);
   font-size: 20px;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.admin-brand-logo-img {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
 }
 
 .admin-brand-title {

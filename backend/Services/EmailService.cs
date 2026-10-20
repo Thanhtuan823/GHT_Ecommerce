@@ -32,13 +32,16 @@ public class EmailService
     {
         var candidates = new[]
         {
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "logo_GHT_tron.jpg"),
+            Path.Combine(Directory.GetCurrentDirectory(), "Resources", "logo_GHT_tron.jpg"),
+            Path.Combine(Directory.GetCurrentDirectory(), "backend", "Resources", "logo_GHT_tron.jpg"),
+            Path.Combine(Directory.GetCurrentDirectory(), "public", "images", "logo_GHT_tron.jpg"),
+            Path.Combine(Directory.GetCurrentDirectory(), "..", "public", "images", "logo_GHT_tron.jpg"),
+            Path.Combine(Directory.GetCurrentDirectory(), "dist", "images", "logo_GHT_tron.jpg"),
+            Path.Combine(Directory.GetCurrentDirectory(), "..", "dist", "images", "logo_GHT_tron.jpg"),
             Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "logo_ght.jpg"),
             Path.Combine(Directory.GetCurrentDirectory(), "Resources", "logo_ght.jpg"),
-            Path.Combine(Directory.GetCurrentDirectory(), "backend", "Resources", "logo_ght.jpg"),
-            Path.Combine(Directory.GetCurrentDirectory(), "public", "images", "logo_ght.jpg"),
-            Path.Combine(Directory.GetCurrentDirectory(), "..", "public", "images", "logo_ght.jpg"),
-            Path.Combine(Directory.GetCurrentDirectory(), "dist", "images", "logo_ght.jpg"),
-            Path.Combine(Directory.GetCurrentDirectory(), "..", "dist", "images", "logo_ght.jpg")
+            Path.Combine(Directory.GetCurrentDirectory(), "backend", "Resources", "logo_ght.jpg")
         };
 
         foreach (var path in candidates)
@@ -228,9 +231,7 @@ public class EmailService
           <!-- Header Banner -->
           <tr>
             <td style=""background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%); padding: 24px 20px; text-align: center; color: #ffffff;"">
-              <div style=""display: inline-block; background-color: #ffffff; padding: 6px 14px; border-radius: 8px; margin-bottom: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.12);"">
-                <img src=""cid:ght_logo_cid"" alt=""GHT E-Commerce"" style=""height: 44px; max-height: 44px; display: block; object-fit: contain; margin: 0 auto;"" />
-              </div>
+              <img src=""cid:ght_logo_cid"" alt=""GHT E-Commerce"" style=""width: 52px; height: 52px; border-radius: 50%; object-fit: cover; display: block; margin: 0 auto 10px auto;"" />
               <h1 style=""margin: 0; font-size: 20px; font-weight: 800; letter-spacing: 1px; color: #ffffff; text-transform: uppercase;"">GHT E-COMMERCE</h1>
               <p style=""margin: 4px 0 0 0; font-size: 13px; color: #DBEAFE; font-weight: 400;"">Công nghệ tiên phong - Trải nghiệm vượt trội</p>
             </td>

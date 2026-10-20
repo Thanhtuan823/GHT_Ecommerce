@@ -7,7 +7,14 @@ const Footer = () => {
       <div className="footer-container">
         {/* Left: Branding & Tagline */}
         <div className="footer-left">
-          <span className="footer-logo">GHT_Ecom</span>
+          <div className="footer-brand-header">
+            <img
+              src="/images/logo_GHT_tron.jpg"
+              alt="GHT E-Commerce Logo"
+              className="footer-logo-img"
+            />
+            <span className="footer-logo">GHT_Ecom</span>
+          </div>
           <span className="footer-tagline">Công nghệ phù hợp. Trải nghiệm an tâm.</span>
         </div>
 

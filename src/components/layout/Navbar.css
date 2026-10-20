@@ -30,16 +30,33 @@
 .navbar-logo {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 12px; /* Khoảng cách hợp lý giữa logo tròn và chữ */
   font-size: 20px;
   font-weight: 800;
   color: var(--color-accent);
-  letter-spacing: -0.5px;
+  letter-spacing: -0.4px;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.navbar-logo-img {
+  width: 42px; /* Nâng từ 32px lên 42px để cân xứng với thanh Header */
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.navbar-logo:hover .navbar-logo-img {
+  transform: scale(1.06);
 }
 
 .navbar-logo-icon {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   background-color: var(--color-accent);
   color: #FFFFFF;
   border-radius: var(--radius-sm);
@@ -110,6 +127,7 @@
     opacity: 0;
     transform: translateY(6px) scale(0.98);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -450,14 +468,16 @@
   .navbar-search-form {
     display: none;
   }
+
   .navbar-category-btn span {
     display: none;
   }
+
   .navbar-category-btn {
     padding: 0 8px;
   }
+
   .user-name-text {
     display: none;
   }
 }
-

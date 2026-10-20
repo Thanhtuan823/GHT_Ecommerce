@@ -102,8 +102,12 @@ const Navbar = () => {
       <div className="navbar-container">
         {/* Left: Logo & Category Hover Menu */}
         <div className="navbar-left">
-          <Link to="/" className="navbar-logo">
-            <span className="navbar-logo-icon">G</span>
+          <Link className="navbar-logo" to="/">
+            <img
+              src="/images/logo_GHT_tron.jpg"
+              alt="GHT E-Commerce Logo"
+              className="navbar-logo-img"
+            />
             <span>GHT_Ecom</span>
           </Link>
 

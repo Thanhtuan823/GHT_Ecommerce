@@ -6,26 +6,50 @@ import ButtonSpinner from '../common/ButtonSpinner';
 import './VouchersModal.css';
 
 const VouchersModal = () => {
-  const { isVouchersModalOpen, closeVouchersModal, voucherModalOptions } = useAuth();
+  const { isVouchersModalOpen, closeVouchersModal, voucherModalOptions, user } = useAuth();
   const toast = useToast();
 
-  const [vouchers, setVouchers] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'applicable'
-  const [manualCode, setManualCode] = useState('');
-
+  const isCheckout = voucherModalOptions?.isCheckout === true;
   const currentOrderAmount = voucherModalOptions?.currentOrderAmount || 0;
   const onApplyCode = voucherModalOptions?.onApply;
 
-  // Load available discounts when modal opens
+  const [vouchers, setVouchers] = useState([]); // User's saved vouchers
+  const [allAvailableVouchers, setAllAvailableVouchers] = useState([]); // All active coupons on platform
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState(isCheckout ? 'applicable' : (user ? 'wallet' : 'all'));
+  const [manualCode, setManualCode] = useState('');
+  const [claimingId, setClaimingId] = useState(null);
+
+  // Load vouchers when modal opens
   useEffect(() => {
     if (!isVouchersModalOpen) return;
+
+    setActiveTab(isCheckout ? 'applicable' : (user ? 'wallet' : 'all'));
+    setManualCode('');
 
     const fetchVouchers = async () => {
       setLoading(true);
       try {
-        const res = await axiosClient.get('/discounts/available');
-        setVouchers(Array.isArray(res.data) ? res.data : []);
+        if (isCheckout) {
+          if (user) {
+            const res = await axiosClient.get('/discounts/my-vouchers');
+            setVouchers(Array.isArray(res.data) ? res.data : []);
+          } else {
+            setVouchers([]);
+          }
+        } else {
+          // General browser mode
+          const availRes = await axiosClient.get('/discounts/available');
+          const avail = Array.isArray(availRes.data) ? availRes.data : [];
+          setAllAvailableVouchers(avail);
+
+          if (user) {
+            const myRes = await axiosClient.get('/discounts/my-vouchers');
+            setVouchers(Array.isArray(myRes.data) ? myRes.data : []);
+          } else {
+            setVouchers([]);
+          }
+        }
       } catch (err) {
         console.error('Lỗi tải danh sách mã ưu đãi', err);
         toast.error('Không thể tải danh sách mã ưu đãi. Vui lòng thử lại sau.');
@@ -35,7 +59,7 @@ const VouchersModal = () => {
     };
 
     fetchVouchers();
-  }, [isVouchersModalOpen]);
+  }, [isVouchersModalOpen, isCheckout, user]);
 
   // Escape key listener
   useEffect(() => {
@@ -94,13 +118,30 @@ const VouchersModal = () => {
     }
   };
 
-  // Filter vouchers based on tab
-  const filteredVouchers = useMemo(() => {
-    if (activeTab === 'applicable' && currentOrderAmount > 0) {
-      return vouchers.filter((v) => currentOrderAmount >= (v.minOrderAmount || 0));
+  // Claim voucher handler
+  const handleClaim = async (v) => {
+    if (!user) {
+      toast.info('Vui lòng đăng nhập để lưu mã ưu đãi vào ví!');
+      return;
     }
-    return vouchers;
-  }, [vouchers, activeTab, currentOrderAmount]);
+
+    setClaimingId(v.id);
+    try {
+      const res = await axiosClient.post(`/discounts/claim/${v.id}`);
+      toast.success(res.data?.message || `Đã lưu mã ${v.code} vào ví!`);
+      // Update claimed state in available list
+      setAllAvailableVouchers((prev) =>
+        prev.map((item) => (item.id === v.id ? { ...item, isClaimed: true } : item))
+      );
+      // Refresh my-vouchers
+      const myRes = await axiosClient.get('/discounts/my-vouchers');
+      setVouchers(Array.isArray(myRes.data) ? myRes.data : []);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Không thể lưu mã vào ví lúc này.');
+    } finally {
+      setClaimingId(null);
+    }
+  };
 
   // Check if voucher is eligible for current order
   const checkEligibility = (voucher) => {
@@ -122,6 +163,21 @@ const VouchersModal = () => {
     return diffDays > 0 && diffDays <= 3;
   };
 
+  // Determine list to display
+  const currentList = useMemo(() => {
+    if (isCheckout) {
+      if (activeTab === 'applicable' && currentOrderAmount > 0) {
+        return vouchers.filter((v) => currentOrderAmount >= (v.minOrderAmount || 0));
+      }
+      return vouchers;
+    }
+
+    if (activeTab === 'wallet') {
+      return vouchers;
+    }
+    return allAvailableVouchers;
+  }, [isCheckout, activeTab, currentOrderAmount, vouchers, allAvailableVouchers]);
+
   if (!isVouchersModalOpen) return null;
 
   return (
@@ -134,9 +190,13 @@ const VouchersModal = () => {
               <i className="ti ti-ticket"></i>
             </div>
             <div>
-              <h3 className="vouchers-header-title">Kho Mã Ưu Đãi GHT</h3>
+              <h3 className="vouchers-header-title">
+                {isCheckout ? 'Ví Mã Ưu Đãi Của Bạn' : 'Kho Mã Ưu Đãi GHT'}
+              </h3>
               <p className="vouchers-header-sub">
-                Lựa chọn các mã giảm giá hấp dẫn để tiết kiệm chi phí mua sắm
+                {isCheckout
+                  ? 'Chọn mã đã lưu trong ví để áp dụng chiết khấu cho đơn hàng'
+                  : 'Lưu mã giảm giá vào ví để tự động nhận chiết khấu khi mua sắm'}
               </p>
             </div>
           </div>
@@ -153,26 +213,50 @@ const VouchersModal = () => {
 
         {/* Tabs */}
         <div className="vouchers-modal-tabs">
-          <button
-            type="button"
-            className={`vouchers-tab-btn ${activeTab === 'all' ? 'active' : ''}`}
-            onClick={() => setActiveTab('all')}
-          >
-            <span>Tất cả mã ưu đãi</span>
-            <span className="vouchers-tab-count">{vouchers.length}</span>
-          </button>
-
-          {currentOrderAmount > 0 && (
-            <button
-              type="button"
-              className={`vouchers-tab-btn ${activeTab === 'applicable' ? 'active' : ''}`}
-              onClick={() => setActiveTab('applicable')}
-            >
-              <span>Mã cho đơn hàng của bạn</span>
-              <span className="vouchers-tab-count">
-                {vouchers.filter((v) => currentOrderAmount >= (v.minOrderAmount || 0)).length}
-              </span>
-            </button>
+          {isCheckout ? (
+            <>
+              {currentOrderAmount > 0 && (
+                <button
+                  type="button"
+                  className={`vouchers-tab-btn ${activeTab === 'applicable' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('applicable')}
+                >
+                  <span>Mã đủ điều kiện</span>
+                  <span className="vouchers-tab-count">
+                    {vouchers.filter((v) => currentOrderAmount >= (v.minOrderAmount || 0)).length}
+                  </span>
+                </button>
+              )}
+              <button
+                type="button"
+                className={`vouchers-tab-btn ${activeTab === 'all' ? 'active' : ''}`}
+                onClick={() => setActiveTab('all')}
+              >
+                <span>Tất cả mã trong ví</span>
+                <span className="vouchers-tab-count">{vouchers.length}</span>
+              </button>
+            </>
+          ) : (
+            <>
+              {user && (
+                <button
+                  type="button"
+                  className={`vouchers-tab-btn ${activeTab === 'wallet' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('wallet')}
+                >
+                  <span>Ví của tôi</span>
+                  <span className="vouchers-tab-count">{vouchers.length}</span>
+                </button>
+              )}
+              <button
+                type="button"
+                className={`vouchers-tab-btn ${activeTab === 'all' ? 'active' : ''}`}
+                onClick={() => setActiveTab('all')}
+              >
+                <span>Săn thêm mã ưu đãi</span>
+                <span className="vouchers-tab-count">{allAvailableVouchers.length}</span>
+              </button>
+            </>
           )}
         </div>
 
@@ -224,23 +308,40 @@ const VouchersModal = () => {
                 Đang tải danh sách mã ưu đãi...
               </div>
             </div>
-          ) : filteredVouchers.length === 0 ? (
+          ) : !user && isCheckout ? (
+            <div className="vouchers-empty-state">
+              <div className="vouchers-empty-icon">
+                <i className="ti ti-user-x"></i>
+              </div>
+              <h4 className="vouchers-empty-title">Bạn chưa đăng nhập</h4>
+              <p className="vouchers-empty-sub">
+                Vui lòng đăng nhập để sử dụng các mã ưu đãi độc quyền trong ví cá nhân của bạn.
+              </p>
+            </div>
+          ) : currentList.length === 0 ? (
             <div className="vouchers-empty-state">
               <div className="vouchers-empty-icon">
                 <i className="ti ti-ticket-off"></i>
               </div>
-              <h4 className="vouchers-empty-title">Không tìm thấy mã ưu đãi phù hợp</h4>
+              <h4 className="vouchers-empty-title">
+                {isCheckout
+                  ? 'Bạn chưa có mã ưu đãi nào trong ví'
+                  : 'Không tìm thấy mã ưu đãi phù hợp'}
+              </h4>
               <p className="vouchers-empty-sub">
-                {activeTab === 'applicable'
+                {isCheckout
+                  ? 'Hãy quay lại trang chủ hoặc xem sản phẩm để nhận mã ưu đãi vào ví!'
+                  : activeTab === 'applicable'
                   ? 'Đơn hàng hiện tại chưa đạt mức tối thiểu của các mã ưu đãi.'
                   : 'Hiện tại hệ thống chưa có mã ưu đãi nào đang kích hoạt.'}
               </p>
             </div>
           ) : (
-            filteredVouchers.map((v) => {
+            currentList.map((v) => {
               const { eligible, diff } = checkEligibility(v);
               const expiring = isExpiringSoon(v.endDate);
               const isFixed = v.discountType === 'FIXED';
+              const isInWallet = isCheckout || activeTab === 'wallet' || v.isClaimed;
 
               return (
                 <div
@@ -322,7 +423,8 @@ const VouchersModal = () => {
                           <span>Sao chép</span>
                         </button>
 
-                        {onApplyCode && (
+                        {/* If in checkout or onApply is present: button [Áp dụng ngay] */}
+                        {onApplyCode && isInWallet && (
                           <button
                             id={`apply-voucher-${v.code}`}
                             type="button"
@@ -332,6 +434,27 @@ const VouchersModal = () => {
                           >
                             <i className="ti ti-check"></i>
                             <span>Áp dụng ngay</span>
+                          </button>
+                        )}
+
+                        {/* If not in wallet and not in checkout: button [Lưu vào ví] */}
+                        {!isInWallet && (
+                          <button
+                            id={`claim-voucher-${v.code}`}
+                            type="button"
+                            className="voucher-btn-apply"
+                            disabled={claimingId === v.id}
+                            onClick={() => handleClaim(v)}
+                            style={{ background: '#059669' }}
+                          >
+                            {claimingId === v.id ? (
+                              <ButtonSpinner />
+                            ) : (
+                              <>
+                                <i className="ti ti-wallet"></i>
+                                <span>Lưu vào ví</span>
+                              </>
+                            )}
                           </button>
                         )}
                       </div>
@@ -348,3 +471,4 @@ const VouchersModal = () => {
 };
 
 export default VouchersModal;
+

@@ -33,7 +33,13 @@ public class DiscountService
 
         if (userId > 0)
         {
-            var userUsedCount = await _context.UserUsedDiscounts.CountAsync(u => u.UserId == userId && u.DiscountId == discount.Id);
+            var hasInWallet = await _context.UserUsedDiscounts.AnyAsync(u => u.UserId == userId && u.DiscountId == discount.Id && !u.IsUsed);
+            if (!hasInWallet)
+            {
+                throw new Exception("Bạn chưa lưu mã ưu đãi này vào ví. Vui lòng nhận mã vào ví trước khi áp dụng!");
+            }
+
+            var userUsedCount = await _context.UserUsedDiscounts.CountAsync(u => u.UserId == userId && u.DiscountId == discount.Id && u.IsUsed);
             if (userUsedCount >= discount.PerUserLimit)
                 throw new Exception("Bạn đã dùng hết lượt sử dụng mã này");
         }

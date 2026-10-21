@@ -110,12 +110,26 @@ public class OrdersController : ControllerBase
             var discount = await _context.Discounts.FindAsync(discountId.Value);
             if (discount != null)
             {
-                discount.UsedCount++;
-                _context.UserUsedDiscounts.Add(new UserUsedDiscount
+                var userVoucher = await _context.UserUsedDiscounts
+                    .FirstOrDefaultAsync(u => u.UserId == userId && u.DiscountId == discount.Id && !u.IsUsed);
+                if (userVoucher != null)
                 {
-                    UserId = userId,
-                    DiscountId = discount.Id
-                });
+                    userVoucher.IsUsed = true;
+                    userVoucher.OrderId = order.Id;
+                    userVoucher.UsedAt = DateTime.UtcNow;
+                }
+                else
+                {
+                    _context.UserUsedDiscounts.Add(new UserUsedDiscount
+                    {
+                        UserId = userId,
+                        DiscountId = discount.Id,
+                        OrderId = order.Id,
+                        IsUsed = true,
+                        UsedAt = DateTime.UtcNow
+                    });
+                }
+                discount.UsedCount++;
             }
         }
 
@@ -236,14 +250,17 @@ public class OrdersController : ControllerBase
                 var discount = await _context.Discounts.FindAsync(order.DiscountId.Value);
                 if (discount != null)
                 {
-                    var alreadyRecorded = await _context.UserUsedDiscounts.AnyAsync(u => u.UserId == order.UserId && u.DiscountId == discount.Id);
-                    if (!alreadyRecorded)
+                    var userVoucher = await _context.UserUsedDiscounts.FirstOrDefaultAsync(u => u.OrderId == order.Id && u.UserId == order.UserId);
+                    if (userVoucher == null)
                     {
                         discount.UsedCount++;
                         _context.UserUsedDiscounts.Add(new UserUsedDiscount
                         {
                             UserId = order.UserId,
-                            DiscountId = discount.Id
+                            DiscountId = discount.Id,
+                            OrderId = order.Id,
+                            IsUsed = true,
+                            UsedAt = DateTime.UtcNow
                         });
                     }
                 }
@@ -315,11 +332,13 @@ public class OrdersController : ControllerBase
                 discount.UsedCount -= 1;
             }
 
-            var usedDiscount = await _context.UserUsedDiscounts
-                .FirstOrDefaultAsync(u => u.UserId == order.UserId && u.DiscountId == order.DiscountId.Value);
-            if (usedDiscount != null)
+            var usedVoucher = await _context.UserUsedDiscounts
+                .FirstOrDefaultAsync(u => u.OrderId == order.Id && u.UserId == order.UserId);
+            if (usedVoucher != null)
             {
-                _context.UserUsedDiscounts.Remove(usedDiscount);
+                usedVoucher.IsUsed = false;
+                usedVoucher.OrderId = null;
+                usedVoucher.UsedAt = null;
             }
         }
 
@@ -396,14 +415,17 @@ public class OrdersController : ControllerBase
             var discount = await _context.Discounts.FindAsync(order.DiscountId.Value);
             if (discount != null)
             {
-                var alreadyRecorded = await _context.UserUsedDiscounts.AnyAsync(u => u.UserId == order.UserId && u.DiscountId == discount.Id);
-                if (!alreadyRecorded)
+                var userVoucher = await _context.UserUsedDiscounts.FirstOrDefaultAsync(u => u.OrderId == order.Id && u.UserId == order.UserId);
+                if (userVoucher == null)
                 {
                     discount.UsedCount++;
                     _context.UserUsedDiscounts.Add(new UserUsedDiscount
                     {
                         UserId = order.UserId,
-                        DiscountId = discount.Id
+                        DiscountId = discount.Id,
+                        OrderId = order.Id,
+                        IsUsed = true,
+                        UsedAt = DateTime.UtcNow
                     });
                 }
             }

@@ -729,6 +729,7 @@ const Checkout = () => {
                   id="checkout-open-vouchers-btn"
                   type="button"
                   onClick={() => openVouchersModal({
+                    isCheckout: true,
                     currentOrderAmount: originalAmount,
                     onApply: (selectedCode) => {
                       setDiscountCode(selectedCode);

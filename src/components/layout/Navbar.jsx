@@ -104,7 +104,7 @@ const Navbar = () => {
         <div className="navbar-left">
           <Link className="navbar-logo" to="/">
             <img
-              src="/images/logo_GHT_tron.jpg"
+              src="/images/Logo_GHT.png"
               alt="GHT E-Commerce Logo"
               className="navbar-logo-img"
             />
@@ -278,7 +278,7 @@ const Navbar = () => {
                     }}
                   >
                     <i className="ti ti-ticket"></i>
-                    <span>Mã ưu đãi</span>
+                    <span>Ví mã ưu đãi</span>
                   </button>
 
                   <Link

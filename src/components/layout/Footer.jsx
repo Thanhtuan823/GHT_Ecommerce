@@ -9,7 +9,7 @@ const Footer = () => {
         <div className="footer-left">
           <div className="footer-brand-header">
             <img
-              src="/images/logo_GHT_tron.jpg"
+              src="/images/Logo_GHT.png"
               alt="GHT E-Commerce Logo"
               className="footer-logo-img"
             />

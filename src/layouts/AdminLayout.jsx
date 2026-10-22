@@ -47,10 +47,10 @@ const AdminLayout = () => {
           <Link to={isAdmin ? '/admin/dashboard' : '/staff/orders'} className="admin-brand-link">
             <div className="admin-brand-icon">
               <img
-                src="/images/logo_GHT_tron.jpg"
+                src="/images/Logo_GHT.png"
                 alt="Admin Logo"
                 className="admin-brand-logo-img"
-                style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover', display: 'block' }}
+                style={{ width: '46px', height: '46px', display: 'block' }}
               />
             </div>
             {!isCollapsed && <span className="admin-brand-title">GHT Central</span>}

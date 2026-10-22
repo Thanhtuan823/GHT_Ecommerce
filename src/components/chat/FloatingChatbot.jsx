@@ -109,7 +109,7 @@ const FloatingChatbot = () => {
           <div className="chatbot-header">
             <div className="chatbot-header-title">
               <img
-                src="/images/logo_GHT_tron.jpg"
+                src="/images/Logo_GHT.png"
                 alt="GHT AI Avatar"
                 className="chatbot-avatar-img"
               />
@@ -281,7 +281,7 @@ const FloatingChatbot = () => {
           <i className="ti ti-x"></i>
         ) : (
           <img
-            src="/images/logo_GHT_tron.jpg"
+            src="/images/Logo_GHT.png"
             alt="AI Assistant"
             className="chatbot-toggle-img"
           />

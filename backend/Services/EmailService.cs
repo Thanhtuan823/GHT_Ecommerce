@@ -32,6 +32,13 @@ public class EmailService
     {
         var candidates = new[]
         {
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "Logo_GHT.png"),
+            Path.Combine(Directory.GetCurrentDirectory(), "Resources", "Logo_GHT.png"),
+            Path.Combine(Directory.GetCurrentDirectory(), "backend", "Resources", "Logo_GHT.png"),
+            Path.Combine(Directory.GetCurrentDirectory(), "public", "images", "Logo_GHT.png"),
+            Path.Combine(Directory.GetCurrentDirectory(), "..", "public", "images", "Logo_GHT.png"),
+            Path.Combine(Directory.GetCurrentDirectory(), "dist", "images", "Logo_GHT.png"),
+            Path.Combine(Directory.GetCurrentDirectory(), "..", "dist", "images", "Logo_GHT.png"),
             Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "logo_GHT_tron.jpg"),
             Path.Combine(Directory.GetCurrentDirectory(), "Resources", "logo_GHT_tron.jpg"),
             Path.Combine(Directory.GetCurrentDirectory(), "backend", "Resources", "logo_GHT_tron.jpg"),

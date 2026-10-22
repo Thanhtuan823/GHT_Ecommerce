@@ -30,7 +30,8 @@
 .navbar-logo {
   display: flex;
   align-items: center;
-  gap: 12px; /* Khoảng cách hợp lý giữa logo tròn và chữ */
+  gap: 12px;
+  /* Khoảng cách hợp lý giữa logo tròn và chữ */
   font-size: 20px;
   font-weight: 800;
   color: var(--color-accent);
@@ -40,14 +41,12 @@
 }
 
 .navbar-logo-img {
-  width: 42px; /* Nâng từ 32px lên 42px để cân xứng với thanh Header */
-  height: 42px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
   object-fit: cover;
   display: block;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .navbar-logo:hover .navbar-logo-img {

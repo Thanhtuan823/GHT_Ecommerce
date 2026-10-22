@@ -47,11 +47,8 @@
 }
 
 .admin-brand-icon {
-  width: 36px;
-  height: 36px;
-  background: var(--color-accent-bg);
-  border: 1px solid var(--color-accent-border);
-  border-radius: 8px;
+  width: 46px;
+  height: 46px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -62,9 +59,8 @@
 }
 
 .admin-brand-logo-img {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
+  width: 50px;
+  height: 50px;
   object-fit: cover;
   display: block;
 }
@@ -333,17 +329,21 @@
   .admin-sidebar {
     width: 68px;
   }
+
   .admin-brand-title,
   .admin-nav-item span {
     display: none;
   }
+
   .admin-nav-item {
     padding: 0;
     justify-content: center;
   }
+
   .admin-main-wrapper {
     margin-left: 68px;
   }
+
   .logout-text {
     display: none;
   }
@@ -353,6 +353,7 @@
   .admin-layout {
     flex-direction: column;
   }
+
   .admin-sidebar {
     position: static;
     width: 100% !important;
@@ -360,31 +361,39 @@
     border-right: none;
     border-bottom: 1px solid var(--color-border);
   }
+
   .admin-brand {
     border-bottom: none;
     height: 52px;
   }
+
   .admin-nav {
     flex-direction: row;
     padding: 8px 12px;
     overflow-x: auto;
   }
+
   .admin-nav-item {
     height: 38px;
     padding: 0 12px;
   }
+
   .admin-sidebar-footer {
     display: none;
   }
+
   .admin-main-wrapper {
     margin-left: 0 !important;
   }
+
   .admin-topbar {
     padding: 0 16px;
   }
+
   .admin-breadcrumb-box {
     display: none;
   }
+
   .admin-main-content {
     padding: 16px 12px;
   }

@@ -149,9 +149,9 @@ const Login = () => {
         {/* Column 1: Brand Panel (25%) */}
         <aside className="auth-brand-panel">
           <img
-            src="/images/logo_GHT_tron.jpg"
+            src="/images/Logo_GHT.png"
             alt="GHT E-Commerce Logo"
-            style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', marginBottom: '12px', display: 'block' }}
+            style={{ width: '52px', height: '52px', borderRadius: '50%', objectFit: 'cover', marginBottom: '14px', display: 'block', boxShadow: '0 4px 14px rgba(37, 99, 235, 0.25)' }}
           />
           <span className="auth-brand-pill">Chào mừng đến GHT</span>
           <h1 className="auth-brand-title">Một tài khoản. Trọn trải nghiệm công nghệ.</h1>

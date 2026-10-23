@@ -40,6 +40,13 @@ export default function Users() {
   const [statusTogglingUser, setStatusTogglingUser] = useState(null);
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
 
+  // Password reset modal state
+  const [passwordUser, setPasswordUser] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+
   // Debounce search input by 400ms
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -115,6 +122,32 @@ export default function Users() {
       toast.error(err.response?.data?.message || 'Lỗi khi đổi trạng thái');
     } finally {
       setIsTogglingStatus(false);
+    }
+  };
+
+  // Submit Reset Password
+  const handleSavePassword = async (e) => {
+    e?.preventDefault();
+    if (!passwordUser) return;
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordError('Mật khẩu mới phải có tối thiểu 6 ký tự');
+      return;
+    }
+    setIsResettingPassword(true);
+    setPasswordError('');
+    try {
+      const res = await axiosClient.put(`/admin/users/${passwordUser.id}/password`, {
+        newPassword: newPassword
+      });
+      toast.success(res.data.message || `Đã cập nhật mật khẩu mới cho tài khoản ${passwordUser.email}`);
+      setPasswordUser(null);
+      setNewPassword('');
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật mật khẩu';
+      setPasswordError(msg);
+      toast.error(msg);
+    } finally {
+      setIsResettingPassword(false);
     }
   };
 
@@ -296,6 +329,20 @@ export default function Users() {
 
                           <button
                             type="button"
+                            className="btn-action-icon btn-action-key"
+                            title="Đổi mật khẩu"
+                            onClick={() => {
+                              setPasswordUser(u);
+                              setNewPassword('');
+                              setShowPassword(false);
+                              setPasswordError('');
+                            }}
+                          >
+                            <i className="ti ti-key"></i>
+                          </button>
+
+                          <button
+                            type="button"
                             className={`btn-action-icon ${u.isActive ? 'danger' : 'unlock'}`}
                             title={u.isActive ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
                             onClick={() => {
@@ -420,6 +467,105 @@ export default function Users() {
                 {isUpdatingRole ? <><ButtonSpinner /> Đang lưu...</> : 'Cập nhật vai trò'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Password Modal */}
+      {passwordUser && (
+        <div className="role-modal-overlay" onClick={() => !isResettingPassword && setPasswordUser(null)}>
+          <div className="role-modal-card reset-pwd-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="reset-pwd-header">
+              <div className="reset-pwd-icon">
+                <i className="ti ti-key"></i>
+              </div>
+              <div>
+                <h3 className="role-modal-title" style={{ margin: 0 }}>Đổi mật khẩu tài khoản</h3>
+                <p className="role-modal-desc" style={{ margin: '4px 0 0 0' }}>
+                  Thiết lập mật khẩu mới trực tiếp cho người dùng
+                </p>
+              </div>
+            </div>
+
+            <div className="reset-pwd-user-card">
+              <div className="reset-pwd-user-avatar">
+                {passwordUser.avatar ? (
+                  <img src={passwordUser.avatar} alt={passwordUser.name} />
+                ) : (
+                  <span>{getInitials(passwordUser.name || passwordUser.email)}</span>
+                )}
+              </div>
+              <div className="reset-pwd-user-meta">
+                <span className="reset-pwd-user-name">{passwordUser.name || 'Người dùng'}</span>
+                <span className="reset-pwd-user-email">{passwordUser.email}</span>
+                <div style={{ marginTop: '4px' }}>
+                  <span className={`badge-role ${passwordUser.role?.toLowerCase()}`}>
+                    {passwordUser.role === 'Admin' ? 'Quản trị viên' : passwordUser.role === 'Staff' ? 'Nhân viên' : 'Khách hàng'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleSavePassword}>
+              <div className="reset-pwd-form-group">
+                <label className="reset-pwd-label" htmlFor="admin-new-password">
+                  Mật khẩu mới <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <div className="reset-pwd-input-wrap">
+                  <input
+                    id="admin-new-password"
+                    type={showPassword ? 'text' : 'password'}
+                    className={`reset-pwd-input ${passwordError ? 'has-error' : ''}`}
+                    placeholder="Nhập tối thiểu 6 ký tự..."
+                    value={newPassword}
+                    onChange={(e) => {
+                      setNewPassword(e.target.value);
+                      if (passwordError) setPasswordError('');
+                    }}
+                    autoFocus
+                    disabled={isResettingPassword}
+                  />
+                  <button
+                    type="button"
+                    className="reset-pwd-eye-btn"
+                    onClick={() => setShowPassword(!showPassword)}
+                    tabIndex="-1"
+                    title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                  >
+                    <i className={`ti ${showPassword ? 'ti-eye-off' : 'ti-eye'}`}></i>
+                  </button>
+                </div>
+                {passwordError && (
+                  <span className="reset-pwd-error-text">
+                    <i className="ti ti-alert-circle"></i> {passwordError}
+                  </span>
+                )}
+              </div>
+
+              <div className="role-modal-actions" style={{ marginTop: '24px' }}>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => setPasswordUser(null)}
+                  disabled={isResettingPassword}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={isResettingPassword || !newPassword}
+                >
+                  {isResettingPassword ? (
+                    <>
+                      <ButtonSpinner /> Đang lưu...
+                    </>
+                  ) : (
+                    'Xác nhận lưu'
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -386,10 +386,36 @@ export default function StaffOrders() {
     showToast(`Đã cập nhật đơn #${orderId} sang trạng thái "${getStatusText(newStatus)}"`, 'success');
   };
 
-  // Cancel order
-  const handleCancelOrder = (orderId) => {
-    handleUpdateStatus(orderId, 'CANCELLED');
-    showToast(`Đã huỷ đơn hàng #${orderId}`, 'info');
+  // Cancel order (calls /api/orders/{id}/cancel to auto restock inventory and restore vouchers)
+  const handleCancelOrder = async (orderId) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn hủy đơn hàng #${orderId}? Thao tác này sẽ tự động hoàn tồn kho và hoàn trả voucher vào ví của khách.`)) {
+      return;
+    }
+    const token = localStorage.getItem('token');
+    try {
+      if (token) {
+        const res = await fetch(`/api/orders/${orderId}/cancel`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ reason: 'Nhân viên hủy đơn từ cổng vận hành' })
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.message || 'Không thể hủy đơn hàng');
+        }
+      }
+
+      setOrders((prev) =>
+        prev.map((ord) => (ord.id === orderId ? { ...ord, status: 'CANCELLED' } : ord))
+      );
+      showToast(`Đã huỷ đơn hàng #${orderId} và tự động hoàn trả tồn kho!`, 'success');
+    } catch (err) {
+      showToast(err.message || `Có lỗi khi hủy đơn hàng #${orderId}`, 'error');
+    }
   };
 
   // AI Quality Inspection Run

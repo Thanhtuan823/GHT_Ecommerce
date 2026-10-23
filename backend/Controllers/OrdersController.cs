@@ -303,7 +303,7 @@ public class OrdersController : ControllerBase
             .FirstOrDefaultAsync(o => o.Id == id);
 
         if (order == null) return NotFound(new { message = "Đơn hàng không tồn tại" });
-        if (order.UserId != userId && !User.IsInRole("Admin")) return Forbid();
+        if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Staff")) return Forbid();
 
         var cancellableStatuses = new[] { "PENDING_PAYMENT", "PENDING_REVIEW", "CONFIRMED", "PROCESSING" };
         if (!cancellableStatuses.Contains(order.Status))
@@ -312,7 +312,9 @@ public class OrdersController : ControllerBase
         }
 
         order.Status = "CANCELLED";
-        order.CancelReason = string.IsNullOrWhiteSpace(req?.Reason) ? "Khách hàng yêu cầu hủy đơn" : req.Reason.Trim();
+        order.CancelReason = string.IsNullOrWhiteSpace(req?.Reason)
+            ? (User.IsInRole("Staff") || User.IsInRole("Admin") ? "Nhân viên vận hành hủy đơn" : "Khách hàng yêu cầu hủy đơn")
+            : req.Reason.Trim();
         order.UpdatedAt = DateTime.UtcNow;
 
         foreach (var item in order.OrderItems)

@@ -182,3 +182,57 @@ public class Wishlist
     public Product Product { get; set; } = null!;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
+
+public class ChatConversation
+{
+    public int Id { get; set; }
+    public int CustomerId { get; set; }
+    public User Customer { get; set; } = null!;
+    public int? StaffId { get; set; }
+    public User? Staff { get; set; }
+    public string Status { get; set; } = "WAITING"; // WAITING, ACTIVE, CLOSED
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? ClosedAt { get; set; }
+    public string? LastMessage { get; set; }
+    public DateTime? LastMessageAt { get; set; }
+    public int UnreadCustomerCount { get; set; } = 0;
+    public int UnreadStaffCount { get; set; } = 0;
+
+    public ICollection<ChatMessage> Messages { get; set; } = new List<ChatMessage>();
+}
+
+public class ChatMessage
+{
+    public int Id { get; set; }
+    public int ConversationId { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public ChatConversation Conversation { get; set; } = null!;
+    public int SenderId { get; set; }
+    public User Sender { get; set; } = null!;
+    public string SenderRole { get; set; } = "Customer"; // Customer, Staff
+    public string Content { get; set; } = string.Empty;
+    public string? ImageUrl { get; set; }
+    public int? ReplyToMessageId { get; set; }
+    public ChatMessage? ReplyToMessage { get; set; }
+    public bool IsEdited { get; set; } = false;
+    public bool IsRevoked { get; set; } = false;
+    public bool IsRead { get; set; } = false;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    public ICollection<ChatMessageReaction> Reactions { get; set; } = new List<ChatMessageReaction>();
+}
+
+public class ChatMessageReaction
+{
+    public int Id { get; set; }
+    public int MessageId { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public ChatMessage Message { get; set; } = null!;
+    public int UserId { get; set; }
+    public User User { get; set; } = null!;
+    public string Emoji { get; set; } = string.Empty; // 👍, ❤️, 😆, 😮, 😢, 😡
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+

@@ -23,6 +23,7 @@ import VouchersModal from './components/voucher/VouchersModal';
 import OrderHistory from './pages/orders/OrderHistory';
 import OrderDetail from './pages/orders/OrderDetail';
 import StaffOrders from './pages/staff/StaffOrders';
+import StaffChat from './pages/staff/StaffChat';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { ToastProvider } from './components/common/ToastContext';
@@ -100,11 +101,13 @@ function App() {
                     <Route path="products" element={<AdminProducts />} />
                     <Route path="discounts" element={<AdminDiscounts />} />
                     <Route path="users" element={<AdminUsers />} />
+                    <Route path="chat" element={<StaffChat />} />
                   </Route>
                   {/* Staff Route under AdminLayout Shell */}
                   <Route path="/staff" element={<AdminLayout />}>
                     <Route index element={<Navigate to="orders" replace />} />
                     <Route path="orders" element={<StaffOrders />} />
+                    <Route path="chat" element={<StaffChat />} />
                   </Route>
                 </Route>
               </Routes>

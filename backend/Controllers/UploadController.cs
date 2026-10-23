@@ -7,7 +7,7 @@ namespace GhtBackend.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin,Staff")]
+[Authorize]
 public class UploadController : ControllerBase
 {
     private readonly IWebHostEnvironment _env;

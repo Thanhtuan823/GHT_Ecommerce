@@ -18,6 +18,9 @@ public class AppDbContext : DbContext
     public DbSet<UserUsedDiscount> UserUsedDiscounts { get; set; } = null!;
     public DbSet<Review> Reviews { get; set; } = null!;
     public DbSet<Wishlist> Wishlists { get; set; } = null!;
+    public DbSet<ChatConversation> ChatConversations { get; set; } = null!;
+    public DbSet<ChatMessage> ChatMessages { get; set; } = null!;
+    public DbSet<ChatMessageReaction> ChatMessageReactions { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -28,5 +31,52 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Category>().HasIndex(c => c.Slug).IsUnique();
         modelBuilder.Entity<Discount>().HasIndex(d => d.Code).IsUnique();
         modelBuilder.Entity<Wishlist>().HasIndex(w => new { w.UserId, w.ProductId }).IsUnique();
+
+        // Live Chat relationships
+        modelBuilder.Entity<ChatConversation>()
+            .HasOne(c => c.Customer)
+            .WithMany()
+            .HasForeignKey(c => c.CustomerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ChatConversation>()
+            .HasOne(c => c.Staff)
+            .WithMany()
+            .HasForeignKey(c => c.StaffId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ChatMessage>()
+            .HasOne(m => m.Conversation)
+            .WithMany(c => c.Messages)
+            .HasForeignKey(m => m.ConversationId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ChatMessage>()
+            .HasOne(m => m.Sender)
+            .WithMany()
+            .HasForeignKey(m => m.SenderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ChatMessage>()
+            .HasOne(m => m.ReplyToMessage)
+            .WithMany()
+            .HasForeignKey(m => m.ReplyToMessageId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ChatMessageReaction>()
+            .HasOne(r => r.Message)
+            .WithMany(m => m.Reactions)
+            .HasForeignKey(r => r.MessageId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ChatMessageReaction>()
+            .HasOne(r => r.User)
+            .WithMany()
+            .HasForeignKey(r => r.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ChatMessageReaction>()
+            .HasIndex(r => new { r.MessageId, r.UserId })
+            .IsUnique();
     }
 }

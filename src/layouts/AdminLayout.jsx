@@ -26,6 +26,7 @@ const AdminLayout = () => {
     if (path.includes('/admin/discounts')) return 'Quản lý Mã giảm giá';
     if (path.includes('/admin/users')) return 'Quản lý Người dùng & Phân quyền';
     if (path.includes('/staff/orders')) return 'Không gian Vận hành Đơn hàng';
+    if (path.includes('/staff/chat') || path.includes('/admin/chat')) return 'Tư vấn trực tuyến (Live Chat)';
     return 'Trung tâm Quản trị';
   }, [location.pathname]);
 
@@ -90,6 +91,16 @@ const AdminLayout = () => {
             {!isCollapsed && <span>{isStaff ? 'Kho sản phẩm' : 'Sản phẩm'}</span>}
           </Link>
 
+          {/* Tư vấn trực tuyến (Admin và Staff) */}
+          <Link
+            to="/staff/chat"
+            className={`admin-nav-item ${isActive('/staff/chat') || isActive('/admin/chat')}`}
+            title="Tư vấn trực tuyến"
+          >
+            <i className="ti ti-messages"></i>
+            {!isCollapsed && <span>Tư vấn trực tuyến</span>}
+          </Link>
+
           {/* Mã giảm giá (Admin) */}
           {isAdmin && (
             <Link
@@ -135,7 +146,7 @@ const AdminLayout = () => {
               onClick={() => setIsCollapsed((prev) => !prev)}
               title={isCollapsed ? 'Mở rộng thanh menu' : 'Thu gọn thanh menu'}
             >
-              <i className={`ti ${isCollapsed ? 'ti-layout-sidebar-right' : 'ti-layout-sidebar-left'}`}></i>
+              <i className={`ti ${isCollapsed ? 'ti-layout-sidebar-left-expand' : 'ti-layout-sidebar-left-collapse'}`}></i>
             </button>
 
             <div className="admin-breadcrumb-box">

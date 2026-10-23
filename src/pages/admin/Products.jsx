@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useTransition } from 'react';
 import axiosClient from '../../utils/axiosClient';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../components/common/ToastContext';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import ButtonSpinner from '../../components/common/ButtonSpinner';
 import './AdminProducts.css';
 
 export default function AdminProducts() {
+  const { user } = useAuth();
   const toast = useToast();
   const [, startTransition] = useTransition();
 
@@ -367,14 +369,16 @@ export default function AdminProducts() {
                           >
                             <i className="ti ti-edit"></i>
                           </button>
-                          <button
-                            type="button"
-                            className="btn-action-icon danger"
-                            title="Xóa sản phẩm"
-                            onClick={() => setProductToDelete(p.id)}
-                          >
-                            <i className="ti ti-trash"></i>
-                          </button>
+                          {user?.role === 'Admin' && (
+                            <button
+                              type="button"
+                              className="btn-action-icon danger"
+                              title="Xóa sản phẩm"
+                              onClick={() => setProductToDelete(p.id)}
+                            >
+                              <i className="ti ti-trash"></i>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

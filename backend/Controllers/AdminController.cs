@@ -173,6 +173,32 @@ namespace GhtBackend.Controllers
             });
         }
 
+        public class AdminResetPasswordDto
+        {
+            [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Mật khẩu mới là bắt buộc")]
+            [System.ComponentModel.DataAnnotations.MinLength(6, ErrorMessage = "Mật khẩu mới phải có tối thiểu 6 ký tự")]
+            public string NewPassword { get; set; } = string.Empty;
+        }
+
+        [HttpPut("users/{id}/password")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ResetUserPassword(int id, [FromBody] AdminResetPasswordDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.NewPassword) || dto.NewPassword.Length < 6)
+            {
+                return BadRequest(new { message = "Mật khẩu mới phải có tối thiểu 6 ký tự" });
+            }
+
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound(new { message = "Không tìm thấy người dùng" });
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+            user.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = $"Đã cập nhật mật khẩu mới cho tài khoản {user.Email}" });
+        }
+
         [HttpGet("test-brand-email")]
         [AllowAnonymous]
         public async Task<IActionResult> TestBrandEmail(

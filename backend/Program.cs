@@ -1,5 +1,6 @@
 using GhtBackend.Data;
 using GhtBackend.Services;
+using GhtBackend.Hubs;
 using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.EntityFrameworkCore;
@@ -26,9 +27,12 @@ builder.Services.AddCors(options => {
             builder.Configuration["App:FrontendUrl"] ?? "http://localhost:5173"
         )
         .AllowAnyHeader()
-        .AllowAnyMethod();
+        .AllowAnyMethod()
+        .AllowCredentials();
     });
 });
+
+builder.Services.AddSignalR();
 
 // ④ Hangfire — dùng PostgreSQL storage
 builder.Services.AddHangfire(config =>
@@ -68,6 +72,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
             ClockSkew = TimeSpan.Zero
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/chat"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
         };
     });
 builder.Services.AddAuthorization();
@@ -121,6 +139,7 @@ RecurringJob.AddOrUpdate<ReportBackgroundService>(
     "0 9 * * *"
 );
 
+app.MapHub<ChatHub>("/hubs/chat");
 app.MapControllers();
 
 app.Run();

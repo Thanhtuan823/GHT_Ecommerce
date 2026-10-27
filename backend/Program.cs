@@ -8,6 +8,7 @@ using QuestPDF.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -109,7 +110,22 @@ if (app.Environment.IsDevelopment())
 }
 
 // ⑥ Middleware thứ tự đúng
-app.UseStaticFiles();
+var uploadsFolder = Path.Combine(builder.Environment.ContentRootPath, "backend", "wwwroot", "uploads");
+if (!Directory.Exists(uploadsFolder))
+{
+    uploadsFolder = Path.Combine(builder.Environment.ContentRootPath, "wwwroot", "uploads");
+}
+if (!Directory.Exists(uploadsFolder))
+{
+    Directory.CreateDirectory(uploadsFolder);
+}
+
+app.UseStaticFiles(); // Cho default wwwroot
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsFolder),
+    RequestPath = "/uploads"
+});
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();

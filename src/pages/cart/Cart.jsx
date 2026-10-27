@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
@@ -7,9 +7,19 @@ import './Cart.css';
 
 const Cart = () => {
   const { cart, removeFromCart, updateQuantity } = useCart();
-  const { openVouchersModal } = useAuth();
+  const { user, openVouchersModal } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
+
+  useEffect(() => {
+    if (user?.role === 'Admin') {
+      toast?.warning?.('Bạn đang đăng nhập bằng tài khoản quản trị.');
+      navigate('/admin/dashboard', { replace: true });
+    } else if (user?.role === 'Staff') {
+      toast?.warning?.('Bạn đang đăng nhập bằng tài khoản nhân viên.');
+      navigate('/staff/orders', { replace: true });
+    }
+  }, [user, navigate, toast]);
 
   const items = cart?.items || [];
 

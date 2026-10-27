@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import axiosClient from '../../utils/axiosClient';
+import NotificationBell from '../common/NotificationBell';
 import './Navbar.css';
 
 const DEFAULT_CATEGORIES = [
@@ -28,6 +29,8 @@ const Navbar = () => {
   const { cartCount } = useCart();
   const { wishlist } = useWishlist();
   const navigate = useNavigate();
+
+  const isInternal = user?.role === 'Admin' || user?.role === 'Staff';
 
   const [searchTerm, setSearchTerm] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -204,21 +207,27 @@ const Navbar = () => {
 
         {/* Right: Actions & User */}
         <div className="navbar-actions">
-          {/* Wishlist */}
-          <Link to="/wishlist" className="navbar-icon-btn" title="Yêu thích">
-            <i className="ti ti-heart"></i>
-            {wishlist.length > 0 && (
-              <span className="navbar-badge">{wishlist.length}</span>
-            )}
-          </Link>
+          {/* Wishlist & Cart (ẩn đối với Admin & Staff) */}
+          {!isInternal && (
+            <>
+              <Link to="/wishlist" className="navbar-icon-btn" title="Yêu thích">
+                <i className="ti ti-heart"></i>
+                {wishlist.length > 0 && (
+                  <span className="navbar-badge">{wishlist.length}</span>
+                )}
+              </Link>
 
-          {/* Cart */}
-          <Link to="/cart" className="navbar-icon-btn" title="Giỏ hàng">
-            <i className="ti ti-shopping-cart"></i>
-            {cartCount > 0 && (
-              <span className="navbar-badge">{cartCount}</span>
-            )}
-          </Link>
+              <Link to="/cart" className="navbar-icon-btn" title="Giỏ hàng">
+                <i className="ti ti-shopping-cart"></i>
+                {cartCount > 0 && (
+                  <span className="navbar-badge">{cartCount}</span>
+                )}
+              </Link>
+            </>
+          )}
+
+          {/* Notification Bell (chỉ hiển thị khi đã đăng nhập) */}
+          {user && <NotificationBell />}
 
           {/* User Account or Auth Buttons */}
           {!user ? (
@@ -268,48 +277,40 @@ const Navbar = () => {
                     <span>Hồ sơ cá nhân</span>
                   </button>
 
-                  <button
-                    id="user-menu-vouchers"
-                    type="button"
-                    className="user-dropdown-item"
-                    onClick={() => {
-                      setDropdownOpen(false);
-                      openVouchersModal();
-                    }}
-                  >
-                    <i className="ti ti-ticket"></i>
-                    <span>Ví mã ưu đãi</span>
-                  </button>
-
-                  <Link
-                    to="/orders"
-                    className="user-dropdown-item"
-                    onClick={() => setDropdownOpen(false)}
-                  >
-                    <i className="ti ti-package"></i>
-                    <span>Đơn hàng của tôi</span>
-                  </Link>
-
-                  {(user.role === 'Admin' || user.role === 'Staff') && (
+                  {isInternal ? (
                     <Link
-                      to="/admin"
-                      className="user-dropdown-item"
+                      to={user.role === 'Admin' ? '/admin/dashboard' : '/staff/orders'}
+                      className="user-dropdown-item internal-workspace-item"
+                      style={{ background: '#eff6ff', color: '#1d4ed8', fontWeight: 600 }}
                       onClick={() => setDropdownOpen(false)}
                     >
-                      <i className="ti ti-settings"></i>
-                      <span>Quản trị ({user.role})</span>
+                      <i className={user.role === 'Admin' ? 'ti ti-layout-dashboard' : 'ti ti-truck'}></i>
+                      <span>{user.role === 'Admin' ? 'Về Trang Quản Trị' : 'Về Không Gian Vận Hành'}</span>
                     </Link>
-                  )}
+                  ) : (
+                    <>
+                      <button
+                        id="user-menu-vouchers"
+                        type="button"
+                        className="user-dropdown-item"
+                        onClick={() => {
+                          setDropdownOpen(false);
+                          openVouchersModal();
+                        }}
+                      >
+                        <i className="ti ti-ticket"></i>
+                        <span>Ví mã ưu đãi</span>
+                      </button>
 
-                  {(user.role === 'Staff' || user.role === 'Admin') && (
-                    <Link
-                      to="/staff/orders"
-                      className="user-dropdown-item"
-                      onClick={() => setDropdownOpen(false)}
-                    >
-                      <i className="ti ti-clipboard-list"></i>
-                      <span>Vận hành đơn hàng</span>
-                    </Link>
+                      <Link
+                        to="/orders"
+                        className="user-dropdown-item"
+                        onClick={() => setDropdownOpen(false)}
+                      >
+                        <i className="ti ti-package"></i>
+                        <span>Đơn hàng của tôi</span>
+                      </Link>
+                    </>
                   )}
 
                   <div className="user-dropdown-divider" />

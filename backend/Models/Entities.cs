@@ -190,6 +190,7 @@ public class ChatConversation
     public User Customer { get; set; } = null!;
     public int? StaffId { get; set; }
     public User? Staff { get; set; }
+    public string Type { get; set; } = "CUSTOMER_SUPPORT"; // "CUSTOMER_SUPPORT" hoặc "INTERNAL_WORK"
     public string Status { get; set; } = "WAITING"; // WAITING, ACTIVE, CLOSED
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
@@ -235,4 +236,19 @@ public class ChatMessageReaction
     public string Emoji { get; set; } = string.Empty; // 👍, ❤️, 😆, 😮, 😢, 😡
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
+
+public class Notification
+{
+    public int Id { get; set; }
+    public int UserId { get; set; }
+    public User User { get; set; } = null!;
+    public string Title { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+    public string Type { get; set; } = "SYSTEM"; // ORDER_PLACED, ORDER_STATUS, CHAT_MESSAGE, PAYMENT_SUCCESS, LOW_STOCK
+    public string? TargetUrl { get; set; } // Đường dẫn điều hướng: /staff/orders, /orders/18, /staff/chat...
+    public string? Metadata { get; set; } // JSON lưu thông tin bổ sung: {"orderId": 18}
+    public bool IsRead { get; set; } = false;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
 

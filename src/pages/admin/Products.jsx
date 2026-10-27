@@ -158,7 +158,9 @@ export default function AdminProducts() {
       brand: p.brand || '',
       images: p.images || [],
       specs: typeof p.specs === 'string' ? JSON.parse(p.specs || '{}') : p.specs || {},
-      tags: p.tags ? p.tags.split(',') : []
+      tags: Array.isArray(p.tags)
+        ? p.tags
+        : (typeof p.tags === 'string' ? p.tags.split(',').map(t => t.trim()).filter(Boolean) : [])
     });
     setError('');
     setShowForm(true);
@@ -176,8 +178,8 @@ export default function AdminProducts() {
         categoryId: Number(formData.categoryId),
         brand: formData.brand,
         images: formData.images,
-        specs: JSON.stringify(formData.specs),
-        tags: formData.tags.join(',')
+        specs: typeof formData.specs === 'object' && formData.specs !== null ? formData.specs : {},
+        tags: Array.isArray(formData.tags) ? formData.tags : []
       };
 
       if (formData.id) {

@@ -80,9 +80,10 @@ function App() {
                   <Route path="wishlist" element={<Wishlist />} />
                   <Route path="vouchers" element={<VouchersRouteRedirect />} />
                   
-                  {/* Protected Customer Routes */}
-                  <Route element={<ProtectedRoute />}>
-                    <Route path="profile" element={<ProfileRouteRedirect />} />
+                  <Route path="profile" element={<ProfileRouteRedirect />} />
+
+                  {/* Protected Customer Routes - Chỉ dành cho Khách hàng */}
+                  <Route element={<ProtectedRoute allowedRoles={['Customer']} />}>
                     <Route path="checkout" element={<Checkout />} />
                     <Route path="payment/:orderId" element={<Payment />} />
                     <Route path="orders" element={<OrderHistory />} />

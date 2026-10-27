@@ -3,6 +3,7 @@ import axiosClient from '../../utils/axiosClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../components/common/ToastContext';
 import signalRService from '../../services/signalrService';
+import { isImageFile, getFileNameFromUrl } from '../../utils/fileHelper';
 import './StaffChat.css';
 
 const EMOJI_LIST = ['👍', '❤️', '😆', '😮', '😢', '😡'];
@@ -12,6 +13,12 @@ export default function StaffChat() {
   const toast = useToast();
 
   const [conversations, setConversations] = useState([]);
+  const [internalConversations, setInternalConversations] = useState([]);
+  const [channelMode, setChannelMode] = useState('CUSTOMER'); // 'CUSTOMER' | 'INTERNAL'
+  const [colleaguesList, setColleaguesList] = useState([]);
+  const [isSearchingColleagues, setIsSearchingColleagues] = useState(false);
+  const [showColleaguesDropdown, setShowColleaguesDropdown] = useState(false);
+
   const [activeConvId, setActiveConvId] = useState(null);
   const [activeConv, setActiveConv] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -45,22 +52,96 @@ export default function StaffChat() {
     scrollToBottom();
   }, [messages]);
 
-  // 1. Fetch conversations list
+  // 1. Fetch conversations list (Customer)
   const fetchConversations = useCallback(async () => {
     try {
       const res = await axiosClient.get('/chat/staff/conversations');
-      setConversations(res.data.data || []);
-      if (!activeConvId && res.data.data?.length > 0) {
-        setActiveConvId(res.data.data[0].id);
+      const list = res.data.data || [];
+      setConversations(list);
+      if (!activeConvId && list.length > 0 && channelMode === 'CUSTOMER') {
+        setActiveConvId(list[0].id);
       }
     } catch (err) {
       console.warn('Lỗi tải danh sách hội thoại:', err);
     }
-  }, [activeConvId]);
+  }, [activeConvId, channelMode]);
+
+  // 1b. Fetch internal conversations list
+  const fetchInternalConversations = useCallback(async () => {
+    try {
+      const res = await axiosClient.get('/chat/internal/conversations');
+      const list = res.data || [];
+      setInternalConversations(list);
+      if (!activeConvId && list.length > 0 && channelMode === 'INTERNAL') {
+        setActiveConvId(list[0].id);
+      }
+    } catch (err) {
+      console.warn('Lỗi tải danh sách chat nội bộ:', err);
+    }
+  }, [activeConvId, channelMode]);
 
   useEffect(() => {
     fetchConversations();
-  }, [fetchConversations]);
+    fetchInternalConversations();
+  }, [fetchConversations, fetchInternalConversations]);
+
+  // Switch Channel Tab
+  const handleSwitchChannel = (mode) => {
+    if (mode === channelMode) return;
+    setChannelMode(mode);
+    setSearchTerm('');
+    setShowColleaguesDropdown(false);
+    if (mode === 'CUSTOMER') {
+      if (activeConv?.type === 'INTERNAL_WORK') {
+        setActiveConvId(conversations.length > 0 ? conversations[0].id : null);
+      }
+    } else {
+      fetchInternalConversations();
+      if (activeConv?.type !== 'INTERNAL_WORK') {
+        setActiveConvId(internalConversations.length > 0 ? internalConversations[0].id : null);
+      }
+    }
+  };
+
+  // Search colleagues autocomplete
+  useEffect(() => {
+    if (channelMode !== 'INTERNAL') {
+      setShowColleaguesDropdown(false);
+      return;
+    }
+    if (!searchTerm.trim()) {
+      setColleaguesList([]);
+      setShowColleaguesDropdown(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setIsSearchingColleagues(true);
+      try {
+        const res = await axiosClient.get(`/chat/internal/colleagues?search=${encodeURIComponent(searchTerm.trim())}`);
+        setColleaguesList(res.data || []);
+        setShowColleaguesDropdown(true);
+      } catch (err) {
+        console.warn('Lỗi tìm kiếm đồng nghiệp:', err);
+      } finally {
+        setIsSearchingColleagues(false);
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchTerm, channelMode]);
+
+  // Open / create internal chat with a colleague
+  const handleOpenInternalChat = async (colleague) => {
+    setShowColleaguesDropdown(false);
+    setSearchTerm('');
+    try {
+      const res = await axiosClient.post('/chat/internal/open', { targetUserId: colleague.id });
+      const targetConvId = res.data.conversationId;
+      await fetchInternalConversations();
+      setActiveConvId(targetConvId);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Không thể mở cuộc trò chuyện với đồng nghiệp');
+    }
+  };
 
   // 2. Fetch history when activeConvId changes
   const fetchHistory = useCallback(async (convId) => {
@@ -72,34 +153,34 @@ export default function StaffChat() {
       setActiveConv(convData);
       setMessages(res.data.messages || []);
 
-      // Tự động gán Staff ngầm khi click vào hội thoại đang WAITING
-      if (convData?.status === 'WAITING') {
-        signalRService.staffClaim(convId).catch(() => {});
+      // Tự động gán Staff ngầm khi click vào hội thoại khách hàng đang WAITING
+      if (convData?.type !== 'INTERNAL_WORK' && convData?.status === 'WAITING') {
+        signalRService.staffClaim(convId).catch(() => { });
         setActiveConv((prev) =>
           prev
             ? {
-                ...prev,
-                status: 'ACTIVE',
-                staffId: user?.id,
-                staffName: user?.name
-              }
+              ...prev,
+              status: 'ACTIVE',
+              staffId: user?.id,
+              staffName: user?.name
+            }
             : prev
         );
         setConversations((prev) =>
           prev.map((c) =>
             Number(c.id) === Number(convId)
               ? {
-                  ...c,
-                  status: 'ACTIVE',
-                  staffId: user?.id,
-                  staffName: user?.name
-                }
+                ...c,
+                status: 'ACTIVE',
+                staffId: user?.id,
+                staffName: user?.name
+              }
               : c
           )
         );
       }
 
-      // Join room in SignalR (khối try/catch độc lập để không phá vỡ việc hiển thị lịch sử)
+      // Join room in SignalR
       try {
         await signalRService.joinConversation(convId);
       } catch (hubErr) {
@@ -107,9 +188,15 @@ export default function StaffChat() {
       }
 
       // Reset unread count locally
-      setConversations((prev) =>
-        prev.map((c) => (Number(c.id) === Number(convId) ? { ...c, unreadStaffCount: 0 } : c))
-      );
+      if (convData?.type === 'INTERNAL_WORK') {
+        setInternalConversations((prev) =>
+          prev.map((c) => (Number(c.id) === Number(convId) ? { ...c, unreadCount: 0 } : c))
+        );
+      } else {
+        setConversations((prev) =>
+          prev.map((c) => (Number(c.id) === Number(convId) ? { ...c, unreadStaffCount: 0 } : c))
+        );
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Không thể tải lịch sử trò chuyện');
     } finally {
@@ -190,12 +277,12 @@ export default function StaffChat() {
         prev.map((m) =>
           m.id === data.messageId
             ? {
-                ...m,
-                isRevoked: true,
-                content: 'Tin nhắn đã được thu hồi',
-                imageUrl: null,
-                updatedAt: data.updatedAt
-              }
+              ...m,
+              isRevoked: true,
+              content: 'Tin nhắn đã được thu hồi',
+              imageUrl: null,
+              updatedAt: data.updatedAt
+            }
             : m
         )
       );
@@ -223,11 +310,11 @@ export default function StaffChat() {
         prev.map((c) =>
           Number(c.id) === Number(data.conversationId)
             ? {
-                ...c,
-                status: 'ACTIVE',
-                staffId: data.staff?.id || data.staffId,
-                staffName: data.staff?.name || data.staffName
-              }
+              ...c,
+              status: 'ACTIVE',
+              staffId: data.staff?.id || data.staffId,
+              staffName: data.staff?.name || data.staffName
+            }
             : c
         )
       );
@@ -261,6 +348,10 @@ export default function StaffChat() {
       });
     };
 
+    const handleInternalConvUpdated = () => {
+      fetchInternalConversations();
+    };
+
     const initSignalR = async () => {
       try {
         await signalRService.startConnection();
@@ -271,6 +362,7 @@ export default function StaffChat() {
         signalRService.onStaffClaimed(handleStaffClaimed);
         signalRService.onConversationClosed(handleConvClosed);
         signalRService.onConversationUpdated(handleConvUpdated);
+        signalRService.onInternalConversationUpdated(handleInternalConvUpdated);
       } catch (err) {
         console.warn('SignalR start error:', err);
       }
@@ -286,9 +378,10 @@ export default function StaffChat() {
       signalRService.offStaffClaimed(handleStaffClaimed);
       signalRService.offConversationClosed(handleConvClosed);
       signalRService.offConversationUpdated(handleConvUpdated);
+      signalRService.offInternalConversationUpdated(handleInternalConvUpdated);
       signalRService.stopConnection();
     };
-  }, []);
+  }, [fetchInternalConversations]);
 
   // 4. Send message handler
   const handleSendMessage = async (e) => {
@@ -320,20 +413,20 @@ export default function StaffChat() {
         conversationId: activeConvId,
         senderId: user?.id,
         senderName: user?.name || 'Nhân sự',
-        senderRole: 'Staff',
+        senderRole: activeConv?.type === 'INTERNAL_WORK' ? (user?.role || 'Staff') : 'Staff',
         senderAvatar: user?.avatar,
         content: messageContent,
         imageUrl: uploadedImageUrl || localPreviewUrl,
         replyTo: currentReplying
           ? {
-              id: currentReplying.id,
-              senderName: currentReplying.senderName,
-              senderRole: currentReplying.senderRole,
-              content: currentReplying.isRevoked
-                ? 'Tin nhắn đã được thu hồi'
-                : currentReplying.content,
-              imageUrl: currentReplying.imageUrl
-            }
+            id: currentReplying.id,
+            senderName: currentReplying.senderName,
+            senderRole: currentReplying.senderRole,
+            content: currentReplying.isRevoked
+              ? 'Tin nhắn đã được thu hồi'
+              : currentReplying.content,
+            imageUrl: currentReplying.imageUrl
+          }
           : null,
         reactions: [],
         isEdited: false,
@@ -355,29 +448,43 @@ export default function StaffChat() {
       }, 50);
 
       // Cập nhật danh sách hội thoại cột trái: đưa cuộc hội thoại vừa chat lên vị trí đầu tiên
-      setConversations((prev) => {
-        const currentConv = prev.find((c) => Number(c.id) === Number(activeConvId));
-        if (!currentConv) return prev;
-        const updated = {
-          ...currentConv,
-          status: 'ACTIVE',
-          lastMessage: optimisticMsg.content || '[Hình ảnh]',
-          lastMessageAt: optimisticMsg.createdAt,
-          unreadStaffCount: 0
-        };
-        return [updated, ...prev.filter((c) => Number(c.id) !== Number(activeConvId))];
-      });
+      if (activeConv?.type === 'INTERNAL_WORK') {
+        setInternalConversations((prev) => {
+          const currentConv = prev.find((c) => Number(c.id) === Number(activeConvId));
+          if (!currentConv) return prev;
+          const updated = {
+            ...currentConv,
+            lastMessage: optimisticMsg.content || '[Hình ảnh]',
+            lastMessageAt: optimisticMsg.createdAt,
+            unreadCount: 0
+          };
+          return [updated, ...prev.filter((c) => Number(c.id) !== Number(activeConvId))];
+        });
+      } else {
+        setConversations((prev) => {
+          const currentConv = prev.find((c) => Number(c.id) === Number(activeConvId));
+          if (!currentConv) return prev;
+          const updated = {
+            ...currentConv,
+            status: 'ACTIVE',
+            lastMessage: optimisticMsg.content || '[Hình ảnh]',
+            lastMessageAt: optimisticMsg.createdAt,
+            unreadStaffCount: 0
+          };
+          return [updated, ...prev.filter((c) => Number(c.id) !== Number(activeConvId))];
+        });
+      }
 
-      // Tự động chuyển activeConv sang ACTIVE
+      // Tự động chuyển activeConv sang ACTIVE nếu đang WAITING
       if (activeConv?.status === 'WAITING') {
         setActiveConv((prev) =>
           prev
             ? {
-                ...prev,
-                status: 'ACTIVE',
-                staffId: user?.id,
-                staffName: user?.name
-              }
+              ...prev,
+              status: 'ACTIVE',
+              staffId: user?.id,
+              staffName: user?.name
+            }
             : prev
         );
       }
@@ -397,12 +504,12 @@ export default function StaffChat() {
     }
   };
 
-  // Image select handler
+  // Image / File select handler
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Kích thước ảnh tối đa là 5MB');
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error('Dung lượng tệp tối đa là 15MB');
       return;
     }
     setSelectedImage(file);
@@ -474,7 +581,7 @@ export default function StaffChat() {
     return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
   };
 
-  // Filtered conversations
+  // Filtered customer conversations
   const filteredConversations = conversations.filter((c) => {
     if (filterTab !== 'ALL' && c.status !== filterTab) return false;
     if (searchTerm.trim()) {
@@ -486,32 +593,74 @@ export default function StaffChat() {
     return true;
   });
 
+  // Filtered internal conversations
+  const filteredInternalConversations = internalConversations.filter((c) => {
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase();
+      const matchName = c.peer?.name?.toLowerCase().includes(q);
+      const matchEmail = c.peer?.email?.toLowerCase().includes(q);
+      if (!matchName && !matchEmail) return false;
+    }
+    return true;
+  });
+
+  const totalCustomerUnread = conversations.reduce((sum, c) => sum + (c.unreadStaffCount || 0), 0);
+  const totalInternalUnread = internalConversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+  const isInternal = activeConv?.type === 'INTERNAL_WORK';
+
   return (
     <div className="staff-chat-page">
       {/* 1. LEFT SIDEBAR: CONVERSATIONS */}
       <div className="staff-chat-sidebar">
         <div className="staff-chat-side-header">
           <h2 className="staff-chat-side-title">
-            <i className="ti ti-messages"></i> Tư vấn Trực tuyến
+            <i className="ti ti-messages"></i> Live Chat &amp; Nội bộ
           </h2>
-          <div className="staff-chat-filter-tabs">
-            {['ALL', 'WAITING', 'ACTIVE', 'CLOSED'].map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                className={`staff-chat-tab-btn ${filterTab === tab ? 'active' : ''}`}
-                onClick={() => setFilterTab(tab)}
-              >
-                {tab === 'ALL'
-                  ? 'Tất cả'
-                  : tab === 'WAITING'
-                  ? 'Chờ nhận'
-                  : tab === 'ACTIVE'
-                  ? 'Đang chat'
-                  : 'Đã đóng'}
-              </button>
-            ))}
+
+          {/* CHANNEL SWITCHER */}
+          <div className="staff-chat-channel-switcher">
+            <button
+              type="button"
+              className={`staff-chat-channel-btn ${channelMode === 'CUSTOMER' ? 'active' : ''}`}
+              onClick={() => handleSwitchChannel('CUSTOMER')}
+            >
+              <i className="ti ti-user-heart"></i> Khách hàng
+              {totalCustomerUnread > 0 && (
+                <span className="staff-chat-channel-badge">{totalCustomerUnread}</span>
+              )}
+            </button>
+            <button
+              type="button"
+              className={`staff-chat-channel-btn ${channelMode === 'INTERNAL' ? 'active' : ''}`}
+              onClick={() => handleSwitchChannel('INTERNAL')}
+            >
+              <i className="ti ti-briefcase"></i> Nội bộ
+              {totalInternalUnread > 0 && (
+                <span className="staff-chat-channel-badge">{totalInternalUnread}</span>
+              )}
+            </button>
           </div>
+
+          {channelMode === 'CUSTOMER' && (
+            <div className="staff-chat-filter-tabs">
+              {['ALL', 'WAITING', 'ACTIVE', 'CLOSED'].map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  className={`staff-chat-tab-btn ${filterTab === tab ? 'active' : ''}`}
+                  onClick={() => setFilterTab(tab)}
+                >
+                  {tab === 'ALL'
+                    ? 'Tất cả'
+                    : tab === 'WAITING'
+                      ? 'Chờ nhận'
+                      : tab === 'ACTIVE'
+                        ? 'Đang chat'
+                        : 'Đã đóng'}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="staff-chat-search-wrap">
@@ -519,51 +668,149 @@ export default function StaffChat() {
           <input
             type="text"
             className="staff-chat-search-input"
-            placeholder="Tìm theo tên, email khách hàng..."
+            placeholder={
+              channelMode === 'CUSTOMER'
+                ? 'Tìm theo tên, email khách hàng...'
+                : 'Tìm đồng nghiệp theo tên hoặc email...'
+            }
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            onFocus={() => {
+              if (channelMode === 'INTERNAL' && searchTerm.trim() && colleaguesList.length > 0) {
+                setShowColleaguesDropdown(true);
+              }
+            }}
           />
+
+          {/* COLLEAGUES AUTOCOMPLETE POPUP */}
+          {channelMode === 'INTERNAL' && showColleaguesDropdown && (
+            <div className="staff-chat-colleagues-dropdown">
+              {isSearchingColleagues ? (
+                <div className="staff-chat-colleague-empty">Đang tìm đồng nghiệp...</div>
+              ) : colleaguesList.length === 0 ? (
+                <div className="staff-chat-colleague-empty">Không tìm thấy đồng nghiệp phù hợp</div>
+              ) : (
+                colleaguesList.map((colleague) => (
+                  <div
+                    key={colleague.id}
+                    className="staff-chat-colleague-item"
+                    onClick={() => handleOpenInternalChat(colleague)}
+                  >
+                    <div className="staff-chat-colleague-avatar">
+                      {colleague.avatar ? (
+                        <img src={colleague.avatar} alt={colleague.name} />
+                      ) : (
+                        <span>{getInitials(colleague.name)}</span>
+                      )}
+                    </div>
+                    <div className="staff-chat-colleague-info">
+                      <div className="staff-chat-colleague-name-row">
+                        <span className="staff-chat-colleague-name">{colleague.name}</span>
+                        <span className={`role-badge ${colleague.role?.toLowerCase()}`}>
+                          {colleague.role}
+                        </span>
+                      </div>
+                      <div className="staff-chat-colleague-email">{colleague.email}</div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
 
         <div className="staff-chat-conversations-list">
-          {filteredConversations.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '32px 16px', color: '#94a3b8', fontSize: '13px' }}>
-              Không tìm thấy cuộc trò chuyện nào
-            </div>
-          ) : (
-            filteredConversations.map((c) => (
-              <div
-                key={c.id}
-                className={`staff-chat-conv-item ${activeConvId === c.id ? 'active' : ''}`}
-                onClick={() => setActiveConvId(c.id)}
-              >
-                <div className="staff-chat-conv-avatar">
-                  {c.customerAvatar ? (
-                    <img src={c.customerAvatar} alt={c.customerName} />
-                  ) : (
-                    <span>{getInitials(c.customerName || c.customerEmail)}</span>
-                  )}
-                </div>
+          {channelMode === 'INTERNAL' ? (
+            /* INTERNAL CONVERSATIONS */
+            filteredInternalConversations.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '32px 16px', color: '#94a3b8', fontSize: '13px' }}>
+                Chưa có cuộc trò chuyện nội bộ nào.<br />Hãy gõ tên đồng nghiệp ở ô tìm kiếm phía trên để bắt đầu!
+              </div>
+            ) : (
+              filteredInternalConversations.map((c) => {
+                const peer = c.peer || {};
+                const isSelected = activeConvId === c.id;
 
-                <div className="staff-chat-conv-info">
-                  <div className="staff-chat-conv-top">
-                    <span className="staff-chat-conv-name">{c.customerName || c.customerEmail}</span>
-                    <span className="staff-chat-conv-time">{formatTime(c.lastMessageAt || c.createdAt)}</span>
-                  </div>
-                  <div className="staff-chat-conv-bottom">
-                    <span className="staff-chat-conv-snippet">{c.lastMessage || 'Bắt đầu cuộc trò chuyện'}</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span className={`staff-chat-status-pill ${c.status?.toLowerCase()}`}>
-                        {c.status === 'WAITING' ? 'Chờ' : c.status === 'ACTIVE' ? 'Chat' : 'Đóng'}
-                      </span>
-                      {c.unreadStaffCount > 0 && (
-                        <span className="staff-chat-unread-badge">{c.unreadStaffCount}</span>
+                return (
+                  <div
+                    key={c.id}
+                    className={`staff-chat-conv-item ${isSelected ? 'active' : ''}`}
+                    onClick={() => setActiveConvId(c.id)}
+                  >
+                    <div className="staff-chat-conv-avatar">
+                      {peer.avatar ? (
+                        <img src={peer.avatar} alt={peer.name} />
+                      ) : (
+                        <span>{getInitials(peer.name || peer.email)}</span>
                       )}
+                    </div>
+
+                    <div className="staff-chat-conv-info">
+                      <div className="staff-chat-conv-top">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span className="staff-chat-conv-name">{peer.name || peer.email}</span>
+                          {peer.role && (
+                            <span className={`role-badge ${peer.role.toLowerCase()}`}>{peer.role}</span>
+                          )}
+                        </div>
+                        <span className="staff-chat-conv-time">
+                          {formatTime(c.lastMessageAt || c.createdAt)}
+                        </span>
+                      </div>
+                      <div className="staff-chat-conv-bottom">
+                        <span className="staff-chat-conv-snippet">
+                          {c.lastMessage || 'Bắt đầu cuộc trò chuyện'}
+                        </span>
+                        {c.unreadCount > 0 && (
+                          <span className="staff-chat-unread-badge">{c.unreadCount}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )
+          ) : (
+            /* CUSTOMER CONVERSATIONS */
+            filteredConversations.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '32px 16px', color: '#94a3b8', fontSize: '13px' }}>
+                Không tìm thấy cuộc trò chuyện nào
+              </div>
+            ) : (
+              filteredConversations.map((c) => (
+                <div
+                  key={c.id}
+                  className={`staff-chat-conv-item ${activeConvId === c.id ? 'active' : ''}`}
+                  onClick={() => setActiveConvId(c.id)}
+                >
+                  <div className="staff-chat-conv-avatar">
+                    {c.customerAvatar ? (
+                      <img src={c.customerAvatar} alt={c.customerName} />
+                    ) : (
+                      <span>{getInitials(c.customerName || c.customerEmail)}</span>
+                    )}
+                  </div>
+
+                  <div className="staff-chat-conv-info">
+                    <div className="staff-chat-conv-top">
+                      <span className="staff-chat-conv-name">{c.customerName || c.customerEmail}</span>
+                      <span className="staff-chat-conv-time">{formatTime(c.lastMessageAt || c.createdAt)}</span>
+                    </div>
+                    <div className="staff-chat-conv-bottom">
+                      <span className="staff-chat-conv-snippet">{c.lastMessage || 'Bắt đầu cuộc trò chuyện'}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span className={`staff-chat-status-pill ${c.status?.toLowerCase()}`}>
+                          {c.status === 'WAITING' ? 'Chờ' : c.status === 'ACTIVE' ? 'Chat' : 'Đóng'}
+                        </span>
+                        {c.unreadStaffCount > 0 && (
+                          <span className="staff-chat-unread-badge">{c.unreadStaffCount}</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))
+              ))
+            )
           )}
         </div>
       </div>
@@ -573,7 +820,11 @@ export default function StaffChat() {
         {!activeConv ? (
           <div className="staff-chat-empty-state">
             <i className="ti ti-message-circle"></i>
-            <p>Chọn một cuộc trò chuyện từ danh sách bên trái để bắt đầu tư vấn</p>
+            <p>
+              {channelMode === 'INTERNAL'
+                ? 'Tìm kiếm và chọn một đồng nghiệp để trao đổi nội bộ'
+                : 'Chọn một cuộc trò chuyện từ danh sách bên trái để bắt đầu tư vấn'}
+            </p>
           </div>
         ) : (
           <>
@@ -581,33 +832,56 @@ export default function StaffChat() {
             <div className="staff-chat-header">
               <div className="staff-chat-user-meta">
                 <div className="staff-chat-user-header-avatar">
-                  {activeConv.customerAvatar ? (
+                  {isInternal ? (
+                    activeConv.peer?.avatar ? (
+                      <img src={activeConv.peer.avatar} alt={activeConv.peer.name} />
+                    ) : (
+                      <span>{getInitials(activeConv.peer?.name || 'ĐN')}</span>
+                    )
+                  ) : activeConv.customerAvatar ? (
                     <img src={activeConv.customerAvatar} alt={activeConv.customerName} />
                   ) : (
                     <span>{getInitials(activeConv.customerName)}</span>
                   )}
                 </div>
                 <div>
-                  <div className="staff-chat-user-header-name">
-                    {activeConv.customerName || 'Khách hàng'}
+                  <div className="staff-chat-user-header-name" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {isInternal
+                      ? activeConv.peer?.name || 'Đồng nghiệp'
+                      : activeConv.customerName || 'Khách hàng'}
+                    {isInternal && activeConv.peer?.role && (
+                      <span className={`role-badge ${activeConv.peer.role.toLowerCase()}`}>
+                        {activeConv.peer.role}
+                      </span>
+                    )}
                   </div>
                   <div className="staff-chat-user-header-sub">
-                    <span>{activeConv.customerEmail}</span>
-                    {activeConv.customerPhone && <span>• {activeConv.customerPhone}</span>}
-                    <span>
-                      •{' '}
-                      <strong style={{ color: activeConv.status === 'CLOSED' ? '#d97706' : '#16a34a' }}>
-                        {activeConv.status === 'CLOSED'
-                          ? 'Đã kết thúc'
-                          : `Đang phục vụ (${activeConv.staffName || user?.name || 'Bạn'})`}
-                      </strong>
-                    </span>
+                    {isInternal ? (
+                      <>
+                        <span>{activeConv.peer?.email}</span>
+                        {activeConv.peer?.phone && <span>• {activeConv.peer.phone}</span>}
+                        <span>• <strong style={{ color: '#0284c7' }}>Trao đổi nội bộ</strong></span>
+                      </>
+                    ) : (
+                      <>
+                        <span>{activeConv.customerEmail}</span>
+                        {activeConv.customerPhone && <span>• {activeConv.customerPhone}</span>}
+                        <span>
+                          •{' '}
+                          <strong style={{ color: activeConv.status === 'CLOSED' ? '#d97706' : '#16a34a' }}>
+                            {activeConv.status === 'CLOSED'
+                              ? 'Đã kết thúc'
+                              : `Đang phục vụ (${activeConv.staffName || user?.name || 'Bạn'})`}
+                          </strong>
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
 
               <div className="staff-chat-actions-header">
-                {activeConv.status !== 'CLOSED' && (
+                {!isInternal && activeConv.status !== 'CLOSED' && (
                   <button type="button" className="staff-chat-btn-close" onClick={handleClose}>
                     <i className="ti ti-lock"></i> Kết thúc phiên
                   </button>
@@ -623,12 +897,14 @@ export default function StaffChat() {
                 </div>
               ) : messages.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8', fontSize: '13px' }}>
-                  Chưa có tin nhắn nào trong cuộc trò chuyện này. Hãy gửi lời chào đầu tiên!
+                  {isInternal
+                    ? 'Chưa có tin nhắn nào với đồng nghiệp này. Hãy bắt đầu trao đổi công việc!'
+                    : 'Chưa có tin nhắn nào trong cuộc trò chuyện này. Hãy gửi lời chào đầu tiên!'}
                 </div>
               ) : (
                 messages.map((m) => {
-                  const isStaff = m.senderRole === 'Staff';
                   const isMine = m.senderId === user?.id;
+                  const isStaff = isInternal ? isMine : m.senderRole === 'Staff';
 
                   return (
                     <div
@@ -654,19 +930,45 @@ export default function StaffChat() {
                           </div>
                         )}
 
-                        {/* Message content */}
-                        <div className={`staff-chat-bubble ${m.isRevoked ? 'revoked' : ''}`}>
-                          {m.imageUrl && !m.isRevoked && (
-                            <img
-                              src={m.imageUrl.startsWith('http') ? m.imageUrl : `http://localhost:5000${m.imageUrl}`}
-                              alt="Đính kèm"
-                              className="staff-chat-bubble-img"
-                              onClick={() => setLightboxImg(m.imageUrl)}
-                            />
-                          )}
+                        {/* File Card detached from bubble if present */}
+                        {m.imageUrl && !m.isRevoked && !isImageFile(m.imageUrl) && (
+                          <div className="chat-file-attachment-card">
+                            <div className="chat-file-icon-box">
+                              <i className="ti ti-file-text"></i>
+                            </div>
+                            <div className="chat-file-info">
+                              <div className="chat-file-name" title={getFileNameFromUrl(m.imageUrl)}>
+                                {getFileNameFromUrl(m.imageUrl)}
+                              </div>
+                              <span className="chat-file-meta">Tệp văn bản • Nhấn để tải về</span>
+                            </div>
+                            <a
+                              href={m.imageUrl.startsWith('http') ? m.imageUrl : `http://localhost:5000${m.imageUrl}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              download={getFileNameFromUrl(m.imageUrl)}
+                              className="chat-file-download-btn"
+                              title="Tải về máy"
+                            >
+                              <i className="ti ti-download"></i>
+                            </a>
+                          </div>
+                        )}
 
-                          {m.content && <div>{m.content}</div>}
-                        </div>
+                        {/* Bubble for text, image or revoked */}
+                        {(m.content || (m.imageUrl && isImageFile(m.imageUrl)) || m.isRevoked) && (
+                          <div className={`staff-chat-bubble ${m.isRevoked ? 'revoked' : ''}`}>
+                            {m.imageUrl && !m.isRevoked && isImageFile(m.imageUrl) && (
+                              <img
+                                src={m.imageUrl.startsWith('http') ? m.imageUrl : `http://localhost:5000${m.imageUrl}`}
+                                alt="Đính kèm"
+                                className="staff-chat-bubble-img"
+                                onClick={() => setLightboxImg(m.imageUrl)}
+                              />
+                            )}
+                            {m.content && <div>{m.content}</div>}
+                          </div>
+                        )}
 
                         {/* Meta info (timestamp + edited) */}
                         <div className="staff-chat-msg-meta">
@@ -794,16 +1096,32 @@ export default function StaffChat() {
                 </div>
               )}
 
-              {/* Image preview banner */}
+              {/* Image / File preview banner */}
               {imagePreview && (
                 <div className="staff-chat-preview-banner">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <img
-                      src={imagePreview}
-                      alt="Preview"
-                      style={{ width: '36px', height: '36px', borderRadius: '4px', objectFit: 'cover' }}
-                    />
-                    <span>Ảnh đã chọn: {selectedImage?.name}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {selectedImage?.type?.startsWith('image/') ? (
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        style={{ width: '36px', height: '36px', borderRadius: '4px', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div style={{ 
+                        width: '36px', height: '36px', background: '#f1f5f9', borderRadius: '4px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb'
+                      }}>
+                        <i className="ti ti-file-text" style={{ fontSize: '20px' }}></i>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '13px', fontWeight: '500' }}>
+                        {selectedImage?.type?.startsWith('image/') ? 'Ảnh đã chọn:' : 'Tệp đính kèm:'} {selectedImage?.name}
+                      </span>
+                      <span style={{ fontSize: '11px', color: '#64748b' }}>
+                        {(selectedImage?.size / 1024).toFixed(1)} KB
+                      </span>
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -820,14 +1138,14 @@ export default function StaffChat() {
               )}
 
               <form className="staff-chat-input-form" onSubmit={handleSendMessage}>
-                <label className="staff-chat-attach-btn" title="Đính kèm ảnh">
+                <label className="staff-chat-attach-btn" title="Đính kèm tệp tin / hình ảnh">
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/*,.pdf,.json,.txt,.doc,.docx,.xls,.xlsx,.zip,.rar"
                     hidden
                     onChange={handleImageChange}
-                    disabled={activeConv.status === 'CLOSED'}
+                    disabled={!isInternal && activeConv?.status === 'CLOSED'}
                   />
                   <i className="ti ti-paperclip"></i>
                 </label>
@@ -836,19 +1154,25 @@ export default function StaffChat() {
                   type="text"
                   className="staff-chat-input-field"
                   placeholder={
-                    activeConv.status === 'CLOSED'
-                      ? 'Phiên tư vấn đã kết thúc, không thể gửi thêm tin nhắn'
-                      : 'Nhập nội dung tin nhắn tư vấn...'
+                    isInternal
+                      ? 'Nhập nội dung tin nhắn trao đổi công việc với đồng nghiệp...'
+                      : activeConv.status === 'CLOSED'
+                        ? 'Phiên tư vấn đã kết thúc, không thể gửi thêm tin nhắn'
+                        : 'Nhập nội dung tin nhắn tư vấn...'
                   }
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  disabled={activeConv.status === 'CLOSED' || isSending}
+                  disabled={(!isInternal && activeConv.status === 'CLOSED') || isSending}
                 />
 
                 <button
                   type="submit"
                   className="staff-chat-send-btn"
-                  disabled={(!input.trim() && !selectedImage) || activeConv.status === 'CLOSED' || isSending}
+                  disabled={
+                    (!input.trim() && !selectedImage) ||
+                    (!isInternal && activeConv.status === 'CLOSED') ||
+                    isSending
+                  }
                 >
                   <i className="ti ti-send"></i> Gửi
                 </button>

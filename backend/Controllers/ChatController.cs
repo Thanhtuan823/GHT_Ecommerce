@@ -7,6 +7,11 @@ using System.Security.Claims;
 
 namespace GhtBackend.Controllers;
 
+public class OpenInternalChatRequest
+{
+    public int TargetUserId { get; set; }
+}
+
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
@@ -30,11 +35,11 @@ public class ChatController : ControllerBase
         var user = await _context.Users.FindAsync(userId);
         if (user == null) return Unauthorized(new { message = "Không tìm thấy người dùng" });
 
-        // Find existing non-closed conversation
+        // Find existing non-closed customer support conversation
         var existing = await _context.ChatConversations
             .Include(c => c.Staff)
             .OrderByDescending(c => c.CreatedAt)
-            .FirstOrDefaultAsync(c => c.CustomerId == userId && (c.Status == "WAITING" || c.Status == "ACTIVE"));
+            .FirstOrDefaultAsync(c => c.CustomerId == userId && c.Type == "CUSTOMER_SUPPORT" && (c.Status == "WAITING" || c.Status == "ACTIVE"));
 
         if (existing != null)
         {
@@ -56,6 +61,7 @@ public class ChatController : ControllerBase
         // Create new conversation
         var conv = new ChatConversation
         {
+            Type = "CUSTOMER_SUPPORT",
             CustomerId = userId,
             Status = "WAITING",
             CreatedAt = DateTime.UtcNow,
@@ -90,21 +96,42 @@ public class ChatController : ControllerBase
 
         if (conv == null) return NotFound(new { message = "Không tìm thấy cuộc trò chuyện" });
 
-        if (conv.CustomerId != userId && role != "Staff" && role != "Admin")
+        if (conv.Type == "INTERNAL_WORK")
         {
-            return Forbid();
-        }
+            if (conv.CustomerId != userId && conv.StaffId != userId)
+            {
+                return Forbid();
+            }
 
-        // Mark unread as read
-        if (role == "Customer")
-        {
-            conv.UnreadCustomerCount = 0;
+            // Mark unread as read
+            if (conv.CustomerId == userId)
+            {
+                conv.UnreadCustomerCount = 0;
+            }
+            else
+            {
+                conv.UnreadStaffCount = 0;
+            }
+            await _context.SaveChangesAsync();
         }
         else
         {
-            conv.UnreadStaffCount = 0;
+            if (conv.CustomerId != userId && role != "Staff" && role != "Admin")
+            {
+                return Forbid();
+            }
+
+            // Mark unread as read
+            if (role == "Customer")
+            {
+                conv.UnreadCustomerCount = 0;
+            }
+            else
+            {
+                conv.UnreadStaffCount = 0;
+            }
+            await _context.SaveChangesAsync();
         }
-        await _context.SaveChangesAsync();
 
         var messages = await _context.ChatMessages
             .AsNoTracking()
@@ -144,28 +171,41 @@ public class ChatController : ControllerBase
             })
             .ToListAsync();
 
+        var isInternal = conv.Type == "INTERNAL_WORK";
+        var peerUser = isInternal ? (conv.CustomerId == userId ? conv.Staff : conv.Customer) : null;
+
         return Ok(new
         {
             conversation = new
             {
                 id = conv.Id,
+                type = conv.Type,
                 customerId = conv.CustomerId,
-                customerName = conv.Customer.Name,
-                customerEmail = conv.Customer.Email,
-                customerAvatar = conv.Customer.Avatar,
-                customerPhone = conv.Customer.Phone,
+                customerName = conv.Customer?.Name,
+                customerEmail = conv.Customer?.Email,
+                customerAvatar = conv.Customer?.Avatar,
+                customerPhone = conv.Customer?.Phone,
                 staffId = conv.StaffId,
                 staffName = conv.Staff?.Name,
                 staffAvatar = conv.Staff?.Avatar,
                 status = conv.Status,
                 createdAt = conv.CreatedAt,
-                closedAt = conv.ClosedAt
+                closedAt = conv.ClosedAt,
+                peer = peerUser != null ? new
+                {
+                    id = peerUser.Id,
+                    name = peerUser.Name,
+                    email = peerUser.Email,
+                    role = peerUser.Role,
+                    avatar = peerUser.Avatar,
+                    phone = peerUser.Phone
+                } : null
             },
             messages
         });
     }
 
-    // Staff/Admin: Get conversations list for management
+    // Staff/Admin: Get conversations list for customer management
     [HttpGet("staff/conversations")]
     [Authorize(Roles = "Admin,Staff")]
     public async Task<IActionResult> GetStaffConversations([FromQuery] string? status)
@@ -174,6 +214,7 @@ public class ChatController : ControllerBase
             .Include(c => c.Customer)
             .Include(c => c.Staff)
             .AsNoTracking()
+            .Where(c => c.Type == "CUSTOMER_SUPPORT")
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(status) && status != "ALL")
@@ -205,15 +246,152 @@ public class ChatController : ControllerBase
 
         var summary = new
         {
-            waiting = await _context.ChatConversations.CountAsync(c => c.Status == "WAITING"),
-            active = await _context.ChatConversations.CountAsync(c => c.Status == "ACTIVE"),
-            closed = await _context.ChatConversations.CountAsync(c => c.Status == "CLOSED")
+            waiting = await _context.ChatConversations.CountAsync(c => c.Type == "CUSTOMER_SUPPORT" && c.Status == "WAITING"),
+            active = await _context.ChatConversations.CountAsync(c => c.Type == "CUSTOMER_SUPPORT" && c.Status == "ACTIVE"),
+            closed = await _context.ChatConversations.CountAsync(c => c.Type == "CUSTOMER_SUPPORT" && c.Status == "CLOSED")
         };
 
         return Ok(new
         {
             data = list,
             summary
+        });
+    }
+
+    // Staff/Admin: Get list of colleagues for autocomplete search
+    [HttpGet("internal/colleagues")]
+    [Authorize(Roles = "Admin,Staff")]
+    public async Task<IActionResult> GetInternalColleagues([FromQuery] string? search)
+    {
+        var currentUserId = GetUserId();
+        var query = _context.Users
+            .AsNoTracking()
+            .Where(u => u.Id != currentUserId && (u.Role == "Admin" || u.Role == "Staff") && u.IsActive);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = $"%{search.Trim()}%";
+            query = query.Where(u => EF.Functions.ILike(u.Name, term) || EF.Functions.ILike(u.Email, term));
+        }
+
+        var colleagues = await query
+            .OrderBy(u => u.Name)
+            .Select(u => new
+            {
+                id = u.Id,
+                name = u.Name,
+                email = u.Email,
+                role = u.Role,
+                avatar = u.Avatar,
+                phone = u.Phone
+            })
+            .ToListAsync();
+
+        return Ok(colleagues);
+    }
+
+    // Staff/Admin: Get internal 1-1 conversations
+    [HttpGet("internal/conversations")]
+    [Authorize(Roles = "Admin,Staff")]
+    public async Task<IActionResult> GetInternalConversations()
+    {
+        var currentUserId = GetUserId();
+
+        var conversations = await _context.ChatConversations
+            .Include(c => c.Customer)
+            .Include(c => c.Staff)
+            .AsNoTracking()
+            .Where(c => c.Type == "INTERNAL_WORK" && (c.CustomerId == currentUserId || c.StaffId == currentUserId))
+            .OrderByDescending(c => c.LastMessageAt ?? c.CreatedAt)
+            .ToListAsync();
+
+        var result = conversations.Select(c =>
+        {
+            var isCustomer = c.CustomerId == currentUserId;
+            var peer = isCustomer ? c.Staff : c.Customer;
+            var unreadCount = isCustomer ? c.UnreadCustomerCount : c.UnreadStaffCount;
+
+            return new
+            {
+                id = c.Id,
+                type = c.Type,
+                peer = peer != null ? new
+                {
+                    id = peer.Id,
+                    name = peer.Name,
+                    email = peer.Email,
+                    role = peer.Role,
+                    avatar = peer.Avatar,
+                    phone = peer.Phone
+                } : null,
+                lastMessage = c.LastMessage,
+                lastMessageAt = c.LastMessageAt,
+                unreadCount = unreadCount,
+                createdAt = c.CreatedAt,
+                status = c.Status
+            };
+        });
+
+        return Ok(result);
+    }
+
+    // Staff/Admin: Open or create 1-1 internal chat conversation with a colleague
+    [HttpPost("internal/open")]
+    [Authorize(Roles = "Admin,Staff")]
+    public async Task<IActionResult> OpenInternalChat([FromBody] OpenInternalChatRequest request)
+    {
+        var currentUserId = GetUserId();
+        if (request.TargetUserId <= 0 || request.TargetUserId == currentUserId)
+        {
+            return BadRequest(new { message = "Đối tượng trò chuyện không hợp lệ." });
+        }
+
+        var targetUser = await _context.Users.FindAsync(request.TargetUserId);
+        if (targetUser == null || (targetUser.Role != "Admin" && targetUser.Role != "Staff") || !targetUser.IsActive)
+        {
+            return BadRequest(new { message = "Không tìm thấy đồng nghiệp hoặc tài khoản không hoạt động." });
+        }
+
+        // Check if conversation already exists between the two
+        var existing = await _context.ChatConversations
+            .Include(c => c.Customer)
+            .Include(c => c.Staff)
+            .FirstOrDefaultAsync(c => c.Type == "INTERNAL_WORK" &&
+                ((c.CustomerId == currentUserId && c.StaffId == request.TargetUserId) ||
+                 (c.CustomerId == request.TargetUserId && c.StaffId == currentUserId)));
+
+        if (existing != null)
+        {
+            return Ok(new
+            {
+                conversationId = existing.Id,
+                status = existing.Status,
+                type = existing.Type
+            });
+        }
+
+        var conv = new ChatConversation
+        {
+            Type = "INTERNAL_WORK",
+            CustomerId = currentUserId,
+            StaffId = request.TargetUserId,
+            Status = "ACTIVE",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            LastMessage = "Bắt đầu cuộc trò chuyện nội bộ",
+            LastMessageAt = DateTime.UtcNow,
+            UnreadCustomerCount = 0,
+            UnreadStaffCount = 0
+        };
+
+        _context.ChatConversations.Add(conv);
+        await _context.SaveChangesAsync();
+
+        return Ok(new
+        {
+            conversationId = conv.Id,
+            status = conv.Status,
+            type = conv.Type
         });
     }
 
@@ -226,6 +404,11 @@ public class ChatController : ControllerBase
 
         var conv = await _context.ChatConversations.FindAsync(conversationId);
         if (conv == null) return NotFound(new { message = "Không tìm thấy cuộc trò chuyện" });
+
+        if (conv.Type == "INTERNAL_WORK")
+        {
+            return BadRequest(new { message = "Cuộc trò chuyện nội bộ duy trì xuyên suốt, không thể đóng." });
+        }
 
         if (conv.CustomerId != userId && role != "Staff" && role != "Admin")
         {

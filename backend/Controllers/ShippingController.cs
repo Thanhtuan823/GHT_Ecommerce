@@ -1,9 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using GhtBackend.DTOs;
 using GhtBackend.Data;
+using GhtBackend.Hubs;
+using GhtBackend.Models;
 using GhtBackend.Services;
 
 namespace GhtBackend.Controllers;
@@ -15,12 +18,14 @@ public class ShippingController : ControllerBase
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _config;
     private readonly AppDbContext _context;
+    private readonly IHubContext<ChatHub> _chatHub;
 
-    public ShippingController(HttpClient httpClient, IConfiguration config, AppDbContext context)
+    public ShippingController(HttpClient httpClient, IConfiguration config, AppDbContext context, IHubContext<ChatHub> chatHub)
     {
         _httpClient = httpClient;
         _config = config;
         _context = context;
+        _chatHub = chatHub;
     }
 
     [HttpGet("provinces")]
@@ -265,6 +270,38 @@ public class ShippingController : ControllerBase
         order.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
+
+        // In-app notification cho Khách hàng
+        try
+        {
+            var notif = new Notification
+            {
+                UserId = order.UserId,
+                Title = "Đơn hàng đang giao",
+                Message = $"Đơn hàng #{order.Id} đang được vận chuyển bởi GHN (Mã vận đơn: {order.TrackingNumber}).",
+                Type = "ORDER_STATUS",
+                TargetUrl = $"/orders/{order.Id}",
+                Metadata = $"{{\"orderId\": {order.Id}, \"trackingNumber\": \"{order.TrackingNumber}\"}}",
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            };
+            _context.Notifications.Add(notif);
+            await _context.SaveChangesAsync();
+
+            await _chatHub.Clients.Group($"user_{order.UserId}").SendAsync("ReceiveNotification", new
+            {
+                id = notif.Id,
+                userId = notif.UserId,
+                title = notif.Title,
+                message = notif.Message,
+                type = notif.Type,
+                targetUrl = notif.TargetUrl,
+                metadata = notif.Metadata,
+                isRead = false,
+                createdAt = notif.CreatedAt
+            });
+        }
+        catch { }
 
         // 4. TRIGGER GỬI EMAIL BÁO ĐƠN HÀNG ĐANG GIAO KÈM MÃ GHN & HÓA ĐƠN PDF
         _ = Task.Run(async () =>

@@ -1,9 +1,11 @@
 using GhtBackend.Data;
 using GhtBackend.DTOs;
+using GhtBackend.Hubs;
 using GhtBackend.Models;
 using GhtBackend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
@@ -19,17 +21,110 @@ public class OrdersController : ControllerBase
     private readonly EmailService _emailService;
     private readonly PdfService _pdfService;
     private readonly IConfiguration _config;
+    private readonly IHubContext<ChatHub> _chatHub;
 
-    public OrdersController(AppDbContext context, DiscountService discountService, EmailService emailService, PdfService pdfService, IConfiguration config)
+    public OrdersController(
+        AppDbContext context,
+        DiscountService discountService,
+        EmailService emailService,
+        PdfService pdfService,
+        IConfiguration config,
+        IHubContext<ChatHub> chatHub)
     {
         _context = context;
         _discountService = discountService;
         _emailService = emailService;
         _pdfService = pdfService;
         _config = config;
+        _chatHub = chatHub;
     }
 
     private int GetUserId() => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+
+    private async Task CreateAndPushNotificationAsync(
+        int userId,
+        string title,
+        string message,
+        string type,
+        string targetUrl,
+        string? metadata = null)
+    {
+        try
+        {
+            var notif = new Notification
+            {
+                UserId = userId,
+                Title = title,
+                Message = message,
+                Type = type,
+                TargetUrl = targetUrl,
+                Metadata = metadata,
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            };
+            _context.Notifications.Add(notif);
+            await _context.SaveChangesAsync();
+
+            await _chatHub.Clients.Group($"user_{userId}").SendAsync("ReceiveNotification", new
+            {
+                id = notif.Id,
+                userId = notif.UserId,
+                title = notif.Title,
+                message = notif.Message,
+                type = notif.Type,
+                targetUrl = notif.TargetUrl,
+                metadata = notif.Metadata,
+                isRead = false,
+                createdAt = notif.CreatedAt
+            });
+        }
+        catch { }
+    }
+
+    private async Task NotifyStaffAndAdminAsync(
+        string title,
+        string message,
+        string type,
+        string targetUrl,
+        string? metadata = null)
+    {
+        try
+        {
+            var staffUsers = await _context.Users
+                .AsNoTracking()
+                .Where(u => (u.Role == "Admin" || u.Role == "Staff") && u.IsActive)
+                .ToListAsync();
+
+            var now = DateTime.UtcNow;
+            var notifs = staffUsers.Select(s => new Notification
+            {
+                UserId = s.Id,
+                Title = title,
+                Message = message,
+                Type = type,
+                TargetUrl = targetUrl,
+                Metadata = metadata,
+                IsRead = false,
+                CreatedAt = now
+            }).ToList();
+
+            _context.Notifications.AddRange(notifs);
+            await _context.SaveChangesAsync();
+
+            await _chatHub.Clients.Group("staff_channel").SendAsync("ReceiveNotification", new
+            {
+                id = notifs.FirstOrDefault()?.Id ?? 0,
+                title = title,
+                message = message,
+                type = type,
+                targetUrl = targetUrl,
+                metadata = metadata,
+                isRead = false,
+                createdAt = now
+            });
+        }
+        catch { }
+    }
 
     [Authorize]
     [HttpPost]
@@ -37,6 +132,14 @@ public class OrdersController : ControllerBase
     {
         var userId = GetUserId();
         var user = await _context.Users.FindAsync(userId);
+
+        if (User.IsInRole("Admin") || User.IsInRole("Staff"))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new 
+            { 
+                message = "Tài khoản Quản trị và Nhân viên vận hành không được phép đặt hàng mua sắm." 
+            });
+        }
         
         // Validate Items
         int originalAmount = 0;
@@ -141,6 +244,23 @@ public class OrdersController : ControllerBase
         }
 
         await _context.SaveChangesAsync();
+
+        // 1. Tạo Notification cho Khách hàng
+        await CreateAndPushNotificationAsync(
+            userId,
+            "Đặt hàng thành công",
+            $"Đơn hàng #{order.Id} đã được tạo thành công.",
+            "ORDER_PLACED",
+            $"/orders/{order.Id}",
+            $"{{\"orderId\": {order.Id}}}");
+
+        // 2. Tạo Notification cho toàn bộ Admin & Staff
+        await NotifyStaffAndAdminAsync(
+            "Đơn hàng mới",
+            $"Đơn hàng #{order.Id} vừa được tạo bởi {user?.Name ?? "Khách hàng"} ({order.TotalPrice:N0}đ)",
+            "ORDER_PLACED",
+            "/staff/orders",
+            $"{{\"orderId\": {order.Id}}}");
 
         // Fire-and-forget email
         _ = Task.Run(async () => {
@@ -268,6 +388,22 @@ public class OrdersController : ControllerBase
 
             await _context.SaveChangesAsync();
 
+            // Push in-app notifications
+            await CreateAndPushNotificationAsync(
+                order.UserId,
+                "Thanh toán thành công",
+                $"Đơn hàng #{order.Id} đã được thanh toán thành công ({order.TotalPrice:N0}đ).",
+                "PAYMENT_SUCCESS",
+                $"/orders/{order.Id}",
+                $"{{\"orderId\": {order.Id}}}");
+
+            await NotifyStaffAndAdminAsync(
+                "Khách đã thanh toán",
+                $"Đơn hàng #{order.Id} đã được thanh toán thành công ({order.TotalPrice:N0}đ).",
+                "PAYMENT_SUCCESS",
+                "/staff/orders",
+                $"{{\"orderId\": {order.Id}}}");
+
             // Trigger background emails for confirmed payment
             _ = Task.Run(async () => {
                 try {
@@ -346,6 +482,28 @@ public class OrdersController : ControllerBase
 
         await _context.SaveChangesAsync();
 
+        // Push in-app notification
+        var isStaffAction = User.IsInRole("Staff") || User.IsInRole("Admin");
+        if (isStaffAction)
+        {
+            await CreateAndPushNotificationAsync(
+                order.UserId,
+                "Đơn hàng đã bị hủy",
+                $"Đơn hàng #{order.Id} đã bị hủy. Lý do: {order.CancelReason}",
+                "ORDER_STATUS",
+                $"/orders/{order.Id}",
+                $"{{\"orderId\": {order.Id}}}");
+        }
+        else
+        {
+            await NotifyStaffAndAdminAsync(
+                "Khách yêu cầu hủy đơn",
+                $"Khách hàng đã yêu cầu hủy đơn hàng #{order.Id}. Lý do: {order.CancelReason}",
+                "ORDER_STATUS",
+                "/staff/orders",
+                $"{{\"orderId\": {order.Id}}}");
+        }
+
         // Trigger background email thông báo hủy đơn kèm lý do
         _ = Task.Run(async () => {
             try {
@@ -373,6 +531,26 @@ public class OrdersController : ControllerBase
         }
         order.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
+
+        string statusLabel = req.Status switch
+        {
+            "CONFIRMED" => "Đã xác nhận",
+            "PROCESSING" => "Đang xử lý / đóng gói",
+            "SHIPPING" => "Đang giao hàng",
+            "DELIVERED" => "Giao hàng thành công",
+            "COMPLETED" => "Đã hoàn thành",
+            "CANCELLED" => "Đã hủy",
+            "PAID" => "Đã thanh toán",
+            _ => req.Status
+        };
+
+        await CreateAndPushNotificationAsync(
+            order.UserId,
+            "Cập nhật đơn hàng",
+            $"Đơn hàng #{order.Id} đã chuyển sang trạng thái: {statusLabel}.",
+            "ORDER_STATUS",
+            $"/orders/{order.Id}",
+            $"{{\"orderId\": {order.Id}}}");
 
         return Ok(new { status = order.Status });
     }
@@ -434,6 +612,21 @@ public class OrdersController : ControllerBase
         }
 
         await _context.SaveChangesAsync();
+
+        await CreateAndPushNotificationAsync(
+            order.UserId,
+            "Thanh toán thành công",
+            $"Đơn hàng #{order.Id} đã thanh toán thành công qua SePay ({order.TotalPrice:N0}đ).",
+            "PAYMENT_SUCCESS",
+            $"/orders/{order.Id}",
+            $"{{\"orderId\": {order.Id}}}");
+
+        await NotifyStaffAndAdminAsync(
+            "Khách đã thanh toán (SePay)",
+            $"Đơn hàng #{order.Id} đã được thanh toán qua SePay ({order.TotalPrice:N0}đ).",
+            "PAYMENT_SUCCESS",
+            "/staff/orders",
+            $"{{\"orderId\": {order.Id}}}");
 
         // Emails
         _ = Task.Run(async () => {

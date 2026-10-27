@@ -23,6 +23,7 @@ const ProductDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isInternal = user?.role === 'Admin' || user?.role === 'Staff';
   const { addToCart } = useCart();
   const { wishlist, toggleWishlist } = useWishlist();
   const toast = useToast();
@@ -348,65 +349,95 @@ const ProductDetail = () => {
             </div>
           </div>
 
-          {/* Số lượng */}
-          <div className="product-quantity-row">
-            <span className="product-variant-label">Số lượng:</span>
-            <div className="quantity-stepper">
+          {isInternal ? (
+            <div className="product-preview-mode-banner" style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '14px 18px', background: '#f8fafc', border: '1px solid #e2e8f0',
+              borderRadius: '10px', marginTop: '16px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <i className="ti ti-shield-check" style={{ fontSize: '22px', color: '#2563eb' }}></i>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
+                    Chế độ xem trước ({user.role})
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#64748b' }}>
+                    Tài khoản nội bộ bị vô hiệu hóa chức năng mua hàng.
+                  </div>
+                </div>
+              </div>
               <button
                 type="button"
-                className="stepper-btn"
-                onClick={handleDecrease}
-                disabled={quantity <= 1 || inStock <= 0}
-                aria-label="Giảm số lượng"
+                className="btn-secondary"
+                style={{ padding: '8px 14px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                onClick={() => navigate('/admin/products')}
               >
-                –
-              </button>
-              <span className="stepper-value">{quantity}</span>
-              <button
-                type="button"
-                className="stepper-btn"
-                onClick={handleIncrease}
-                disabled={quantity >= maxStock || inStock <= 0}
-                aria-label="Tăng số lượng"
-              >
-                +
+                <i className="ti ti-edit"></i> Quản lý kho
               </button>
             </div>
-            <span className="quantity-max-note">
-              Tối đa {inStock} sản phẩm
-            </span>
-          </div>
+          ) : (
+            <>
+              {/* Số lượng */}
+              <div className="product-quantity-row">
+                <span className="product-variant-label">Số lượng:</span>
+                <div className="quantity-stepper">
+                  <button
+                    type="button"
+                    className="stepper-btn"
+                    onClick={handleDecrease}
+                    disabled={quantity <= 1 || inStock <= 0}
+                    aria-label="Giảm số lượng"
+                  >
+                    –
+                  </button>
+                  <span className="stepper-value">{quantity}</span>
+                  <button
+                    type="button"
+                    className="stepper-btn"
+                    onClick={handleIncrease}
+                    disabled={quantity >= maxStock || inStock <= 0}
+                    aria-label="Tăng số lượng"
+                  >
+                    +
+                  </button>
+                </div>
+                <span className="quantity-max-note">
+                  Tối đa {inStock} sản phẩm
+                </span>
+              </div>
 
-          {/* CTA Buttons */}
-          <div className="product-cta-row">
-            <button
-              type="button"
-              className="btn-primary product-cta-btn-cart"
-              disabled={inStock <= 0 || isAddingCart}
-              onClick={handleAddToCart}
-            >
-              {isAddingCart ? <ButtonSpinner /> : <><i className="ti ti-shopping-cart"></i> Thêm vào giỏ</>}
-            </button>
+              {/* CTA Buttons */}
+              <div className="product-cta-row">
+                <button
+                  type="button"
+                  className="btn-primary product-cta-btn-cart"
+                  disabled={inStock <= 0 || isAddingCart}
+                  onClick={handleAddToCart}
+                >
+                  {isAddingCart ? <ButtonSpinner /> : <><i className="ti ti-shopping-cart"></i> Thêm vào giỏ</>}
+                </button>
 
-            <button
-              type="button"
-              className="product-cta-btn-buy"
-              disabled={inStock <= 0 || isBuyingNow}
-              onClick={handleBuyNow}
-            >
-              {isBuyingNow ? <ButtonSpinner /> : 'Mua ngay'}
-            </button>
+                <button
+                  type="button"
+                  className="product-cta-btn-buy"
+                  disabled={inStock <= 0 || isBuyingNow}
+                  onClick={handleBuyNow}
+                >
+                  {isBuyingNow ? <ButtonSpinner /> : 'Mua ngay'}
+                </button>
 
-            <button
-              type="button"
-              className={`product-cta-btn-wishlist ${isWishlisted ? 'is-active' : ''}`}
-              onClick={handleWishlistClick}
-              aria-label={isWishlisted ? 'Bỏ yêu thích' : 'Thêm vào yêu thích'}
-              title={isWishlisted ? 'Bỏ yêu thích' : 'Thêm vào yêu thích'}
-            >
-              {isWishlisted ? <i className="ti ti-heart-filled"></i> : <i className="ti ti-heart"></i>}
-            </button>
-          </div>
+                <button
+                  type="button"
+                  className={`product-cta-btn-wishlist ${isWishlisted ? 'is-active' : ''}`}
+                  onClick={handleWishlistClick}
+                  aria-label={isWishlisted ? 'Bỏ yêu thích' : 'Thêm vào yêu thích'}
+                  title={isWishlisted ? 'Bỏ yêu thích' : 'Thêm vào yêu thích'}
+                >
+                  {isWishlisted ? <i className="ti ti-heart-filled"></i> : <i className="ti ti-heart"></i>}
+                </button>
+              </div>
+            </>
+          )}
 
           {/* Trust line dưới CTA */}
           <div className="product-trust-line">

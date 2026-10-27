@@ -22,10 +22,15 @@ public class ChatHub : Hub
 
     public override async Task OnConnectedAsync()
     {
+        var userId = GetUserId();
         var role = GetUserRole();
         if (role == "Staff" || role == "Admin")
         {
             await Groups.AddToGroupAsync(Context.ConnectionId, "staff_channel");
+        }
+        if (userId > 0)
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{userId}");
         }
         await base.OnConnectedAsync();
     }
@@ -42,10 +47,20 @@ public class ChatHub : Hub
             throw new HubException("Cuộc trò chuyện không tồn tại.");
         }
 
-        // Only conversation customer or Staff/Admin can join
-        if (conv.CustomerId != userId && role != "Staff" && role != "Admin")
+        if (conv.Type == "INTERNAL_WORK")
         {
-            throw new HubException("Bạn không có quyền tham gia cuộc trò chuyện này.");
+            if (conv.CustomerId != userId && conv.StaffId != userId)
+            {
+                throw new HubException("Bạn không có quyền tham gia cuộc trò chuyện nội bộ này.");
+            }
+        }
+        else
+        {
+            // Only conversation customer or Staff/Admin can join
+            if (conv.CustomerId != userId && role != "Staff" && role != "Admin")
+            {
+                throw new HubException("Bạn không có quyền tham gia cuộc trò chuyện này.");
+            }
         }
 
         await Groups.AddToGroupAsync(Context.ConnectionId, $"conversation_{conversationId}");
@@ -83,9 +98,19 @@ public class ChatHub : Hub
         }
 
         // Check sender
-        if (conv.CustomerId != userId && userRole != "Staff" && userRole != "Admin")
+        if (conv.Type == "INTERNAL_WORK")
         {
-            throw new HubException("Bạn không có quyền gửi tin nhắn trong phiên này.");
+            if (conv.CustomerId != userId && conv.StaffId != userId)
+            {
+                throw new HubException("Bạn không có quyền gửi tin nhắn trong phiên trao đổi nội bộ này.");
+            }
+        }
+        else
+        {
+            if (conv.CustomerId != userId && userRole != "Staff" && userRole != "Admin")
+            {
+                throw new HubException("Bạn không có quyền gửi tin nhắn trong phiên này.");
+            }
         }
 
         var user = await _context.Users.FindAsync(userId);
@@ -100,11 +125,13 @@ public class ChatHub : Hub
                 .FirstOrDefaultAsync(m => m.Id == replyToId.Value && m.ConversationId == conversationId);
         }
 
+        var senderRole = conv.Type == "INTERNAL_WORK" ? user.Role : (userRole == "Admin" ? "Staff" : userRole);
+
         var message = new ChatMessage
         {
             ConversationId = conversationId,
             SenderId = userId,
-            SenderRole = userRole == "Admin" ? "Staff" : userRole,
+            SenderRole = senderRole,
             Content = content?.Trim() ?? string.Empty,
             ImageUrl = imageUrl?.Trim(),
             ReplyToMessageId = replyMsg?.Id,
@@ -118,85 +145,154 @@ public class ChatHub : Hub
         _context.ChatMessages.Add(message);
 
         // Update conversation summary
-        var previewText = !string.IsNullOrWhiteSpace(content) ? content : "[Hình ảnh]";
+        var previewText = !string.IsNullOrWhiteSpace(content) ? content : "[Tệp đính kèm]";
         conv.LastMessage = previewText;
         conv.LastMessageAt = DateTime.UtcNow;
 
-        if (userRole == "Customer")
+        if (conv.Type == "INTERNAL_WORK")
         {
-            conv.UnreadStaffCount += 1;
-        }
-        else
-        {
-            conv.UnreadCustomerCount += 1;
-            if (conv.StaffId == null)
-            {
-                conv.StaffId = userId;
-                conv.Staff = user;
-                conv.Status = "ACTIVE";
+            var isCustomer = conv.CustomerId == userId;
+            var targetUserId = isCustomer ? conv.StaffId : conv.CustomerId;
 
-                await Clients.Group($"conversation_{conversationId}").SendAsync("StaffClaimed", new
+            if (isCustomer)
+            {
+                conv.UnreadStaffCount += 1;
+            }
+            else
+            {
+                conv.UnreadCustomerCount += 1;
+            }
+
+            await _context.SaveChangesAsync();
+
+            var messageDto = new
+            {
+                id = message.Id,
+                conversationId = message.ConversationId,
+                senderId = message.SenderId,
+                senderName = user.Name,
+                senderRole = message.SenderRole,
+                senderAvatar = user.Avatar,
+                content = message.Content,
+                imageUrl = message.ImageUrl,
+                replyTo = replyMsg != null ? new
+                {
+                    id = replyMsg.Id,
+                    senderName = replyMsg.Sender.Name,
+                    senderRole = replyMsg.SenderRole,
+                    content = replyMsg.IsRevoked ? "Tin nhắn đã được thu hồi" : replyMsg.Content,
+                    imageUrl = replyMsg.ImageUrl
+                } : null,
+                reactions = new object[] { },
+                isEdited = false,
+                isRevoked = false,
+                isRead = false,
+                createdAt = message.CreatedAt
+            };
+
+            // Broadcast to conversation room
+            await Clients.Group($"conversation_{conversationId}").SendAsync("ReceiveMessage", messageDto);
+
+            // Notify staff list channel for realtime queue update
+            await Clients.Group("staff_channel").SendAsync("InternalConversationUpdated", new
+            {
+                conversationId = conv.Id,
+                senderId = userId,
+                targetUserId = targetUserId,
+                lastMessage = conv.LastMessage,
+                lastMessageAt = conv.LastMessageAt
+            });
+
+            if (targetUserId.HasValue)
+            {
+                await Clients.Group($"user_{targetUserId.Value}").SendAsync("InternalConversationUpdated", new
                 {
                     conversationId = conv.Id,
-                    staffId = user.Id,
-                    staffName = user.Name,
-                    staffAvatar = user.Avatar,
-                    staff = new
-                    {
-                        id = user.Id,
-                        name = user.Name,
-                        avatar = user.Avatar,
-                        email = user.Email
-                    }
+                    senderId = userId,
+                    targetUserId = targetUserId,
+                    lastMessage = conv.LastMessage,
+                    lastMessageAt = conv.LastMessageAt
                 });
             }
         }
-
-        await _context.SaveChangesAsync();
-
-        var messageDto = new
+        else
         {
-            id = message.Id,
-            conversationId = message.ConversationId,
-            senderId = message.SenderId,
-            senderName = user.Name,
-            senderRole = message.SenderRole,
-            senderAvatar = user.Avatar,
-            content = message.Content,
-            imageUrl = message.ImageUrl,
-            replyTo = replyMsg != null ? new
+            if (userRole == "Customer")
             {
-                id = replyMsg.Id,
-                senderName = replyMsg.Sender.Name,
-                senderRole = replyMsg.SenderRole,
-                content = replyMsg.IsRevoked ? "Tin nhắn đã được thu hồi" : replyMsg.Content,
-                imageUrl = replyMsg.ImageUrl
-            } : null,
-            reactions = new object[] { },
-            isEdited = false,
-            isRevoked = false,
-            isRead = false,
-            createdAt = message.CreatedAt
-        };
+                conv.UnreadStaffCount += 1;
+            }
+            else
+            {
+                conv.UnreadCustomerCount += 1;
+                if (conv.StaffId == null)
+                {
+                    conv.StaffId = userId;
+                    conv.Staff = user;
+                    conv.Status = "ACTIVE";
 
-        // Broadcast to conversation room
-        await Clients.Group($"conversation_{conversationId}").SendAsync("ReceiveMessage", messageDto);
+                    await Clients.Group($"conversation_{conversationId}").SendAsync("StaffClaimed", new
+                    {
+                        conversationId = conv.Id,
+                        staffId = user.Id,
+                        staffName = user.Name,
+                        staffAvatar = user.Avatar,
+                        staff = new
+                        {
+                            id = user.Id,
+                            name = user.Name,
+                            avatar = user.Avatar,
+                            email = user.Email
+                        }
+                    });
+                }
+            }
 
-        // Notify staff list channel for realtime queue update
-        await Clients.Group("staff_channel").SendAsync("ConversationUpdated", new
-        {
-            id = conv.Id,
-            customerId = conv.CustomerId,
-            customerName = conv.Customer.Name,
-            customerEmail = conv.Customer.Email,
-            customerAvatar = conv.Customer.Avatar,
-            staffId = conv.StaffId,
-            staffName = conv.Staff?.Name,
-            status = conv.Status,
-            lastMessage = conv.LastMessage,
-            lastMessageAt = conv.LastMessageAt,
-            unreadStaffCount = conv.UnreadStaffCount
-        });
+            await _context.SaveChangesAsync();
+
+            var messageDto = new
+            {
+                id = message.Id,
+                conversationId = message.ConversationId,
+                senderId = message.SenderId,
+                senderName = user.Name,
+                senderRole = message.SenderRole,
+                senderAvatar = user.Avatar,
+                content = message.Content,
+                imageUrl = message.ImageUrl,
+                replyTo = replyMsg != null ? new
+                {
+                    id = replyMsg.Id,
+                    senderName = replyMsg.Sender.Name,
+                    senderRole = replyMsg.SenderRole,
+                    content = replyMsg.IsRevoked ? "Tin nhắn đã được thu hồi" : replyMsg.Content,
+                    imageUrl = replyMsg.ImageUrl
+                } : null,
+                reactions = new object[] { },
+                isEdited = false,
+                isRevoked = false,
+                isRead = false,
+                createdAt = message.CreatedAt
+            };
+
+            // Broadcast to conversation room
+            await Clients.Group($"conversation_{conversationId}").SendAsync("ReceiveMessage", messageDto);
+
+            // Notify staff list channel for realtime queue update
+            await Clients.Group("staff_channel").SendAsync("ConversationUpdated", new
+            {
+                id = conv.Id,
+                customerId = conv.CustomerId,
+                customerName = conv.Customer.Name,
+                customerEmail = conv.Customer.Email,
+                customerAvatar = conv.Customer.Avatar,
+                staffId = conv.StaffId,
+                staffName = conv.Staff?.Name,
+                status = conv.Status,
+                lastMessage = conv.LastMessage,
+                lastMessageAt = conv.LastMessageAt,
+                unreadStaffCount = conv.UnreadStaffCount
+            });
+        }
     }
 
     // Edit message content
@@ -343,6 +439,7 @@ public class ChatHub : Hub
             .FirstOrDefaultAsync(c => c.Id == conversationId);
 
         if (conv == null) throw new HubException("Cuộc trò chuyện không tồn tại.");
+        if (conv.Type == "INTERNAL_WORK") throw new HubException("Không thể tiếp nhận phiên trao đổi nội bộ.");
 
         var staff = await _context.Users.FindAsync(userId);
         if (staff == null) throw new HubException("Không tìm thấy thông tin nhân viên.");
@@ -392,6 +489,11 @@ public class ChatHub : Hub
 
         var conv = await _context.ChatConversations.FindAsync(conversationId);
         if (conv == null) throw new HubException("Cuộc trò chuyện không tồn tại.");
+
+        if (conv.Type == "INTERNAL_WORK")
+        {
+            throw new HubException("Cuộc trò chuyện nội bộ duy trì xuyên suốt, không thể kết thúc.");
+        }
 
         if (conv.CustomerId != userId && userRole != "Staff" && userRole != "Admin")
         {

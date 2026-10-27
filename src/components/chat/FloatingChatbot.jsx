@@ -7,6 +7,7 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../common/ToastContext';
 import signalRService from '../../services/signalrService';
+import { isImageFile, getFileNameFromUrl } from '../../utils/fileHelper';
 import './FloatingChatbot.css';
 
 const EMOJI_LIST = ['👍', '❤️', '😆', '😮', '😢', '😡'];
@@ -324,18 +325,13 @@ const FloatingChatbot = () => {
     }
   };
 
-  // Staff image selection handler
+  // Staff image / file selection handler
   const handleImageSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      toast.error('Chỉ được chọn tệp hình ảnh (PNG, JPG, WebP...)');
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Kích thước ảnh tối đa là 5MB');
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error('Dung lượng tệp tối đa là 15MB');
       return;
     }
 
@@ -637,27 +633,54 @@ const FloatingChatbot = () => {
                           </div>
                         )}
 
-                        {/* Bubble Content */}
-                        <div className={`cust-msg-bubble ${msg.isRevoked ? 'revoked' : ''}`}>
-                          {msg.isRevoked ? (
-                            <span className="cust-msg-revoked-text">
-                              <i className="ti ti-ban"></i> Tin nhắn đã được thu hồi
-                            </span>
-                          ) : (
-                            <>
-                              {msg.content && <p className="cust-msg-text">{msg.content}</p>}
-                              {msg.imageUrl && (
-                                <img
-                                  src={msg.imageUrl}
-                                  alt="Đính kèm"
-                                  className="cust-msg-img"
-                                  onClick={() => setLightboxImg(msg.imageUrl)}
-                                  title="Bấm để xem ảnh phóng to"
-                                />
-                              )}
-                            </>
-                          )}
-                        </div>
+                        {/* File Card detached from bubble if present */}
+                        {msg.imageUrl && !msg.isRevoked && !isImageFile(msg.imageUrl) && (
+                          <div className="chat-file-attachment-card">
+                            <div className="chat-file-icon-box">
+                              <i className="ti ti-file-text"></i>
+                            </div>
+                            <div className="chat-file-info">
+                              <div className="chat-file-name" title={getFileNameFromUrl(msg.imageUrl)}>
+                                {getFileNameFromUrl(msg.imageUrl)}
+                              </div>
+                              <span className="chat-file-meta">Tệp văn bản • Nhấn để tải về</span>
+                            </div>
+                            <a
+                              href={msg.imageUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              download={getFileNameFromUrl(msg.imageUrl)}
+                              className="chat-file-download-btn"
+                              title="Tải về máy"
+                            >
+                              <i className="ti ti-download"></i>
+                            </a>
+                          </div>
+                        )}
+
+                        {/* Bubble Content for text, image or revoked */}
+                        {(msg.content || (msg.imageUrl && isImageFile(msg.imageUrl)) || msg.isRevoked) && (
+                          <div className={`cust-msg-bubble ${msg.isRevoked ? 'revoked' : ''}`}>
+                            {msg.isRevoked ? (
+                              <span className="cust-msg-revoked-text">
+                                <i className="ti ti-ban"></i> Tin nhắn đã được thu hồi
+                              </span>
+                            ) : (
+                              <>
+                                {msg.content && <p className="cust-msg-text">{msg.content}</p>}
+                                {msg.imageUrl && isImageFile(msg.imageUrl) && (
+                                  <img
+                                    src={msg.imageUrl}
+                                    alt="Đính kèm"
+                                    className="cust-msg-img"
+                                    onClick={() => setLightboxImg(msg.imageUrl)}
+                                    title="Bấm để xem ảnh phóng to"
+                                  />
+                                )}
+                              </>
+                            )}
+                          </div>
+                        )}
 
                         {/* Message Meta & Action Toolbar */}
                         <div className="cust-msg-footer">
@@ -810,10 +833,29 @@ const FloatingChatbot = () => {
                     </div>
                   )}
 
-                  {/* Image attachment preview */}
+                  {/* Image / File attachment preview */}
                   {imagePreview && (
                     <div className="chatbot-staff-banner-active image-preview">
-                      <img src={imagePreview} alt="Preview" className="img-attachment-thumb" />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {selectedImage?.type?.startsWith('image/') ? (
+                          <img src={imagePreview} alt="Preview" className="img-attachment-thumb" />
+                        ) : (
+                          <div style={{
+                            width: '42px', height: '42px', background: '#e2e8f0', borderRadius: '6px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb'
+                          }}>
+                            <i className="ti ti-file-text" style={{ fontSize: '22px' }}></i>
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', flexDirection: 'column', maxWidth: '200px' }}>
+                          <span style={{ fontSize: '12px', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {selectedImage?.name}
+                          </span>
+                          <span style={{ fontSize: '10px', color: '#64748b' }}>
+                            {(selectedImage?.size / 1024).toFixed(1)} KB
+                          </span>
+                        </div>
+                      </div>
                       <button
                         type="button"
                         className="banner-close-btn"
@@ -833,7 +875,7 @@ const FloatingChatbot = () => {
                       type="file"
                       ref={fileInputRef}
                       style={{ display: 'none' }}
-                      accept="image/*"
+                      accept="image/*,.pdf,.json,.txt,.doc,.docx,.xls,.xlsx,.zip,.rar"
                       onChange={handleImageSelect}
                     />
 
@@ -841,7 +883,7 @@ const FloatingChatbot = () => {
                       type="button"
                       className="chatbot-staff-btn-attach"
                       onClick={() => fileInputRef.current?.click()}
-                      title="Gửi hình ảnh"
+                      title="Đính kèm tệp tin / hình ảnh"
                       disabled={isStaffSending || Boolean(editingMsg)}
                     >
                       <i className="ti ti-paperclip"></i>

@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import NotificationBell from '../components/common/NotificationBell';
 import './AdminLayout.css';
 
 const AdminLayout = () => {
@@ -157,6 +158,7 @@ const AdminLayout = () => {
           </div>
 
           <div className="admin-topbar-right">
+            <NotificationBell />
             <div className="admin-profile-widget">
               <div className="admin-avatar-circle">
                 {user?.avatar ? (

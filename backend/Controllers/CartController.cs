@@ -67,6 +67,14 @@ public class CartController : ControllerBase
     [HttpPost("add")]
     public async Task<IActionResult> AddItem([FromBody] AddToCartRequest req)
     {
+        if (User.IsInRole("Admin") || User.IsInRole("Staff"))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new 
+            { 
+                message = "Tài khoản nội bộ không sử dụng giỏ hàng mua sắm." 
+            });
+        }
+
         var userId = GetUserId();
         
         var product = await _context.Products.FindAsync(req.ProductId);
@@ -132,6 +140,14 @@ public class CartController : ControllerBase
     [HttpPost("sync")]
     public async Task<IActionResult> SyncCart([FromBody] SyncCartRequest req)
     {
+        if (User.IsInRole("Admin") || User.IsInRole("Staff"))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new 
+            { 
+                message = "Tài khoản nội bộ không sử dụng giỏ hàng mua sắm." 
+            });
+        }
+
         var userId = GetUserId();
         
         var cart = await _context.Carts
@@ -179,6 +195,14 @@ public class CartController : ControllerBase
     [HttpPut("{productId}")]
     public async Task<IActionResult> UpdateQuantity(int productId, [FromBody] UpdateQuantityRequest req)
     {
+        if (User.IsInRole("Admin") || User.IsInRole("Staff"))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new 
+            { 
+                message = "Tài khoản nội bộ không sử dụng giỏ hàng mua sắm." 
+            });
+        }
+
         var userId = GetUserId();
         var cart = await _context.Carts
             .Include(c => c.CartItems)

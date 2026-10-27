@@ -174,6 +174,22 @@ class SignalRService {
   offConversationUpdated(callback) {
     this.connection?.off('ConversationUpdated', callback);
   }
+
+  onInternalConversationUpdated(callback) {
+    this.connection?.on('InternalConversationUpdated', callback);
+  }
+
+  offInternalConversationUpdated(callback) {
+    this.connection?.off('InternalConversationUpdated', callback);
+  }
+
+  onReceiveNotification(callback) {
+    this.connection?.on('ReceiveNotification', callback);
+  }
+
+  offReceiveNotification(callback) {
+    this.connection?.off('ReceiveNotification', callback);
+  }
 }
 
 const signalRService = new SignalRService();

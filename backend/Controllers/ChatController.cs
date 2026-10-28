@@ -5,6 +5,8 @@ using GhtBackend.Data;
 using GhtBackend.Models;
 using System.Security.Claims;
 
+using GhtBackend.Services;
+
 namespace GhtBackend.Controllers;
 
 public class OpenInternalChatRequest
@@ -18,10 +20,12 @@ public class OpenInternalChatRequest
 public class ChatController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly CloudStorageService _storageService;
 
-    public ChatController(AppDbContext context)
+    public ChatController(AppDbContext context, CloudStorageService storageService)
     {
         _context = context;
+        _storageService = storageService;
     }
 
     private int GetUserId() => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
@@ -133,11 +137,50 @@ public class ChatController : ControllerBase
             await _context.SaveChangesAsync();
         }
 
-        var messages = await _context.ChatMessages
+        var rawMessages = await _context.ChatMessages
             .AsNoTracking()
             .Where(m => m.ConversationId == conversationId)
             .OrderBy(m => m.CreatedAt)
-            .Select(m => new
+            .Include(m => m.Sender)
+            .Include(m => m.ReplyToMessage)
+                .ThenInclude(r => r!.Sender)
+            .Include(m => m.Reactions)
+                .ThenInclude(r => r.User)
+            .ToListAsync();
+
+        var messages = rawMessages.Select(m =>
+        {
+            var renewedImageUrl = m.ImageUrl;
+            if (!string.IsNullOrEmpty(renewedImageUrl))
+            {
+                if (renewedImageUrl.StartsWith("/uploads/") || renewedImageUrl.StartsWith("uploads/"))
+                {
+                    // Giữ nguyên 4 tin nhắn đính kèm cũ trong wwwroot/uploads
+                }
+                else
+                {
+                    var vaultKey = _storageService.ExtractVaultKey(renewedImageUrl);
+                    if (!string.IsNullOrEmpty(vaultKey))
+                    {
+                        renewedImageUrl = _storageService.GetTemporaryViewUrl(vaultKey, 15);
+                    }
+                }
+            }
+
+            string? renewedReplyImageUrl = m.ReplyToMessage?.ImageUrl;
+            if (!string.IsNullOrEmpty(renewedReplyImageUrl))
+            {
+                if (!renewedReplyImageUrl.StartsWith("/uploads/") && !renewedReplyImageUrl.StartsWith("uploads/"))
+                {
+                    var replyVaultKey = _storageService.ExtractVaultKey(renewedReplyImageUrl);
+                    if (!string.IsNullOrEmpty(replyVaultKey))
+                    {
+                        renewedReplyImageUrl = _storageService.GetTemporaryViewUrl(replyVaultKey, 15);
+                    }
+                }
+            }
+
+            return new
             {
                 id = m.Id,
                 conversationId = m.ConversationId,
@@ -146,14 +189,14 @@ public class ChatController : ControllerBase
                 senderRole = m.SenderRole,
                 senderAvatar = m.Sender.Avatar,
                 content = m.Content,
-                imageUrl = m.ImageUrl,
+                imageUrl = renewedImageUrl,
                 replyTo = m.ReplyToMessage != null ? new
                 {
                     id = m.ReplyToMessage.Id,
-                    senderName = m.ReplyToMessage.Sender.Name,
+                    senderName = m.ReplyToMessage.Sender?.Name ?? "Người dùng",
                     senderRole = m.ReplyToMessage.SenderRole,
                     content = m.ReplyToMessage.IsRevoked ? "Tin nhắn đã được thu hồi" : m.ReplyToMessage.Content,
-                    imageUrl = m.ReplyToMessage.ImageUrl
+                    imageUrl = renewedReplyImageUrl
                 } : null,
                 reactions = m.Reactions
                     .GroupBy(r => r.Emoji)
@@ -168,8 +211,8 @@ public class ChatController : ControllerBase
                 isRevoked = m.IsRevoked,
                 isRead = m.IsRead,
                 createdAt = m.CreatedAt
-            })
-            .ToListAsync();
+            };
+        }).ToList();
 
         var isInternal = conv.Type == "INTERNAL_WORK";
         var peerUser = isInternal ? (conv.CustomerId == userId ? conv.Staff : conv.Customer) : null;

@@ -4,15 +4,20 @@ export const isImageFile = (fileNameOrUrl) => {
   return /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(cleanUrl);
 };
 
-export const getFileNameFromUrl = (url) => {
-  if (!url) return 'Tệp đính kèm';
-  const rawName = decodeURIComponent(url.split('?')[0].split('#')[0].split('/').pop() || '');
-  
-  // File mới dạng {GUID}_{Tên_gốc}.ext
-  const guidPrefixMatch = rawName.match(/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}_(.+)$/i);
-  if (guidPrefixMatch) return guidPrefixMatch[1];
+export const getFileNameFromUrl = (urlOrKey) => {
+  if (!urlOrKey) return 'Tệp đính kèm';
+  const cleanStr = decodeURIComponent(urlOrKey.split('?')[0].split('#')[0]);
+  const rawName = cleanStr.split('/').pop() || '';
 
-  // File dạng tiền tố hex ngắn {8_char}_{Tên_gốc}.ext
+  // Khớp quy chuẩn: 1001-loithanhtoan(2).png -> loithanhtoan(2).png
+  const userFileMatch = rawName.match(/^\d{4}-(.+)$/);
+  if (userFileMatch) return userFileMatch[1];
+
+  // Khớp GUID cũ dạng {GUID}_{Tên_gốc}.ext
+  const guidMatch = rawName.match(/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}_(.+)$/i);
+  if (guidMatch) return guidMatch[1];
+
+  // Khớp tiền tố hex ngắn {8_char}_{Tên_gốc}.ext
   const shortHexMatch = rawName.match(/^[a-f0-9]{8}_(.+)$/i);
   if (shortHexMatch) return shortHexMatch[1];
 

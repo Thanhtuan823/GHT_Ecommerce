@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using GhtBackend.Data;
 using GhtBackend.Models;
 using System.Security.Claims;
+using GhtBackend.Services;
 
 namespace GhtBackend.Hubs;
 
@@ -11,10 +12,12 @@ namespace GhtBackend.Hubs;
 public class ChatHub : Hub
 {
     private readonly AppDbContext _context;
+    private readonly CloudStorageService _storageService;
 
-    public ChatHub(AppDbContext context)
+    public ChatHub(AppDbContext context, CloudStorageService storageService)
     {
         _context = context;
+        _storageService = storageService;
     }
 
     private int GetUserId() => int.Parse(Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
@@ -127,13 +130,29 @@ public class ChatHub : Hub
 
         var senderRole = conv.Type == "INTERNAL_WORK" ? user.Role : (userRole == "Admin" ? "Staff" : userRole);
 
+        var vaultKey = _storageService.ExtractVaultKey(imageUrl);
+        var storedImageUrl = !string.IsNullOrEmpty(vaultKey) ? vaultKey : imageUrl?.Trim();
+        var broadcastImageUrl = !string.IsNullOrEmpty(vaultKey) 
+            ? _storageService.GetTemporaryViewUrl(vaultKey, 15) 
+            : imageUrl?.Trim();
+
+        string? replyBroadcastImageUrl = replyMsg?.ImageUrl;
+        if (!string.IsNullOrEmpty(replyBroadcastImageUrl) && !replyBroadcastImageUrl.StartsWith("/uploads/"))
+        {
+            var rVaultKey = _storageService.ExtractVaultKey(replyBroadcastImageUrl);
+            if (!string.IsNullOrEmpty(rVaultKey))
+            {
+                replyBroadcastImageUrl = _storageService.GetTemporaryViewUrl(rVaultKey, 15);
+            }
+        }
+
         var message = new ChatMessage
         {
             ConversationId = conversationId,
             SenderId = userId,
             SenderRole = senderRole,
             Content = content?.Trim() ?? string.Empty,
-            ImageUrl = imageUrl?.Trim(),
+            ImageUrl = storedImageUrl,
             ReplyToMessageId = replyMsg?.Id,
             IsEdited = false,
             IsRevoked = false,
@@ -174,14 +193,14 @@ public class ChatHub : Hub
                 senderRole = message.SenderRole,
                 senderAvatar = user.Avatar,
                 content = message.Content,
-                imageUrl = message.ImageUrl,
+                imageUrl = broadcastImageUrl,
                 replyTo = replyMsg != null ? new
                 {
                     id = replyMsg.Id,
                     senderName = replyMsg.Sender.Name,
                     senderRole = replyMsg.SenderRole,
                     content = replyMsg.IsRevoked ? "Tin nhắn đã được thu hồi" : replyMsg.Content,
-                    imageUrl = replyMsg.ImageUrl
+                    imageUrl = replyBroadcastImageUrl
                 } : null,
                 reactions = new object[] { },
                 isEdited = false,
@@ -258,14 +277,14 @@ public class ChatHub : Hub
                 senderRole = message.SenderRole,
                 senderAvatar = user.Avatar,
                 content = message.Content,
-                imageUrl = message.ImageUrl,
+                imageUrl = broadcastImageUrl,
                 replyTo = replyMsg != null ? new
                 {
                     id = replyMsg.Id,
                     senderName = replyMsg.Sender.Name,
                     senderRole = replyMsg.SenderRole,
                     content = replyMsg.IsRevoked ? "Tin nhắn đã được thu hồi" : replyMsg.Content,
-                    imageUrl = replyMsg.ImageUrl
+                    imageUrl = replyBroadcastImageUrl
                 } : null,
                 reactions = new object[] { },
                 isEdited = false,

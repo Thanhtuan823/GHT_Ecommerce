@@ -299,7 +299,7 @@ const FloatingChatbot = () => {
       if (selectedImage) {
         const formData = new FormData();
         formData.append('file', selectedImage);
-        const upRes = await axiosClient.post('/upload', formData, {
+        const upRes = await axiosClient.post('/upload?type=vault', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
         uploadedUrl = upRes.data.url;
@@ -646,7 +646,7 @@ const FloatingChatbot = () => {
                               <span className="chat-file-meta">Tệp văn bản • Nhấn để tải về</span>
                             </div>
                             <a
-                              href={msg.imageUrl}
+                              href={msg.imageUrl?.startsWith('http') ? msg.imageUrl : `http://localhost:5000${msg.imageUrl}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               download={getFileNameFromUrl(msg.imageUrl)}
@@ -670,7 +670,7 @@ const FloatingChatbot = () => {
                                 {msg.content && <p className="cust-msg-text">{msg.content}</p>}
                                 {msg.imageUrl && isImageFile(msg.imageUrl) && (
                                   <img
-                                    src={msg.imageUrl}
+                                    src={msg.imageUrl?.startsWith('http') ? msg.imageUrl : `http://localhost:5000${msg.imageUrl}`}
                                     alt="Đính kèm"
                                     className="cust-msg-img"
                                     onClick={() => setLightboxImg(msg.imageUrl)}
@@ -928,7 +928,11 @@ const FloatingChatbot = () => {
       {lightboxImg && (
         <div className="chatbot-lightbox-overlay" onClick={() => setLightboxImg(null)}>
           <div className="chatbot-lightbox-content" onClick={(e) => e.stopPropagation()}>
-            <img src={lightboxImg} alt="Phóng to" className="chatbot-lightbox-img" />
+            <img
+              src={lightboxImg?.startsWith('http') ? lightboxImg : `http://localhost:5000${lightboxImg}`}
+              alt="Phóng to"
+              className="chatbot-lightbox-img"
+            />
             <button
               type="button"
               className="chatbot-lightbox-close"

@@ -401,7 +401,7 @@ export default function StaffChat() {
       if (selectedImage) {
         const formData = new FormData();
         formData.append('file', selectedImage);
-        const res = await axiosClient.post('/upload', formData, {
+        const res = await axiosClient.post('/upload?type=vault', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
         uploadedImageUrl = res.data?.url;
@@ -1107,7 +1107,7 @@ export default function StaffChat() {
                         style={{ width: '36px', height: '36px', borderRadius: '4px', objectFit: 'cover' }}
                       />
                     ) : (
-                      <div style={{ 
+                      <div style={{
                         width: '36px', height: '36px', background: '#f1f5f9', borderRadius: '4px',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb'
                       }}>

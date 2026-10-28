@@ -56,6 +56,7 @@ builder.Services.AddScoped<AdminService>();
 builder.Services.AddScoped<AiService>();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<EmailService>();
+builder.Services.AddSingleton<CloudStorageService>();
 builder.Services.AddTransient<OrderBackgroundService>();
 builder.Services.AddTransient<ReportBackgroundService>();
 builder.Services.AddHttpClient();

@@ -114,7 +114,7 @@ export default function AdminProducts() {
 
     setIsUploading(true);
     try {
-      const res = await axiosClient.post('/upload', formDataUpload, {
+      const res = await axiosClient.post('/upload?type=product', formDataUpload, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       const imgUrl = res.data?.url?.startsWith('http')

@@ -106,7 +106,9 @@ public class ShippingController : ControllerBase
     public async Task<IActionResult> CreateGhnOrder(int orderId)
     {
         var order = await _context.Orders
-            .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
+            .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.Product)
+                    .ThenInclude(p => p.Category)
             .Include(o => o.User)
             .FirstOrDefaultAsync(o => o.Id == orderId);
 
@@ -162,15 +164,43 @@ public class ShippingController : ControllerBase
         var token = _config["GHN:Token"];
         var shopId = _config["GHN:ShopId"];
 
-        var ghnItems = (order.OrderItems ?? new List<Models.OrderItem>()).Select(item => new
+        static (int weight, int length, int width, int height, string catName) GetProductShippingSpecs(Models.Product? product)
         {
-            name = item.Product?.Name ?? $"Sản phẩm #{item.ProductId}",
-            quantity = item.Quantity,
-            price = item.Price,
-            length = 20,
-            width = 15,
-            height = 10,
-            weight = 500
+            var catName = product?.Category?.Name ?? "Thiết bị công nghệ";
+            var prodName = (product?.Name ?? "").ToLowerInvariant();
+
+            if (prodName.Contains("macbook") || prodName.Contains("laptop") || prodName.Contains("thinkpad") || 
+                prodName.Contains("gram") || prodName.Contains("spectre") || prodName.Contains("zephyrus") || prodName.Contains("dell"))
+            {
+                return (weight: 1800, length: 35, width: 25, height: 6, catName);
+            }
+            if (prodName.Contains("chuột") || prodName.Contains("mouse") || prodName.Contains("tai nghe") || 
+                prodName.Contains("headphone") || prodName.Contains("sạc") || prodName.Contains("cáp"))
+            {
+                return (weight: 250, length: 15, width: 10, height: 5, catName);
+            }
+            if (prodName.Contains("bàn phím") || prodName.Contains("keyboard"))
+            {
+                return (weight: 800, length: 45, width: 15, height: 5, catName);
+            }
+            return (weight: 500, length: 20, width: 15, height: 10, catName);
+        }
+
+        var ghnItems = (order.OrderItems ?? new List<Models.OrderItem>()).Select(item =>
+        {
+            var (w, l, wid, h, catName) = GetProductShippingSpecs(item.Product);
+            return new
+            {
+                name = item.Product?.Name ?? $"Sản phẩm #{item.ProductId}",
+                code = item.Product?.Slug ?? $"SP{item.ProductId}",
+                quantity = item.Quantity,
+                price = item.Price,
+                length = l,
+                width = wid,
+                height = h,
+                weight = w,
+                category = new { level1 = catName }
+            };
         }).ToList();
 
         if (ghnItems.Count == 0)
@@ -178,31 +208,47 @@ public class ShippingController : ControllerBase
             ghnItems.Add(new
             {
                 name = $"Đơn hàng GHT#{order.Id}",
+                code = $"DH{order.Id}",
                 quantity = 1,
                 price = order.TotalPrice,
                 length = 20,
                 width = 15,
                 height = 10,
-                weight = 1000
+                weight = 500,
+                category = new { level1 = "Thiết bị công nghệ" }
             });
         }
+
+        // Tính tổng trọng lượng thực tế (tối thiểu 200g)
+        int totalPackageWeight = Math.Max(200, ghnItems.Sum(x => x.weight * x.quantity));
+
+        // Chuỗi nội dung chi tiết in trên tem vận đơn
+        string packageContent = string.Join(", ", (order.OrderItems ?? new List<Models.OrderItem>())
+            .Select(oi => $"{oi.Product?.Name ?? $"SP#{oi.ProductId}"} (x{oi.Quantity})"));
+        if (string.IsNullOrWhiteSpace(packageContent)) packageContent = $"GHT Ecommerce Đơn #{order.Id}";
+        if (packageContent.Length > 200) packageContent = packageContent.Substring(0, 197) + "...";
+
+        // Khai giá bảo hiểm kiện hàng (tối đa 5.000.000đ cho gói phổ thông của GHN)
+        int insuranceValue = Math.Min(order.TotalPrice, 5000000);
 
         string payloadJson = JsonSerializer.Serialize(new
         {
             payment_type_id = paymentTypeId,
             note = $"Đơn hàng GHT#{order.Id} - {(isCod ? "Thu tiền mặt COD" : "Đã thanh toán Online")}",
             required_note = "CHOXEMHANGKHONGTHU",
+            client_order_code = $"DH{order.Id}",
             to_name = toName,
             to_phone = toPhone,
             to_address = toAddress,
             to_ward_code = toWardCode,
             to_district_id = toDistrictId,
             cod_amount = codAmount,
-            content = $"GHT Ecommerce Đơn #{order.Id}",
-            weight = 1000,
+            content = packageContent,
+            weight = totalPackageWeight,
             length = 30,
-            width = 20,
+            width = 25,
             height = 10,
+            insurance_value = insuranceValue,
             service_type_id = 2,
             service_id = 0,
             items = ghnItems
@@ -220,6 +266,8 @@ public class ShippingController : ControllerBase
 
             var createRes = await _httpClient.SendAsync(createReqMsg);
             var createResContent = await createRes.Content.ReadAsStringAsync();
+            Console.WriteLine($"[GHN Create Order Payload]: {payloadJson}");
+            Console.WriteLine($"[GHN Create Order Response]: Status={(int)createRes.StatusCode}, Body={createResContent}");
 
             if (createRes.IsSuccessStatusCode)
             {

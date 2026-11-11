@@ -26,6 +26,7 @@ public class ProductsController : ControllerBase
         [FromQuery] string? search,
         [FromQuery] int? category,
         [FromQuery] string? brand,
+        [FromQuery] string? tag,
         [FromQuery] int? minPrice,
         [FromQuery] int? maxPrice,
         [FromQuery] string? sort,
@@ -40,7 +41,12 @@ public class ProductsController : ControllerBase
         if (!string.IsNullOrEmpty(search))
         {
             var searchPattern = $"%{search}%";
-            query = query.Where(p => EF.Functions.ILike(p.Name, searchPattern));
+            query = query.Where(p => EF.Functions.ILike(p.Name, searchPattern) || p.Tags.Any(t => EF.Functions.ILike(t, searchPattern)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(tag))
+        {
+            query = query.Where(p => p.Tags.Contains(tag.Trim().ToLower()));
         }
 
         if (category.HasValue)
@@ -295,6 +301,12 @@ public class ProductsController : ControllerBase
         if (await _context.Products.AnyAsync(p => p.Slug == slug))
             return Conflict(new { message = "Sản phẩm với tên này (hoặc slug tương tự) đã tồn tại" });
 
+        var normalizedTags = (request.Tags ?? Array.Empty<string>())
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Select(t => t.Trim().ToLower())
+            .Distinct()
+            .ToArray();
+
         var product = new Product
         {
             Name = request.Name,
@@ -305,7 +317,7 @@ public class ProductsController : ControllerBase
             Brand = request.Brand,
             Images = request.Images ?? Array.Empty<string>(),
             Specs = request.Specs.HasValue ? JsonSerializer.Serialize(request.Specs.Value) : "{}",
-            Tags = request.Tags ?? Array.Empty<string>()
+            Tags = normalizedTags
         };
 
         _context.Products.Add(product);
@@ -328,6 +340,12 @@ public class ProductsController : ControllerBase
         if (newSlug != product.Slug && await _context.Products.AnyAsync(p => p.Slug == newSlug))
             return Conflict(new { message = "Sản phẩm với tên này đã tồn tại" });
 
+        var normalizedTags = (request.Tags ?? Array.Empty<string>())
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Select(t => t.Trim().ToLower())
+            .Distinct()
+            .ToArray();
+
         product.Name = request.Name;
         product.Slug = newSlug;
         product.Price = request.Price;
@@ -336,7 +354,7 @@ public class ProductsController : ControllerBase
         product.Brand = request.Brand;
         product.Images = request.Images ?? Array.Empty<string>();
         product.Specs = request.Specs.HasValue ? JsonSerializer.Serialize(request.Specs.Value) : "{}";
-        product.Tags = request.Tags ?? Array.Empty<string>();
+        product.Tags = normalizedTags;
         product.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();

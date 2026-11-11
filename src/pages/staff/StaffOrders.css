@@ -812,6 +812,7 @@
   max-width: 320px;
 }
 
+.staff-ai-action-btn,
 .staff-ai-action-link {
   color: var(--color-accent);
   font-weight: 600;
@@ -820,8 +821,15 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
 }
 
+.staff-ai-action-btn:hover,
 .staff-ai-action-link:hover {
   text-decoration: underline;
   color: var(--color-accent-hover);

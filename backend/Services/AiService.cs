@@ -272,7 +272,9 @@ QUY TẮC BẮT BUỘC:
 
                         if (!string.IsNullOrWhiteSpace(kw))
                         {
-                            query = query.Where(p => p.Name.ToLower().Contains(kw) || (p.Brand != null && p.Brand.ToLower().Contains(kw)));
+                            query = query.Where(p => p.Name.ToLower().Contains(kw)
+                                || (p.Brand != null && p.Brand.ToLower().Contains(kw))
+                                || p.Tags.Any(t => t.ToLower().Contains(kw)));
                         }
                         if (minPrice.HasValue && minPrice.Value > 0)
                         {
@@ -555,6 +557,66 @@ QUY TẮC BẮT BUỘC:
             }
 
             return tools;
+        }
+
+        public async Task<object> AuditProductsQualityAsync()
+        {
+            var products = await _context.Products.AsNoTracking().ToListAsync();
+            var issues = new List<object>();
+            int counter = 1;
+
+            foreach (var p in products)
+            {
+                // 1. Kiểm tra hình ảnh
+                if (p.Images == null || p.Images.Length == 0 || p.Images.All(string.IsNullOrWhiteSpace))
+                {
+                    issues.Add(new {
+                        id = counter++,
+                        productId = p.Id,
+                        productName = p.Name,
+                        issueType = "MISSING_IMAGES",
+                        detectedIssue = "Chưa có hình ảnh sản phẩm",
+                        level = "Nghiêm trọng",
+                        suggestion = "Bổ sung ít nhất 1 ảnh chất lượng cao lên Cloudflare R2 để khách hàng xem trước.",
+                        link = $"/admin/products?editId={p.Id}"
+                    });
+                }
+
+                // 2. Kiểm tra thông số kỹ thuật (Specs)
+                if (string.IsNullOrWhiteSpace(p.Specs) || p.Specs.Trim() == "{}" || p.Specs.Trim() == "null")
+                {
+                    issues.Add(new {
+                        id = counter++,
+                        productId = p.Id,
+                        productName = p.Name,
+                        issueType = "MISSING_SPECS",
+                        detectedIssue = "Chưa có thông số kỹ thuật (Specs)",
+                        level = "Cần bổ sung",
+                        suggestion = "Cập nhật CPU, RAM, Ổ cứng và Màn hình để hiển thị bảng so sánh chi tiết.",
+                        link = $"/admin/products?editId={p.Id}"
+                    });
+                }
+
+                // 3. Kiểm tra nhãn (Tags)
+                if (p.Tags == null || p.Tags.Length == 0)
+                {
+                    issues.Add(new {
+                        id = counter++,
+                        productId = p.Id,
+                        productName = p.Name,
+                        issueType = "MISSING_TAGS",
+                        detectedIssue = "Chưa gán nhãn nhu cầu (Tags)",
+                        level = "Khuyến nghị",
+                        suggestion = "Gán nhãn phù hợp (gaming, van-phong, do-hoa-ky-thuat...) để khách dễ dàng lọc.",
+                        link = $"/admin/products?editId={p.Id}"
+                    });
+                }
+            }
+
+            return new {
+                totalIssues = issues.Count,
+                data = issues
+            };
         }
     }
 }

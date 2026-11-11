@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
@@ -6,7 +6,18 @@ import { useWishlist } from '../../context/WishlistContext';
 import { useToast } from '../../components/common/ToastContext';
 import axiosClient from '../../utils/axiosClient';
 import ButtonSpinner from '../../components/common/ButtonSpinner';
+import { getTagLabel, getTagColor } from '../../utils/tagHelper';
 import './ProductDetail.css';
+
+const SPEC_LABEL_MAP = {
+  cpu: 'Bộ xử lý (CPU)',
+  ram: 'Bộ nhớ RAM',
+  storage: 'Ổ cứng lưu trữ',
+  screen: 'Màn hình',
+  gpu: 'Card đồ họa (GPU)',
+  weight: 'Trọng lượng & Pin',
+  battery: 'Thời lượng Pin'
+};
 
 const DEFAULT_SPECS_FALLBACK = [
   { label: 'Bộ xử lý (CPU)', value: 'Intel Core i5-1335U (10 nhân, 12 luồng, up to 4.6GHz)' },
@@ -138,10 +149,44 @@ const ProductDetail = () => {
     ? product.tags
     : ['Intel Core i5-1335U', 'RAM 16GB', 'SSD 512GB', '15.6" FHD 60Hz'];
 
+  // Specs parsing & normalization
+  const parsedSpecs = useMemo(() => {
+    if (!product.specs) return null;
+    let obj = product.specs;
+    if (typeof obj === 'string') {
+      try {
+        obj = JSON.parse(obj);
+      } catch (e) {
+        return null;
+      }
+    }
+    if (obj && typeof obj === 'object') {
+      const hasContent = Object.entries(obj).some(
+        ([, v]) => Boolean(v) && String(v).trim() !== ''
+      );
+      if (hasContent) return obj;
+    }
+    return null;
+  }, [product.specs]);
+
   // Specs table rows
-  const specsRows = product.specs && typeof product.specs === 'object' && Object.keys(product.specs).length > 0
-    ? Object.entries(product.specs).map(([label, value]) => ({ label, value: String(value) }))
-    : DEFAULT_SPECS_FALLBACK;
+  const specsRows = useMemo(() => {
+    if (!parsedSpecs) return DEFAULT_SPECS_FALLBACK;
+
+    const rows = [];
+    for (const [key, val] of Object.entries(parsedSpecs)) {
+      if (key.toLowerCase() === 'description') continue;
+      if (!val || String(val).trim() === '') continue;
+      const label = SPEC_LABEL_MAP[key.toLowerCase()] || key;
+      rows.push({ label, value: String(val) });
+    }
+
+    return rows.length > 0 ? rows : DEFAULT_SPECS_FALLBACK;
+  }, [parsedSpecs]);
+
+  // Real product description
+  const productDescription = parsedSpecs?.description || product.description ||
+    'Laptop chính hãng trang bị vi xử lý thế hệ mới, tối ưu hiệu năng làm việc đa nhiệm và học tập mượt mà. Thời lượng pin dài, độ bền đạt tiêu chuẩn quân đội.';
 
   // Handlers
   const handleIncrease = () => {
@@ -303,16 +348,24 @@ const ProductDetail = () => {
           {/* Spec Tags */}
           <div className="product-spec-tags-list">
             {specTags.map((tag, idx) => (
-              <span key={idx} className="product-spec-tag-item">
-                {tag}
+              <span
+                key={idx}
+                className="product-spec-tag-item"
+                style={{
+                  borderColor: `${getTagColor(tag)}50`,
+                  color: getTagColor(tag),
+                  backgroundColor: `${getTagColor(tag)}10`,
+                  fontWeight: 600
+                }}
+              >
+                {getTagLabel(tag)}
               </span>
             ))}
           </div>
 
           {/* Mô tả ngắn */}
           <p className="product-short-desc">
-            {product.description ||
-              'Laptop chính hãng trang bị vi xử lý thế hệ mới, tối ưu hiệu năng làm việc đa nhiệm và học tập mượt mà. Thời lượng pin dài, độ bền đạt tiêu chuẩn quân đội.'}
+            {productDescription}
           </p>
 
           {/* Chọn biến thể: Màu sắc */}

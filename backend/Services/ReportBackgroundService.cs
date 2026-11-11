@@ -1,4 +1,7 @@
 using GhtBackend.Data;
+using GhtBackend.Models;
+using GhtBackend.Hubs;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
 
@@ -9,12 +12,18 @@ public class ReportBackgroundService
     private readonly AppDbContext _context;
     private readonly EmailService _emailService;
     private readonly ILogger<ReportBackgroundService> _logger;
+    private readonly IHubContext<ChatHub> _chatHub;
 
-    public ReportBackgroundService(AppDbContext context, EmailService emailService, ILogger<ReportBackgroundService> logger)
+    public ReportBackgroundService(
+        AppDbContext context,
+        EmailService emailService,
+        ILogger<ReportBackgroundService> logger,
+        IHubContext<ChatHub> chatHub)
     {
         _context = context;
         _emailService = emailService;
         _logger = logger;
+        _chatHub = chatHub;
     }
 
     public async Task GenerateDailyReport()
@@ -129,6 +138,51 @@ public class ReportBackgroundService
                 sb.Append("</ul>");
 
                 await _emailService.SendReportEmail($"Cảnh báo tồn kho", sb.ToString());
+
+                // Tạo record Notification trong DB cho Admin và Staff
+                var adminStaffUsers = await _context.Users
+                    .AsNoTracking()
+                    .Where(u => (u.Role == "Admin" || u.Role == "Staff") && u.IsActive)
+                    .ToListAsync();
+
+                var now = DateTime.UtcNow;
+                var notifs = new List<Notification>();
+
+                foreach (var p in products)
+                {
+                    foreach (var u in adminStaffUsers)
+                    {
+                        notifs.Add(new Notification
+                        {
+                            UserId = u.Id,
+                            Title = "Cảnh báo tồn kho",
+                            Message = $"Sản phẩm {p.Name} chỉ còn {p.InStock} sản phẩm",
+                            Type = "LOW_STOCK",
+                            TargetUrl = $"/admin/products?editId={p.Id}",
+                            Metadata = $"{{\"productId\": {p.Id}, \"inStock\": {p.InStock}}}",
+                            IsRead = false,
+                            CreatedAt = now
+                        });
+                    }
+                }
+
+                if (notifs.Any())
+                {
+                    _context.Notifications.AddRange(notifs);
+                    await _context.SaveChangesAsync();
+
+                    await _chatHub.Clients.Group("staff_channel").SendAsync("ReceiveNotification", new
+                    {
+                        id = notifs.FirstOrDefault()?.Id ?? 0,
+                        title = "Cảnh báo tồn kho",
+                        message = $"Có {products.Count} sản phẩm sắp hết hàng trong kho",
+                        type = "LOW_STOCK",
+                        targetUrl = products.Count == 1 ? notifs.First().TargetUrl : "/admin/products",
+                        metadata = products.Count == 1 ? notifs.First().Metadata : null,
+                        isRead = false,
+                        createdAt = now
+                    });
+                }
             }
         }
         catch (Exception ex)

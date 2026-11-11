@@ -22,55 +22,64 @@ public static class DbSeeder
                         Name = "MacBook Pro 16 Space Black", Slug = "macbook-pro-16-space-black", 
                         CategoryId = laptops.Id, Brand = "Apple", Price = 60000000, InStock = 10,
                         Images = new[] { $"{R2ProductCdn}/macbook-space-black.png" },
-                        Specs = "{\"CPU\": \"M3 Max\", \"RAM\": \"36GB\"}"
+                        Specs = "{\"CPU\": \"M3 Max\", \"RAM\": \"36GB\"}",
+                        Tags = new[] { "do-hoa-ky-thuat", "mong-nhe-cao-cap", "apple-silicon" }
                     },
                     new Product { 
                         Name = "MacBook Air M3 Silver", Slug = "macbook-air-m3-silver", 
                         CategoryId = laptops.Id, Brand = "Apple", Price = 27000000, InStock = 20,
                         Images = new[] { $"{R2ProductCdn}/macbook-silver.png" },
-                        Specs = "{}"
+                        Specs = "{}",
+                        Tags = new[] { "van-phong", "mong-nhe-cao-cap", "apple-silicon", "sinh-vien" }
                     },
                     new Product { 
                         Name = "Dell XPS 15 Silver", Slug = "dell-xps-15-silver", 
                         CategoryId = laptops.Id, Brand = "Dell", Price = 45000000, InStock = 15,
                         Images = new[] { $"{R2ProductCdn}/dell-xps-silver.png" },
-                        Specs = "{}"
+                        Specs = "{}",
+                        Tags = new[] { "do-hoa-ky-thuat", "mong-nhe-cao-cap" }
                     },
                     new Product { 
                         Name = "ROG Zephyrus G14 Eclipse Gray", Slug = "rog-zephyrus-g14-eclipse-gray", 
                         CategoryId = laptops.Id, Brand = "ASUS", Price = 42000000, InStock = 5,
                         Images = new[] { $"{R2ProductCdn}/rog-eclipse-gray.png" },
-                        Specs = "{}"
+                        Specs = "{}",
+                        Tags = new[] { "gaming", "do-hoa-ky-thuat" }
                     },
                     new Product { 
                         Name = "ROG Zephyrus G14 Moonlight White", Slug = "rog-zephyrus-g14-moonlight-white", 
                         CategoryId = laptops.Id, Brand = "ASUS", Price = 42000000, InStock = 8,
                         Images = new[] { $"{R2ProductCdn}/rog-moonlight-white.png" },
-                        Specs = "{}"
+                        Specs = "{}",
+                        Tags = new[] { "gaming", "do-hoa-ky-thuat" }
                     },
                     new Product { 
                         Name = "LG Gram 16 Black", Slug = "lg-gram-16-black", 
                         CategoryId = laptops.Id, Brand = "LG", Price = 32000000, InStock = 12,
                         Images = new[] { $"{R2ProductCdn}/lg-gram-black.png" },
-                        Specs = "{}"
+                        Specs = "{}",
+                        Tags = new[] { "van-phong", "mong-nhe-cao-cap", "sinh-vien" }
                     },
                     new Product { 
                         Name = "LG Gram 16 White", Slug = "lg-gram-16-white", 
                         CategoryId = laptops.Id, Brand = "LG", Price = 32000000, InStock = 10,
                         Images = new[] { $"{R2ProductCdn}/lg-gram-white.png" },
-                        Specs = "{}"
+                        Specs = "{}",
+                        Tags = new[] { "van-phong", "mong-nhe-cao-cap", "sinh-vien" }
                     },
                     new Product { 
                         Name = "HP Spectre x360 Black", Slug = "hp-spectre-x360-black", 
                         CategoryId = laptops.Id, Brand = "HP", Price = 40000000, InStock = 7,
                         Images = new[] { $"{R2ProductCdn}/spectre-black.png" },
-                        Specs = "{}"
+                        Specs = "{}",
+                        Tags = new[] { "van-phong", "mong-nhe-cao-cap", "2-in-1" }
                     },
                     new Product { 
                         Name = "Lenovo ThinkPad X1 Carbon Black", Slug = "lenovo-thinkpad-x1-carbon-black", 
                         CategoryId = laptops.Id, Brand = "Lenovo", Price = 48000000, InStock = 4,
                         Images = new[] { $"{R2ProductCdn}/thinkpad-black.png" },
-                        Specs = "{}"
+                        Specs = "{}",
+                        Tags = new[] { "van-phong", "mong-nhe-cao-cap" }
                     }
                 );
                 context.SaveChanges();
@@ -139,6 +148,19 @@ public static class DbSeeder
             if (p.ViewCount == 0)
             {
                 p.ViewCount = p.SoldCount * 8 + 45;
+                changed = true;
+            }
+
+            if (p.Tags == null || p.Tags.Length == 0)
+            {
+                if (p.Slug.Contains("master")) p.Tags = new[] { "van-phong", "do-hoa-ky-thuat" };
+                else if (p.Slug.Contains("macbook-air")) p.Tags = new[] { "van-phong", "mong-nhe-cao-cap", "apple-silicon", "sinh-vien" };
+                else if (p.Slug.Contains("macbook-pro")) p.Tags = new[] { "do-hoa-ky-thuat", "mong-nhe-cao-cap", "apple-silicon" };
+                else if (p.Slug.Contains("zephyrus")) p.Tags = new[] { "gaming", "do-hoa-ky-thuat" };
+                else if (p.Slug.Contains("thinkpad")) p.Tags = new[] { "van-phong", "mong-nhe-cao-cap" };
+                else if (p.Slug.Contains("xps")) p.Tags = new[] { "do-hoa-ky-thuat", "mong-nhe-cao-cap" };
+                else if (p.Slug.Contains("spectre")) p.Tags = new[] { "van-phong", "mong-nhe-cao-cap", "2-in-1" };
+                else if (p.Slug.Contains("gram")) p.Tags = new[] { "van-phong", "mong-nhe-cao-cap", "sinh-vien" };
                 changed = true;
             }
         }

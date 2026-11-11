@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useWishlist } from '../../context/WishlistContext';
 import { useToast } from '../common/ToastContext';
+import { PRODUCT_TAGS, getTagLabel, getTagColor } from '../../utils/tagHelper';
 import './ProductCard.css';
 
 const ProductCard = ({ product }) => {
@@ -44,6 +45,38 @@ const ProductCard = ({ product }) => {
     return null;
   };
 
+  // Determine primary usage tag badge
+  const renderTagBadge = () => {
+    if (!product.tags || !Array.isArray(product.tags) || product.tags.length === 0) return null;
+    const recognized = product.tags.find((t) => PRODUCT_TAGS.some((pt) => pt.id === t.toLowerCase().trim()));
+    const primaryTag = recognized || product.tags[0];
+    const color = getTagColor(primaryTag);
+    const label = getTagLabel(primaryTag);
+
+    return (
+      <span
+        className="product-card-tag-badge"
+        style={{
+          position: 'absolute',
+          bottom: '8px',
+          left: '8px',
+          backgroundColor: color,
+          color: '#ffffff',
+          fontSize: '10px',
+          fontWeight: 700,
+          padding: '2px 8px',
+          borderRadius: '4px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.25)',
+          zIndex: 2,
+          letterSpacing: '0.02em',
+          pointerEvents: 'none'
+        }}
+      >
+        {label}
+      </span>
+    );
+  };
+
   // Form specs string
   const getSpecsText = () => {
     if (product.specsLine) return product.specsLine;
@@ -78,6 +111,7 @@ const ProductCard = ({ product }) => {
       {/* Image Area (Height 160px, bg #F5F7FA) */}
       <div className="product-card-image-box">
         {renderBadge()}
+        {renderTagBadge()}
         <Link to={productUrl} className="product-card-image-link" tabIndex={-1}>
           <img
             src={imageUrl}

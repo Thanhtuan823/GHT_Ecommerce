@@ -5,6 +5,7 @@ import { useToast } from '../../components/common/ToastContext';
 import ProductCard from '../../components/product/ProductCard';
 import CouponRail from '../../components/home/CouponRail';
 import HomeFeaturedSections from '../../components/home/HomeFeaturedSections';
+import { PRODUCT_TAGS } from '../../utils/tagHelper';
 import './ProductList.css';
 
 const DEFAULT_CATEGORIES = [
@@ -25,7 +26,6 @@ const PRICE_RANGES = [
   { id: 'above25', label: 'Trên 25 triệu', min: 25000000, max: null }
 ];
 
-const USAGE_TAGS = ['Học tập - Văn phòng', 'Đồ họa - Kỹ thuật', 'Gaming', 'Mỏng nhẹ cao cấp'];
 const RAM_OPTIONS = ['8GB', '16GB', '32GB'];
 
 const PILL_FILTERS = [
@@ -43,7 +43,6 @@ const ProductList = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   // Local filter states
-  const [selectedUsage, setSelectedUsage] = useState([]);
   const [selectedRam, setSelectedRam] = useState([]);
   const [activePill, setActivePill] = useState('all');
 
@@ -52,6 +51,7 @@ const ProductList = () => {
   const search = searchParams.get('search') || '';
   const categoryParam = searchParams.get('category') || '';
   const brandParam = searchParams.get('brand') || '';
+  const tagParam = searchParams.get('tag') || '';
   const sortParam = searchParams.get('sort') || 'bestseller';
   const priceParam = searchParams.get('priceRange') || 'all';
 
@@ -79,6 +79,9 @@ const ProductList = () => {
 
         if (search) params.set('search', search);
         if (sortParam) params.set('sort', sortParam);
+
+        // Map tag
+        if (tagParam) params.set('tag', tagParam);
 
         // Map category
         if (categoryParam) {
@@ -111,7 +114,7 @@ const ProductList = () => {
     };
 
     fetchProducts();
-  }, [searchParams, dbCategories, page, search, categoryParam, brandParam, sortParam, priceParam]);
+  }, [searchParams, dbCategories, page, search, categoryParam, brandParam, tagParam, sortParam, priceParam]);
 
   // Update URL Query Params
   const updateParam = (key, value) => {
@@ -126,13 +129,12 @@ const ProductList = () => {
   };
 
   const handleResetFilters = () => {
-    setSelectedUsage([]);
     setSelectedRam([]);
     setActivePill('all');
     setSearchParams({});
   };
 
-  // Client-side refinement for RAM and usage tags if selected
+  // Client-side refinement for RAM if selected
   const displayedProducts = useMemo(() => {
     let result = products;
     if (selectedRam.length > 0) {
@@ -141,21 +143,8 @@ const ProductList = () => {
         return selectedRam.some((ram) => specStr.includes(ram));
       });
     }
-    if (selectedUsage.length > 0) {
-      result = result.filter((p) => {
-        const tags = Array.isArray(p.tags) ? p.tags.join(' ') : '';
-        const name = p.name || '';
-        return selectedUsage.some((usage) => tags.includes(usage) || name.includes(usage));
-      });
-    }
     return result;
-  }, [products, selectedRam, selectedUsage]);
-
-  const toggleUsage = (usage) => {
-    setSelectedUsage((prev) =>
-      prev.includes(usage) ? prev.filter((item) => item !== usage) : [...prev, usage]
-    );
-  };
+  }, [products, selectedRam]);
 
   const toggleRam = (ram) => {
     setSelectedRam((prev) =>
@@ -168,12 +157,12 @@ const ProductList = () => {
       search ||
       categoryParam ||
       brandParam ||
+      tagParam ||
       (priceParam && priceParam !== 'all') ||
       page > 1 ||
-      selectedUsage.length > 0 ||
       selectedRam.length > 0
     );
-  }, [search, categoryParam, brandParam, priceParam, page, selectedUsage, selectedRam]);
+  }, [search, categoryParam, brandParam, tagParam, priceParam, page, selectedRam]);
 
   return (
     <div className="product-list-page-wrapper">
@@ -287,14 +276,17 @@ const ProductList = () => {
               <div className="filter-group">
                 <h4 className="filter-group-title">Nhu cầu sử dụng</h4>
                 <div className="filter-options-list">
-                  {USAGE_TAGS.map((u) => (
-                    <label key={u} className="filter-checkbox-item">
+                  {PRODUCT_TAGS.map((t) => (
+                    <label key={t.id} className="filter-checkbox-item">
                       <input
                         type="checkbox"
-                        checked={selectedUsage.includes(u)}
-                        onChange={() => toggleUsage(u)}
+                        checked={tagParam === t.id}
+                        onChange={() => updateParam('tag', tagParam === t.id ? '' : t.id)}
                       />
-                      <span>{u}</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: t.color, flexShrink: 0 }}></span>
+                        {t.label}
+                      </span>
                     </label>
                   ))}
                 </div>

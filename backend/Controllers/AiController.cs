@@ -1,5 +1,6 @@
 using GhtBackend.DTOs.Ai;
 using GhtBackend.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -16,6 +17,14 @@ namespace GhtBackend.Controllers
         {
             _aiService = aiService;
             _logger = logger;
+        }
+
+        [HttpGet("product-audit")]
+        [Authorize(Roles = "Admin,Staff")]
+        public async Task<IActionResult> AuditProducts()
+        {
+            var result = await _aiService.AuditProductsQualityAsync();
+            return Ok(result);
         }
 
         [HttpPost("chat")]

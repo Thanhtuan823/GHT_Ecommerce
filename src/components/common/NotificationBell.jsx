@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axiosClient from '../../utils/axiosClient';
 import signalRService from '../../services/signalRService';
+import { useAuth } from '../../context/AuthContext';
 import './NotificationBell.css';
 
 const getNotificationIcon = (type) => {
@@ -42,8 +43,10 @@ const NotificationBell = () => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [filterTab, setFilterTab] = useState('ALL'); // 'ALL' | 'UNREAD'
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // Fetch initial notifications
   const fetchNotifications = useCallback(async () => {
@@ -99,24 +102,81 @@ const NotificationBell = () => {
 
   // Handle click on single notification
   const handleItemClick = async (notif) => {
+    // 1. Đóng popover
     setIsOpen(false);
 
+    // 2. Loại bỏ thông báo vừa nhấn ra khỏi danh sách hiển thị ngay lập tức & giảm unread badge
+    setNotifications((prev) => prev.filter((n) => n.id !== notif.id));
     if (!notif.isRead) {
-      // Optimistic update
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === notif.id ? { ...n, isRead: true } : n))
-      );
       setUnreadCount((prev) => Math.max(0, prev - 1));
-
-      try {
-        await axiosClient.put(`/notifications/${notif.id}/read`);
-      } catch (err) {
-        console.warn('Lỗi đánh dấu đã đọc:', err);
-      }
     }
 
-    if (notif.targetUrl) {
-      navigate(notif.targetUrl);
+    // 3. Gọi ngầm API cập nhật đã đọc (fire-and-forget)
+    axiosClient.put(`/notifications/${notif.id}/read`).catch((err) => {
+      console.warn('Lỗi đánh dấu đã đọc:', err);
+    });
+
+    // 4. Bóc tách productId từ metadata hoặc targetUrl
+    let targetUrl = notif.targetUrl || '/admin/products';
+    let productId = null;
+
+    if (notif.metadata) {
+      try {
+        const meta = typeof notif.metadata === 'string' ? JSON.parse(notif.metadata) : notif.metadata;
+        productId = meta?.productId;
+      } catch (e) {}
+    }
+
+    if (!productId && targetUrl.includes('editId=')) {
+      const match = targetUrl.match(/editId=(\d+)/);
+      if (match) productId = match[1];
+    }
+
+    // 5. Điều hướng hoặc kích hoạt mở Modal ngay tại trang hiện tại
+    if (notif.type === 'LOW_STOCK') {
+      if (productId) {
+        navigate(`/admin/products?editId=${productId}`);
+      } else {
+        navigate('/admin/products');
+      }
+      return;
+    }
+
+    // Parse orderId from metadata hoặc targetUrl
+    let orderId = null;
+    if (notif.metadata) {
+      try {
+        const meta = typeof notif.metadata === 'string' ? JSON.parse(notif.metadata) : notif.metadata;
+        orderId = meta?.orderId;
+      } catch {
+        orderId = null;
+      }
+    }
+    if (!orderId && targetUrl) {
+      const match = targetUrl.match(/\/orders\/(\d+)/);
+      if (match) orderId = match[1];
+    }
+
+    const isStaffOrAdmin = user?.role === 'Staff' || user?.role === 'Admin';
+
+    if (notif.type === 'ORDER_PLACED' || notif.type === 'ORDER_STATUS' || notif.type === 'PAYMENT_SUCCESS') {
+      if (isStaffOrAdmin) {
+        if (orderId) {
+          navigate(`/staff/orders?highlightOrder=${orderId}`);
+        } else {
+          navigate('/staff/orders');
+        }
+      } else {
+        if (orderId) {
+          navigate(`/orders/${orderId}`);
+        } else {
+          navigate(targetUrl || '/orders');
+        }
+      }
+    } else if (notif.type === 'CHAT_MESSAGE') {
+      navigate('/staff/chat');
+    } else if (targetUrl) {
+      navigate(targetUrl);
     }
   };
 
@@ -173,16 +233,52 @@ const NotificationBell = () => {
             )}
           </div>
 
+          {/* Bộ lọc tab: Tất cả / Chưa đọc */}
+          <div className="notif-tab-filter-bar" style={{ display: 'flex', gap: '8px', padding: '6px 16px', borderBottom: '1px solid var(--color-border)', backgroundColor: '#fafbfd' }}>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setFilterTab('ALL'); }}
+              style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                padding: '3px 10px',
+                borderRadius: '12px',
+                border: filterTab === 'ALL' ? '1px solid #3b82f6' : '1px solid var(--color-border)',
+                backgroundColor: filterTab === 'ALL' ? '#eff6ff' : '#ffffff',
+                color: filterTab === 'ALL' ? '#2563eb' : 'var(--color-text-secondary)',
+                cursor: 'pointer'
+              }}
+            >
+              Tất cả ({notifications.length})
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setFilterTab('UNREAD'); }}
+              style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                padding: '3px 10px',
+                borderRadius: '12px',
+                border: filterTab === 'UNREAD' ? '1px solid #3b82f6' : '1px solid var(--color-border)',
+                backgroundColor: filterTab === 'UNREAD' ? '#eff6ff' : '#ffffff',
+                color: filterTab === 'UNREAD' ? '#2563eb' : 'var(--color-text-secondary)',
+                cursor: 'pointer'
+              }}
+            >
+              Chưa đọc ({notifications.filter((n) => !n.isRead).length})
+            </button>
+          </div>
+
           <div className="notif-popover-list">
             {loading ? (
               <div className="notif-empty">Đang tải thông báo...</div>
-            ) : notifications.length === 0 ? (
+            ) : (filterTab === 'UNREAD' ? notifications.filter((n) => !n.isRead) : notifications).length === 0 ? (
               <div className="notif-empty">
                 <i className="ti ti-bell-off"></i>
-                <p>Hiện tại bạn không có thông báo nào</p>
+                <p>{filterTab === 'UNREAD' ? 'Không có thông báo chưa đọc' : 'Hiện tại bạn không có thông báo nào'}</p>
               </div>
             ) : (
-              notifications.map((notif) => {
+              (filterTab === 'UNREAD' ? notifications.filter((n) => !n.isRead) : notifications).map((notif) => {
                 const { icon, className } = getNotificationIcon(notif.type);
                 return (
                   <div

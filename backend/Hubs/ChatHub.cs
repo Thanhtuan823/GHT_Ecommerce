@@ -30,6 +30,7 @@ public class ChatHub : Hub
         if (role == "Staff" || role == "Admin")
         {
             await Groups.AddToGroupAsync(Context.ConnectionId, "staff_channel");
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"role_{role}");
         }
         if (userId > 0)
         {
@@ -239,6 +240,44 @@ public class ChatHub : Hub
             if (userRole == "Customer")
             {
                 conv.UnreadStaffCount += 1;
+
+                // Push in-app notification to all active Staff and Admin users
+                try
+                {
+                    var staffUsers = await _context.Users
+                        .AsNoTracking()
+                        .Where(u => (u.Role == "Admin" || u.Role == "Staff") && u.IsActive)
+                        .ToListAsync();
+
+                    var now = DateTime.UtcNow;
+                    var notifs = staffUsers.Select(s => new Notification
+                    {
+                        UserId = s.Id,
+                        Title = "Yêu cầu tư vấn mới",
+                        Message = $"Khách hàng {user.Name} đang chờ hỗ trợ",
+                        Type = "CHAT_MESSAGE",
+                        TargetUrl = "/staff/chat",
+                        Metadata = $"{{\"conversationId\": {conv.Id}, \"customerId\": {userId}}}",
+                        IsRead = false,
+                        CreatedAt = now
+                    }).ToList();
+
+                    _context.Notifications.AddRange(notifs);
+
+                    // Push realtime notification to staff & admin groups
+                    await Clients.Group("staff_channel").SendAsync("ReceiveNotification", new
+                    {
+                        id = notifs.FirstOrDefault()?.Id ?? 0,
+                        title = "Yêu cầu tư vấn mới",
+                        message = $"Khách hàng {user.Name} đang chờ hỗ trợ",
+                        type = "CHAT_MESSAGE",
+                        targetUrl = "/staff/chat",
+                        metadata = $"{{\"conversationId\": {conv.Id}, \"customerId\": {userId}}}",
+                        isRead = false,
+                        createdAt = now
+                    });
+                }
+                catch { }
             }
             else
             {

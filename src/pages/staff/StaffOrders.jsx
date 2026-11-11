@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import axiosClient from '../../utils/axiosClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../components/common/ToastContext';
+import ProductEditModal from '../../components/product/ProductEditModal';
 import './StaffOrders.css';
 
 // Default initial demo orders aligned with Figma Screen 8
@@ -94,49 +96,34 @@ const INITIAL_DEMO_ORDERS = [
   }
 ];
 
-// Demo data for AI Quality Inspection section
-const INITIAL_AI_INSPECTIONS = [
-  {
-    id: 1,
-    productName: 'iPhone 15 Pro Max 256GB Natural Titanium',
-    detectedIssue: 'Thiếu thông số RAM & Trọng lượng chi tiết',
-    level: 'Cần bổ sung',
-    suggestion: 'Bổ sung thông số kỹ thuật chi tiết để tăng tỷ lệ chốt đơn và tối ưu SEO tìm kiếm.',
-    link: '/admin/products'
-  },
-  {
-    id: 2,
-    productName: 'Bàn phím cơ Keychron Q1 Pro Wireless',
-    detectedIssue: 'Ảnh sản phẩm độ phân giải thấp (< 600px)',
-    level: 'Cần bổ sung',
-    suggestion: 'Thay thế ảnh chụp chất lượng cao, tỉ lệ 1:1 nền trắng để hiển thị sắc nét trên mobile.',
-    link: '/admin/products'
-  },
-  {
-    id: 3,
-    productName: 'Màn hình LG UltraFine 27MD5KL 5K IPS',
-    detectedIssue: 'Mô tả thiếu thông tin chính sách bảo hành chính hãng',
-    level: 'Cần bổ sung',
-    suggestion: 'Thêm cam kết bảo hành 24 tháng chính hãng tại LG Việt Nam để tăng độ tin cậy.',
-    link: '/admin/products'
-  }
-];
-
 export default function StaffOrders() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [orders, setOrders] = useState(INITIAL_DEMO_ORDERS);
   const [activeOrderId, setActiveOrderId] = useState(1031);
+
+  // Sync active order if URL has highlightOrder or orderId query param
+  const highlightParam = searchParams.get('highlightOrder') || searchParams.get('orderId');
+  useEffect(() => {
+    if (highlightParam) {
+      const targetId = parseInt(highlightParam, 10);
+      if (!isNaN(targetId)) {
+        setActiveOrderId(targetId);
+      }
+    }
+  }, [highlightParam]);
   const [loading, setLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [timeFilter, setTimeFilter] = useState('ALL');
   const [internalNotes, setInternalNotes] = useState({});
-  const [aiInspections, setAiInspections] = useState(INITIAL_AI_INSPECTIONS);
+  const [aiInspections, setAiInspections] = useState([]);
   const [isCheckingAi, setIsCheckingAi] = useState(false);
+  const [editingProductId, setEditingProductId] = useState(null);
   const [shippingOrderId, setShippingOrderId] = useState(null);
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState(null);
 
@@ -333,11 +320,11 @@ export default function StaffOrders() {
         prev.map((ord) =>
           ord.id === orderId
             ? {
-                ...ord,
-                status: 'SHIPPING',
-                trackingNumber: ghnTrackingNumber,
-                shippingProvider: `GHN • Mã vận đơn ${ghnTrackingNumber}`
-              }
+              ...ord,
+              status: 'SHIPPING',
+              trackingNumber: ghnTrackingNumber,
+              shippingProvider: `GHN • Mã vận đơn ${ghnTrackingNumber}`
+            }
             : ord
         )
       );
@@ -419,12 +406,26 @@ export default function StaffOrders() {
   };
 
   // AI Quality Inspection Run
-  const handleRunAiCheck = () => {
+  const fetchAiInspections = async () => {
     setIsCheckingAi(true);
-    setTimeout(() => {
+    try {
+      const res = await axiosClient.get('/ai/product-audit');
+      setAiInspections(res.data?.data || []);
+      showToast(`✦ Đã quét xong CSDL: Phát hiện ${res.data?.totalIssues || 0} điểm cần hoàn thiện!`, 'success');
+    } catch (err) {
+      console.error('Lỗi kiểm tra chất lượng AI:', err);
+      showToast('Không thể quét chất lượng sản phẩm bằng AI', 'error');
+    } finally {
       setIsCheckingAi(false);
-      showToast('✦ Đã hoàn tất kiểm tra chất lượng toàn bộ sản phẩm bằng AI!', 'success');
-    }, 1200);
+    }
+  };
+
+  useEffect(() => {
+    fetchAiInspections();
+  }, []);
+
+  const handleRunAiCheck = () => {
+    fetchAiInspections();
   };
 
   // Status text & badge class helpers
@@ -478,33 +479,6 @@ export default function StaffOrders() {
           <p className="staff-header-subtitle">
             Theo dõi, xử lý và giám sát vận chuyển đơn hàng theo thời gian thực
           </p>
-        </div>
-
-        <div className="staff-header-actions">
-          <div className="staff-identity-pill">
-            <span>{user?.name || 'Nhân viên Vận hành'}</span>
-            <span className="staff-badge-tag">Staff</span>
-          </div>
-
-          <button
-            type="button"
-            className="staff-notif-btn"
-            title="Thông báo vận hành"
-            onClick={() => showToast('Bạn có 3 đơn hàng mới đang chờ xác nhận.', 'info')}
-          >
-            <i className="ti ti-bell"></i>
-            <span className="staff-notif-dot" />
-          </button>
-
-          <button
-            type="button"
-            className={`staff-refresh-btn ${isRefreshing ? 'spinning' : ''}`}
-            onClick={handleRefresh}
-            title="Làm mới dữ liệu từ máy chủ"
-          >
-            <i className="ti ti-refresh staff-refresh-icon"></i>
-            <span>Làm mới dữ liệu</span>
-          </button>
         </div>
       </div>
 
@@ -964,26 +938,53 @@ export default function StaffOrders() {
               </tr>
             </thead>
             <tbody>
-              {aiInspections.map((item) => (
-                <tr key={item.id}>
-                  <td className="staff-ai-prod-name">{item.productName}</td>
-                  <td className="staff-ai-issue-text">{item.detectedIssue}</td>
-                  <td>
-                    <span className="staff-ai-badge-missing">{item.level}</span>
-                  </td>
-                  <td className="staff-ai-suggestion">{item.suggestion}</td>
-                  <td>
-                    <Link to={item.link} className="staff-ai-action-link">
-                      <span>Sửa sản phẩm</span>
-                      <span>→</span>
-                    </Link>
+              {aiInspections.length === 0 && !isCheckingAi ? (
+                <tr>
+                  <td colSpan="5" style={{ textAlign: 'center', padding: '2.5rem', color: '#16a34a' }}>
+                    <i className="ti ti-circle-check" style={{ marginRight: '8px', fontSize: '1.25rem', verticalAlign: 'middle' }}></i>
+                    <strong style={{ fontSize: '0.95rem' }}>Tất cả sản phẩm đạt chuẩn dữ liệu 100%!</strong>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                aiInspections.map((item) => (
+                  <tr key={item.id}>
+                    <td className="staff-ai-prod-name">{item.productName}</td>
+                    <td className="staff-ai-issue-text">{item.detectedIssue}</td>
+                    <td>
+                      <span className="staff-ai-badge-missing">{item.level}</span>
+                    </td>
+                    <td className="staff-ai-suggestion">{item.suggestion}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="staff-ai-action-btn"
+                        onClick={() => setEditingProductId(item.productId)}
+                        title="Mở form cập nhật trực tiếp không chuyển trang"
+                      >
+                        <span>Sửa sản phẩm</span>
+                        <span>→</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Modal Sửa sản phẩm trực tiếp tại trang StaffOrders */}
+      {editingProductId && (
+        <ProductEditModal
+          isOpen={Boolean(editingProductId)}
+          productId={editingProductId}
+          onClose={() => setEditingProductId(null)}
+          onSaveSuccess={() => {
+            setEditingProductId(null);
+            fetchAiInspections();
+          }}
+        />
+      )}
     </div>
   );
 }

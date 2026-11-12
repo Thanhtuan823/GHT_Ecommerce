@@ -23,6 +23,7 @@ const AdminLayout = () => {
   const breadcrumbText = useMemo(() => {
     const path = location.pathname;
     if (path.includes('/admin/dashboard')) return 'Dashboard Báo cáo & Thống kê';
+    if (path.includes('/admin/categories')) return 'Quản lý Danh mục sản phẩm';
     if (path.includes('/admin/products')) return 'Quản lý Sản phẩm';
     if (path.includes('/admin/discounts')) return 'Quản lý Mã giảm giá';
     if (path.includes('/admin/users')) return 'Quản lý Người dùng & Phân quyền';
@@ -91,6 +92,18 @@ const AdminLayout = () => {
             <i className="ti ti-package"></i>
             {!isCollapsed && <span>{isStaff ? 'Kho sản phẩm' : 'Sản phẩm'}</span>}
           </Link>
+
+          {/* Danh mục sản phẩm (Chỉ Admin) */}
+          {isAdmin && (
+            <Link
+              to="/admin/categories"
+              className={`admin-nav-item ${isActive('/admin/categories')}`}
+              title="Danh mục sản phẩm"
+            >
+              <i className="ti ti-category"></i>
+              {!isCollapsed && <span>Danh mục</span>}
+            </Link>
+          )}
 
           {/* Tư vấn trực tuyến (Admin và Staff) */}
           <Link

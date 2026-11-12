@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import axiosClient from '../../utils/axiosClient';
@@ -12,14 +12,113 @@ import './FloatingChatbot.css';
 
 const EMOJI_LIST = ['👍', '❤️', '😆', '😮', '😢', '😡'];
 
+function extractNumber(str, regex) {
+  if (!str) return null;
+  const match = String(str).match(regex);
+  if (!match) return null;
+  return parseFloat(match[1].replace(',', '.'));
+}
+
+function VisualCompareCard({ compareData }) {
+  if (!compareData?.product1 || !compareData?.product2) return null;
+  const p1 = compareData.product1;
+  const p2 = compareData.product2;
+
+  const formatVnd = (val) => `${Number(val || 0).toLocaleString('vi-VN')} đ`;
+
+  const priceWin1 = p1.price < p2.price;
+  const priceWin2 = p2.price < p1.price;
+
+  const weight1 = extractNumber(p1.weight, /(\d+(?:[.,]\d+)?)\s*kg/i);
+  const weight2 = extractNumber(p2.weight, /(\d+(?:[.,]\d+)?)\s*kg/i);
+  const weightWin1 = weight1 !== null && weight2 !== null && weight1 < weight2;
+  const weightWin2 = weight1 !== null && weight2 !== null && weight2 < weight1;
+
+  const bat1 = extractNumber(p1.battery || p1.weight, /(\d+(?:[.,]\d+)?)\s*(?:wh|giờ|h\b)/i);
+  const bat2 = extractNumber(p2.battery || p2.weight, /(\d+(?:[.,]\d+)?)\s*(?:wh|giờ|h\b)/i);
+  const batWin1 = bat1 !== null && bat2 !== null && bat1 > bat2;
+  const batWin2 = bat1 !== null && bat2 !== null && bat2 > bat1;
+
+  const ram1 = extractNumber(p1.ram, /(\d+)\s*gb/i);
+  const ram2 = extractNumber(p2.ram, /(\d+)\s*gb/i);
+  const ramWin1 = ram1 !== null && ram2 !== null && ram1 > ram2;
+  const ramWin2 = ram1 !== null && ram2 !== null && ram2 > ram1;
+
+  const rows = [
+    { label: 'CPU', v1: p1.cpu || '—', v2: p2.cpu || '—' },
+    { label: 'RAM', v1: p1.ram || '—', v2: p2.ram || '—', win1: ramWin1, win2: ramWin2 },
+    { label: 'Ổ cứng', v1: p1.storage || '—', v2: p2.storage || '—' },
+    { label: 'Màn hình', v1: p1.screen || '—', v2: p2.screen || '—' },
+    { label: 'GPU', v1: p1.gpu || '—', v2: p2.gpu || '—' },
+    { label: 'Trọng lượng', v1: p1.weight || '—', v2: p2.weight || '—', win1: weightWin1, win2: weightWin2 },
+    { label: 'Pin', v1: p1.battery || '—', v2: p2.battery || '—', win1: batWin1, win2: batWin2 }
+  ];
+
+  return (
+    <div className="visual-compare-card">
+      <div className="visual-compare-header">
+        <i className="ti ti-arrows-diff"></i> So sánh đối chiếu cấu hình
+      </div>
+
+      <div className="visual-compare-products">
+        <div className="visual-compare-col">
+          <span className="compare-badge-current">Đang xem</span>
+          <img src={p1.image || '/images/premium.png'} alt={p1.name} className="compare-prod-img" />
+          <div className="compare-prod-name" title={p1.name}>{p1.name}</div>
+          <div className={`compare-prod-price ${priceWin1 ? 'is-winner' : ''}`}>
+            {formatVnd(p1.price)}
+            {priceWin1 && <span className="win-tag">Rẻ hơn</span>}
+          </div>
+        </div>
+
+        <div className="visual-compare-col">
+          <span className="compare-badge-rival">Đối chiếu</span>
+          <img src={p2.image || '/images/premium.png'} alt={p2.name} className="compare-prod-img" />
+          <div className="compare-prod-name" title={p2.name}>{p2.name}</div>
+          <div className={`compare-prod-price ${priceWin2 ? 'is-winner' : ''}`}>
+            {formatVnd(p2.price)}
+            {priceWin2 && <span className="win-tag">Rẻ hơn</span>}
+          </div>
+          <a
+            href={`/products/${p2.slug || p2.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="compare-detail-link"
+          >
+            Xem chi tiết <i className="ti ti-external-link"></i>
+          </a>
+        </div>
+      </div>
+
+      <div className="visual-compare-specs">
+        {rows.map((r, i) => (
+          <div key={i} className="compare-spec-row">
+            <div className="compare-spec-label">{r.label}</div>
+            <div className="compare-spec-values">
+              <div className={`compare-spec-val ${r.win1 ? 'is-winner-spec' : ''}`}>
+                {r.v1}
+              </div>
+              <div className={`compare-spec-val ${r.win2 ? 'is-winner-spec' : ''}`}>
+                {r.v2}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const FloatingChatbot = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { addToCart } = useCart();
   const { user } = useAuth();
   const toast = useToast();
 
   const [isOpen, setIsOpen] = useState(false);
   const [showPromptBubble, setShowPromptBubble] = useState(false);
+  const [activeProduct, setActiveProduct] = useState(null);
 
   // Mode: 'AI' or 'STAFF'
   const [chatMode, setChatMode] = useState('AI');
@@ -59,12 +158,20 @@ const FloatingChatbot = () => {
 
   // Extract product slug or Id if currently on a detail page (/products/:slug)
   const isProductDetailPage =
-    window.location.pathname.startsWith('/products/') &&
-    window.location.pathname !== '/products' &&
-    window.location.pathname !== '/products/';
-  const urlParam = isProductDetailPage ? window.location.pathname.split('/products/')[1]?.split('/')[0] : null;
-  const productId = urlParam && !isNaN(urlParam) ? parseInt(urlParam, 10) : null;
-  const productSlug = urlParam && isNaN(urlParam) ? urlParam : null;
+    location.pathname.startsWith('/products/') &&
+    location.pathname !== '/products' &&
+    location.pathname !== '/products/';
+  const urlParam = isProductDetailPage ? location.pathname.split('/products/')[1]?.split('/')[0] : null;
+  const urlProductId = urlParam && !isNaN(urlParam) ? parseInt(urlParam, 10) : null;
+  const urlProductSlug = urlParam && isNaN(urlParam) ? urlParam : null;
+
+  useEffect(() => {
+    if (!isProductDetailPage) {
+      setActiveProduct(null);
+    } else if (urlProductSlug && activeProduct?.slug && activeProduct.slug !== urlProductSlug) {
+      setActiveProduct(null);
+    }
+  }, [isProductDetailPage, urlProductSlug, activeProduct?.slug]);
 
   const scrollToBottom = () => {
     if (chatMode === 'AI') {
@@ -76,22 +183,46 @@ const FloatingChatbot = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isTyping, staffMessages, chatMode]);
+  }, [messages, isTyping, staffMessages, chatMode, isOpen]);
 
   useEffect(() => {
     const handleOpenChat = (e) => {
       setIsOpen(true);
-      if (e?.detail?.message) {
-        if (chatMode === 'AI') {
-          setInput(e.detail.message);
-        } else {
-          setStaffInput(e.detail.message);
-        }
+      setShowPromptBubble(false);
+      setChatMode('AI');
+
+      const detail = e?.detail || {};
+      if (detail.productId || detail.productSlug) {
+        const newActive = {
+          id: detail.productId || null,
+          slug: detail.productSlug || null,
+          name: detail.productName || 'sản phẩm này'
+        };
+        setActiveProduct(newActive);
+
+        const greetingText = `Chào bạn! Mình thấy bạn đang xem **${newActive.name}**. Bạn muốn so sánh sản phẩm này với dòng máy nào khác (ví dụ: tầm giá 30 triệu, MacBook Air, Dell XPS...), hay cần mình tư vấn thêm về cấu hình máy?`;
+        setMessages((prev) => {
+          const lastMsg = prev[prev.length - 1];
+          if (lastMsg?.role === 'ai' && lastMsg?.contextProductId === newActive.id && lastMsg?.isGreeting) {
+            return prev;
+          }
+          return [
+            ...prev,
+            {
+              role: 'ai',
+              content: greetingText,
+              contextProductId: newActive.id,
+              isGreeting: true
+            }
+          ];
+        });
+      } else if (detail.message) {
+        setInput(detail.message);
       }
     };
     window.addEventListener('open-ght-chatbot', handleOpenChat);
     return () => window.removeEventListener('open-ght-chatbot', handleOpenChat);
-  }, [chatMode]);
+  }, []);
 
   // Connect to Staff Live Chat session
   const initStaffChat = useCallback(async () => {
@@ -241,8 +372,8 @@ const FloatingChatbot = () => {
       const payload = {
         message: userMsg,
         currentUrl: window.location.href,
-        currentProductId: productId,
-        currentProductSlug: productSlug,
+        currentProductId: activeProduct?.id || urlProductId || null,
+        currentProductSlug: activeProduct?.slug || urlProductSlug || null,
         history: historyPayload
       };
 
@@ -252,7 +383,8 @@ const FloatingChatbot = () => {
         {
           role: 'ai',
           content: res.data.reply,
-          products: res.data.products || []
+          products: res.data.products || [],
+          compareData: res.data.compareData || null
         }
       ]);
     } catch (err) {
@@ -366,10 +498,12 @@ const FloatingChatbot = () => {
     return null; // Don't show floating customer chatbot for Admin/Staff
   }
 
+  const hasCompareCard = chatMode === 'AI' && messages.some((m) => !!m.compareData);
+
   return (
     <div className="floating-chatbot">
       {isOpen && (
-        <div className={`chatbot-window ${chatMode === 'STAFF' ? 'staff-mode-window' : ''}`}>
+        <div className={`chatbot-window ${chatMode === 'STAFF' ? 'staff-mode-window' : ''} ${hasCompareCard ? 'has-compare-window' : ''}`}>
           {/* Header */}
           <div className="chatbot-header">
             <div className="chatbot-header-title">
@@ -452,6 +586,7 @@ const FloatingChatbot = () => {
                     {msg.role === 'ai' ? (
                       <>
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                        {msg.compareData && <VisualCompareCard compareData={msg.compareData} />}
                         {msg.products && msg.products.length > 0 && (
                           <div className="chatbot-product-list">
                             {msg.products.map((prod) => (
@@ -550,6 +685,23 @@ const FloatingChatbot = () => {
                 )}
                 <div ref={messagesEndRef} />
               </div>
+
+              {/* Active Product Context Banner */}
+              {activeProduct && (
+                <div className="chatbot-active-context-bar">
+                  <span className="chatbot-context-text">
+                    <i className="ti ti-pin"></i> Đang hỏi về: <strong>{activeProduct.name}</strong>
+                  </span>
+                  <button
+                    type="button"
+                    className="chatbot-clear-context-btn"
+                    onClick={() => setActiveProduct(null)}
+                    title="Xóa ngữ cảnh sản phẩm"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
 
               {/* Input Form */}
               <form className="chatbot-input-form" onSubmit={handleSendAI}>

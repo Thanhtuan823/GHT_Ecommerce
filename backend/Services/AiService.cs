@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using GhtBackend.Data;
 using GhtBackend.DTOs.Ai;
+using GhtBackend.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace GhtBackend.Services
@@ -51,15 +52,33 @@ namespace GhtBackend.Services
                 }
             }
 
-            // 2. Xây dựng tin nhắn hiện tại kèm ngữ cảnh URL/Sản phẩm
-            var currentContextBuilder = new StringBuilder();
-            if (!string.IsNullOrEmpty(request.CurrentProductSlug))
+            // 2. Pre-fetch sản phẩm khách đang xem từ CSDL PostgreSQL & xây dựng ngữ cảnh
+            Product? currentProduct = null;
+            if (request.CurrentProductId.HasValue)
             {
-                currentContextBuilder.AppendLine($"[Ngữ cảnh trang: Khách đang xem sản phẩm có slug '{request.CurrentProductSlug}']");
+                currentProduct = await _context.Products.AsNoTracking()
+                    .Include(p => p.Category)
+                    .FirstOrDefaultAsync(p => p.Id == request.CurrentProductId.Value);
             }
-            else if (request.CurrentProductId.HasValue)
+            else if (!string.IsNullOrEmpty(request.CurrentProductSlug))
             {
-                currentContextBuilder.AppendLine($"[Ngữ cảnh trang: Khách đang xem sản phẩm có Id {request.CurrentProductId.Value}]");
+                currentProduct = await _context.Products.AsNoTracking()
+                    .Include(p => p.Category)
+                    .FirstOrDefaultAsync(p => p.Slug == request.CurrentProductSlug);
+            }
+
+            var currentContextBuilder = new StringBuilder();
+            if (currentProduct != null)
+            {
+                currentContextBuilder.AppendLine($"[NGỮ CẢNH TRANG CHI TIẾT SẢN PHẨM KHÁCH ĐANG XEM]:");
+                currentContextBuilder.AppendLine($"- ID: {currentProduct.Id} | Tên: {currentProduct.Name} | Hãng: {currentProduct.Brand}");
+                currentContextBuilder.AppendLine($"- Giá bán: {currentProduct.Price:N0} VNĐ | Tồn kho: {currentProduct.InStock}");
+                currentContextBuilder.AppendLine($"- Danh mục: {currentProduct.Category?.Name} | Tags: {string.Join(", ", currentProduct.Tags ?? Array.Empty<string>())}");
+                currentContextBuilder.AppendLine($"- Cấu hình Specs chi tiết: {currentProduct.Specs}");
+                currentContextBuilder.AppendLine($"HƯỚNG DẪN TƯ VẤN: Khách hàng đang trực tiếp nhìn vào sản phẩm này. Nếu khách hỏi đánh giá, tư vấn hoặc so sánh (ví dụ: 'với con máy tầm 30 triệu', 'so với MacBook Air'):");
+                currentContextBuilder.AppendLine($"1. Nếu khách đưa tiêu chí giá/nhu cầu mà chưa nêu tên cụ thể, hãy dùng tool searchProducts (không truyền từ 'máy' vào keyword, chỉ dùng minPrice/maxPrice hoặc hãng nếu có) để tìm máy đối thủ phù hợp.");
+                currentContextBuilder.AppendLine($"2. Sau khi có ID máy đối thủ (hoặc nếu khách nêu tên máy cụ thể, tìm ID của máy đó qua searchProducts), BẮT BUỘC gọi tool compareProducts(productId1: {currentProduct.Id}, productId2: <id_máy_đối_thủ>) để đóng gói dữ liệu so sánh trực quan (CompareData).");
+                currentContextBuilder.AppendLine($"3. Tóm tắt ưu/nhược điểm nổi bật và lời khuyên lựa chọn dễ hiểu cho khách.");
             }
             else if (!string.IsNullOrEmpty(request.CurrentUrl))
             {
@@ -93,10 +112,10 @@ namespace GhtBackend.Services
                             ["text"] = @"Bạn là Trợ lý tư vấn mua sắm công nghệ thông minh của hệ thống GHT E-Commerce (website bán Laptop, PC, Phụ kiện chính hãng).
 QUY TẮC BẮT BUỘC:
 1. Luôn tư vấn lịch sự, chuẩn xác, định dạng giá tiền bằng VNĐ (ví dụ: 42.000.000 đ).
-2. Khi khách hỏi tìm kiếm theo tầm giá, ngân sách (ví dụ: trên 30 triệu, dưới 20 triệu, khoảng 15-25 triệu), BẮT BUỘC gọi tool searchProducts với các tham số minPrice, maxPrice tương ứng.
-3. Khi so sánh các sản phẩm, hãy trình bày ngắn gọn bằng BẢNG MARKDOWN đối chiếu các tiêu chí: CPU, RAM, Màn hình, Trọng lượng, Giá bán, và ưu/nhược điểm từng máy.
+2. Khi khách hỏi tìm kiếm theo tầm giá, ngân sách (ví dụ: trên 30 triệu, dưới 20 triệu, tầm 30 triệu -> khoảng 25-35 triệu), BẮT BUỘC gọi tool searchProducts với các tham số minPrice, maxPrice tương ứng. Nếu khách không nêu tên hãng/dòng cụ thể, hãy ĐỂ TRỐNG keyword (không điền từ chung chung như 'máy' hay 'chiếc').
+3. Khi so sánh sản phẩm: BẮT BUỘC gọi tool compareProducts(productId1, productId2) để giao diện tự động hiển thị Thẻ So Sánh Trực Quan (Visual Compare Card). Trong câu trả lời text, hãy tập trung nêu nhận xét ưu/nhược điểm cốt lõi và khuyên người dùng nên chọn máy nào theo nhu cầu (không cần kẻ bảng Markdown lặp lại).
 4. VỀ VIỆC HIỂN THỊ THẺ SẢN PHẨM (CARDS):
-   - Chỉ gọi tool showProductCards khi khách hàng muốn xem chi tiết cụ thể, hỏi link mua, chốt mua hoặc khi bạn gợi ý chốt các sản phẩm thỏa mãn chính xác nhu cầu của khách.
+   - Chỉ gọi tool showProductCards khi khách hàng muốn xem danh sách gợi ý sản phẩm độc lập (không phải trong lúc đang render thẻ so sánh compareProducts), hỏi link mua hoặc chốt mua.
    - Tuyệt đối không gợi ý card sản phẩm không thỏa mãn điều kiện giá hoặc tiêu chí khách đã yêu cầu.
 5. Khi nhận được kết quả từ công cụ (functionResponse), hãy lập tức tổng hợp câu trả lời tự nhiên cho khách, không gọi lặp lại cùng một công cụ."
                         }
@@ -112,14 +131,12 @@ QUY TẮC BẮT BUỘC:
                 }
             };
 
-            var suggestedProducts = new List<ProductSummaryDto>();
-            var reply = await CallGeminiLoopAsync(requestBody, apiKey, allowedTools!, contents, suggestedProducts, userId);
+            var chatResult = new ChatResult();
+            var reply = await CallGeminiLoopAsync(requestBody, apiKey, allowedTools!, contents, chatResult, userId, currentProduct?.Id);
 
-            return new ChatResult
-            {
-                Reply = reply,
-                Products = suggestedProducts.DistinctBy(p => p.Id).ToList()
-            };
+            chatResult.Reply = reply;
+            chatResult.Products = chatResult.Products.DistinctBy(p => p.Id).ToList();
+            return chatResult;
         }
 
         private async Task<string> CallGeminiLoopAsync(
@@ -127,8 +144,9 @@ QUY TẮC BẮT BUỘC:
             string apiKey,
             List<string> allowedTools,
             JsonArray contentsHistory,
-            List<ProductSummaryDto> suggestedProducts,
-            int? userId)
+            ChatResult chatResult,
+            int? userId,
+            int? currentProductId)
         {
             int maxIterations = 6;
             for (int i = 0; i < maxIterations; i++)
@@ -193,7 +211,7 @@ QUY TẮC BẮT BUỘC:
                             continue;
                         }
 
-                        object functionResult = await ExecuteFunctionAsync(name, args, suggestedProducts, userId);
+                        object functionResult = await ExecuteFunctionAsync(name, args, chatResult, userId, currentProductId);
 
                         responseParts.Add(new JsonObject
                         {
@@ -232,7 +250,12 @@ QUY TẮC BẮT BUỘC:
             }
 
             // Fallback an toàn thay vì ném lỗi đệ quy
-            if (suggestedProducts.Count > 0)
+            if (chatResult.CompareData != null)
+            {
+                return "Dưới đây là bảng so sánh thông số kỹ thuật chi tiết giữa hai sản phẩm để bạn dễ dàng cân nhắc lựa chọn:";
+            }
+
+            if (chatResult.Products.Count > 0)
             {
                 return $"Dưới đây là các sản phẩm phù hợp nhất với yêu cầu của bạn tại GHT E-Commerce:";
             }
@@ -240,11 +263,62 @@ QUY TẮC BẮT BUỘC:
             return "Tôi đã ghi nhận thông tin yêu cầu của bạn. Bạn có muốn xem thêm chi tiết hoặc cần tư vấn sâu hơn về dòng máy nào không?";
         }
 
+        private static CompareProductItemDto MapToCompareItem(Product p)
+        {
+            string? cpu = null, ram = null, storage = null, screen = null, gpu = null, weight = null, battery = null;
+            if (!string.IsNullOrWhiteSpace(p.Specs))
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(p.Specs);
+                    if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                    {
+                        foreach (var prop in doc.RootElement.EnumerateObject())
+                        {
+                            var val = prop.Value.ToString();
+                            if (string.IsNullOrWhiteSpace(val)) continue;
+                            switch (prop.Name.ToLowerInvariant())
+                            {
+                                case "cpu": cpu = val; break;
+                                case "ram": ram = val; break;
+                                case "storage": storage = val; break;
+                                case "screen": screen = val; break;
+                                case "gpu": gpu = val; break;
+                                case "weight": weight = val; break;
+                                case "battery": battery = val; break;
+                            }
+                        }
+                    }
+                }
+                catch { /* ignore invalid json */ }
+            }
+
+            return new CompareProductItemDto
+            {
+                Id = p.Id,
+                Name = p.Name,
+                Slug = p.Slug,
+                Brand = p.Brand,
+                Price = p.Price,
+                OriginalPrice = p.OriginalPrice,
+                Image = (p.Images != null && p.Images.Length > 0) ? p.Images[0] : null,
+                InStock = p.InStock,
+                Cpu = cpu,
+                Ram = ram,
+                Storage = storage,
+                Screen = screen,
+                Gpu = gpu,
+                Weight = weight,
+                Battery = battery
+            };
+        }
+
         private async Task<object> ExecuteFunctionAsync(
             string name,
             JsonNode? args,
-            List<ProductSummaryDto> suggestedProducts,
-            int? userId)
+            ChatResult chatResult,
+            int? userId,
+            int? currentProductId)
         {
             try
             {
@@ -252,6 +326,9 @@ QUY TẮC BẮT BUỘC:
                 {
                     case "searchProducts":
                         var kw = args?["keyword"]?.ToString()?.Trim()?.ToLower() ?? "";
+                        var genericKeywords = new[] { "máy", "máy tính", "sản phẩm", "chiếc", "con máy", "thiết bị" };
+                        if (genericKeywords.Contains(kw)) kw = "";
+
                         int? minPrice = null;
                         if (args?["minPrice"] != null && double.TryParse(args["minPrice"]!.ToString(), out var minD))
                         {
@@ -268,12 +345,13 @@ QUY TẮC BẮT BUỘC:
                             limit = lVal;
                         }
 
-                        var query = _context.Products.AsQueryable();
+                        var query = _context.Products.AsNoTracking().Include(p => p.Category).AsQueryable();
 
                         if (!string.IsNullOrWhiteSpace(kw))
                         {
                             query = query.Where(p => p.Name.ToLower().Contains(kw)
                                 || (p.Brand != null && p.Brand.ToLower().Contains(kw))
+                                || (p.Category != null && p.Category.Name.ToLower().Contains(kw))
                                 || p.Tags.Any(t => t.ToLower().Contains(kw)));
                         }
                         if (minPrice.HasValue && minPrice.Value > 0)
@@ -330,7 +408,7 @@ QUY TẮC BẮT BUỘC:
 
                         foreach (var p in cardProducts)
                         {
-                            suggestedProducts.Add(new ProductSummaryDto
+                            chatResult.Products.Add(new ProductSummaryDto
                             {
                                 Id = p.Id,
                                 Name = p.Name,
@@ -350,27 +428,70 @@ QUY TẮC BẮT BUỘC:
                         var id2 = args?["productId2"] != null && int.TryParse(args["productId2"]!.ToString(), out var i2) ? i2 : (int?)null;
                         var kwComp = args?["keyword"]?.ToString()?.Trim()?.ToLower();
 
-                        var queryComp = _context.Products.AsQueryable();
+                        // Luôn ưu tiên Product1 là sản phẩm khách đang xem nếu có currentProductId
+                        if (currentProductId.HasValue)
+                        {
+                            if (id1.HasValue && !id2.HasValue && id1.Value != currentProductId.Value)
+                            {
+                                id2 = id1.Value;
+                                id1 = currentProductId.Value;
+                            }
+                            else if (id1.HasValue && id2.HasValue && id2.Value == currentProductId.Value && id1.Value != currentProductId.Value)
+                            {
+                                var temp = id1.Value;
+                                id1 = currentProductId.Value;
+                                id2 = temp;
+                            }
+                        }
+
+                        List<Product> compEntities = new();
                         if (id1.HasValue || id2.HasValue)
                         {
-                            queryComp = queryComp.Where(p => p.Id == id1 || p.Id == id2);
+                            var rawList = await _context.Products.AsNoTracking()
+                                .Where(p => p.Id == id1 || p.Id == id2)
+                                .ToListAsync();
+                            var prod1 = rawList.FirstOrDefault(p => p.Id == id1);
+                            var prod2 = rawList.FirstOrDefault(p => p.Id == id2);
+                            if (prod1 != null) compEntities.Add(prod1);
+                            if (prod2 != null && prod2.Id != prod1?.Id) compEntities.Add(prod2);
                         }
                         else if (!string.IsNullOrWhiteSpace(kwComp))
                         {
-                            queryComp = queryComp.Where(p => p.Name.ToLower().Contains(kwComp) || (p.Brand != null && p.Brand.ToLower().Contains(kwComp)));
+                            var matchedComp = await _context.Products.AsNoTracking()
+                                .Where(p => p.Name.ToLower().Contains(kwComp) || (p.Brand != null && p.Brand.ToLower().Contains(kwComp)))
+                                .Take(2)
+                                .ToListAsync();
+
+                            if (currentProductId.HasValue)
+                            {
+                                var currEnt = await _context.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == currentProductId.Value);
+                                if (currEnt != null) compEntities.Add(currEnt);
+                                var rival = matchedComp.FirstOrDefault(p => p.Id != currentProductId.Value);
+                                if (rival != null) compEntities.Add(rival);
+                            }
+                            else
+                            {
+                                compEntities = matchedComp;
+                            }
                         }
 
-                        var compared = await queryComp
-                            .Take(2)
-                            .Select(p => new {
-                                p.Id,
-                                p.Name,
-                                p.Brand,
-                                p.Price,
-                                Specs = p.Specs ?? "{}",
-                                p.InStock
-                            })
-                            .ToListAsync();
+                        if (compEntities.Count >= 2)
+                        {
+                            chatResult.CompareData = new CompareResultDto
+                            {
+                                Product1 = MapToCompareItem(compEntities[0]),
+                                Product2 = MapToCompareItem(compEntities[1])
+                            };
+                        }
+
+                        var compared = compEntities.Select(p => new {
+                            p.Id,
+                            p.Name,
+                            p.Brand,
+                            p.Price,
+                            Specs = p.Specs ?? "{}",
+                            p.InStock
+                        }).ToList();
 
                         return compared;
 

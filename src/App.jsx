@@ -13,6 +13,7 @@ import AdminProducts from './pages/admin/Products';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminDiscounts from './pages/admin/Discounts';
 import AdminUsers from './pages/admin/Users';
+import AdminCategories from './pages/admin/Categories';
 import Cart from './pages/cart/Cart';
 import Wishlist from './pages/wishlist/Wishlist';
 import Checkout from './pages/checkout/Checkout';
@@ -100,6 +101,7 @@ function App() {
                     <Route index element={<AdminIndexRedirect />} />
                     <Route path="dashboard" element={<AdminDashboard />} />
                     <Route path="products" element={<AdminProducts />} />
+                    <Route path="categories" element={<AdminCategories />} />
                     <Route path="discounts" element={<AdminDiscounts />} />
                     <Route path="users" element={<AdminUsers />} />
                     <Route path="chat" element={<StaffChat />} />

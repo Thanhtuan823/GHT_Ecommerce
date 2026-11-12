@@ -29,10 +29,32 @@ public class CategoriesController : ControllerBase
                 Id = c.Id,
                 Name = c.Name,
                 Slug = c.Slug,
-                Description = c.Description
+                Description = c.Description,
+                ProductCount = _context.Products.Count(p => p.CategoryId == c.Id)
             })
+            .OrderBy(c => c.Id)
             .ToListAsync();
         return Ok(categories);
+    }
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var category = await _context.Categories
+            .AsNoTracking()
+            .Where(c => c.Id == id)
+            .Select(c => new CategoryDto
+            {
+                Id = c.Id,
+                Name = c.Name,
+                Slug = c.Slug,
+                Description = c.Description,
+                ProductCount = _context.Products.Count(p => p.CategoryId == c.Id)
+            })
+            .FirstOrDefaultAsync();
+
+        if (category == null) return NotFound(new { message = "Danh mục không tồn tại" });
+        return Ok(category);
     }
 
     [HttpPost]
@@ -58,7 +80,8 @@ public class CategoriesController : ControllerBase
             Id = category.Id,
             Name = category.Name,
             Slug = category.Slug,
-            Description = category.Description
+            Description = category.Description,
+            ProductCount = 0
         });
     }
 
@@ -78,12 +101,16 @@ public class CategoriesController : ControllerBase
         category.Description = request.Description;
 
         await _context.SaveChangesAsync();
+
+        var productCount = await _context.Products.CountAsync(p => p.CategoryId == category.Id);
+
         return Ok(new CategoryDto
         {
             Id = category.Id,
             Name = category.Name,
             Slug = category.Slug,
-            Description = category.Description
+            Description = category.Description,
+            ProductCount = productCount
         });
     }
 

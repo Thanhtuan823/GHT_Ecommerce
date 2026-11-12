@@ -161,7 +161,8 @@
 .product-rating-stock-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 16px;
   margin-bottom: 12px;
 }
 
@@ -179,6 +180,15 @@
   font-size: 13px;
   color: var(--color-success);
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.product-stock-status::before {
+  content: '•';
+  color: #cbd5e1;
+  margin-right: 2px;
 }
 
 .product-stock-status.is-out {

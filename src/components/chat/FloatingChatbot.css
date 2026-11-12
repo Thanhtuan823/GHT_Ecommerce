@@ -1139,3 +1139,215 @@
   background: #2563eb;
   color: #ffffff;
 }
+
+/* Extended window width when Visual Compare Card is rendered */
+.chatbot-window.has-compare-window {
+  width: 480px;
+  height: 580px;
+  transition: width 0.25s ease, height 0.25s ease;
+}
+
+/* Active Product Context Bar above input */
+.chatbot-active-context-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 14px;
+  background-color: #eff6ff;
+  border-top: 1px solid #bfdbfe;
+  font-size: 12px;
+  color: #1e40af;
+}
+
+.chatbot-context-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chatbot-clear-context-btn {
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.chatbot-clear-context-btn:hover {
+  background-color: #dbeafe;
+  color: #1e3a8a;
+}
+
+/* Visual Compare Card (2-column side-by-side comparison) */
+.visual-compare-card {
+  margin-top: 10px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+  font-size: 12px;
+}
+
+.visual-compare-header {
+  background: linear-gradient(90deg, #eff6ff 0%, #f8fafc 100%);
+  padding: 8px 12px;
+  font-weight: 700;
+  color: #1e3a8a;
+  font-size: 12px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.visual-compare-products {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.visual-compare-col {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+}
+
+.visual-compare-col:first-child {
+  border-right: 1px solid #e2e8f0;
+  background-color: #fafbfd;
+}
+
+.compare-badge-current {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+.compare-badge-rival {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background-color: #f3e8ff;
+  color: #7c3aed;
+}
+
+.compare-prod-img {
+  width: 68px;
+  height: 52px;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.compare-prod-name {
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 12px;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.compare-prod-price {
+  font-weight: 700;
+  color: #334155;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.compare-prod-price.is-winner {
+  color: #059669;
+}
+
+.win-tag {
+  font-size: 10px;
+  background-color: #dcfce7;
+  color: #15803d;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.compare-detail-link {
+  margin-top: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: #2563eb;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background-color: #eff6ff;
+  transition: background 0.15s ease;
+}
+
+.compare-detail-link:hover {
+  background-color: #dbeafe;
+  text-decoration: none;
+}
+
+.visual-compare-specs {
+  display: flex;
+  flex-direction: column;
+}
+
+.compare-spec-row {
+  border-bottom: 1px solid #f1f5f9;
+  padding: 6px 10px;
+}
+
+.compare-spec-row:last-child {
+  border-bottom: none;
+}
+
+.compare-spec-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 4px;
+  letter-spacing: 0.03em;
+}
+
+.compare-spec-values {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.compare-spec-val {
+  font-size: 11px;
+  line-height: 1.35;
+  color: #334155;
+  padding: 3px 6px;
+  border-radius: 6px;
+  background-color: #f8fafc;
+}
+
+.compare-spec-val.is-winner-spec {
+  background-color: #ecfdf5;
+  color: #065f46;
+  font-weight: 600;
+  border: 1px solid #a7f3d0;
+}

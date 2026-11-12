@@ -78,6 +78,49 @@ const ProductDetail = () => {
     fetchProduct();
   }, [slug]);
 
+  const product = data?.product;
+
+  // 1. Parse specs an toàn
+  const parsedSpecs = useMemo(() => {
+    if (!product?.specs) return null;
+    let obj = product.specs;
+    if (typeof obj === 'string') {
+      try {
+        obj = JSON.parse(obj);
+      } catch (e) {
+        return null;
+      }
+    }
+    if (obj && typeof obj === 'object') {
+      const hasContent = Object.entries(obj).some(
+        ([, v]) => Boolean(v) && String(v).trim() !== ''
+      );
+      if (hasContent) return obj;
+    }
+    return null;
+  }, [product?.specs]);
+
+  // 2. Map hàng thông số kỹ thuật an toàn
+  const specsRows = useMemo(() => {
+    if (!parsedSpecs) return DEFAULT_SPECS_FALLBACK;
+
+    const rows = [];
+    for (const [key, val] of Object.entries(parsedSpecs)) {
+      if (key.toLowerCase() === 'description') continue;
+      if (!val || String(val).trim() === '') continue;
+      const label = SPEC_LABEL_MAP[key.toLowerCase()] || key.toUpperCase();
+      rows.push({ label, value: String(val) });
+    }
+
+    return rows.length > 0 ? rows : DEFAULT_SPECS_FALLBACK;
+  }, [parsedSpecs]);
+
+  // 3. Mô tả tóm tắt an toàn
+  const productDescription =
+    parsedSpecs?.description ||
+    product?.description ||
+    'Laptop chính hãng trang bị vi xử lý thế hệ mới, tối ưu hiệu năng làm việc đa nhiệm và học tập mượt mà. Thời lượng pin dài, độ bền đạt tiêu chuẩn quân đội.';
+
   if (isLoading) {
     return (
       <div className="product-detail-page">
@@ -105,7 +148,7 @@ const ProductDetail = () => {
     );
   }
 
-  if (error || !data?.product) {
+  if (error || !product) {
     return (
       <div className="product-detail-page">
         <div className="empty-state">
@@ -120,7 +163,7 @@ const ProductDetail = () => {
     );
   }
 
-  const { product, reviews = [] } = data;
+  const reviews = data?.reviews || [];
   const isWishlisted = wishlist?.some((w) => w.id === product.id) || false;
   const inStock = product.inStock ?? 24;
   const maxStock = Math.max(1, inStock);
@@ -148,45 +191,6 @@ const ProductDetail = () => {
   const specTags = product.tags && product.tags.length > 0
     ? product.tags
     : ['Intel Core i5-1335U', 'RAM 16GB', 'SSD 512GB', '15.6" FHD 60Hz'];
-
-  // Specs parsing & normalization
-  const parsedSpecs = useMemo(() => {
-    if (!product.specs) return null;
-    let obj = product.specs;
-    if (typeof obj === 'string') {
-      try {
-        obj = JSON.parse(obj);
-      } catch (e) {
-        return null;
-      }
-    }
-    if (obj && typeof obj === 'object') {
-      const hasContent = Object.entries(obj).some(
-        ([, v]) => Boolean(v) && String(v).trim() !== ''
-      );
-      if (hasContent) return obj;
-    }
-    return null;
-  }, [product.specs]);
-
-  // Specs table rows
-  const specsRows = useMemo(() => {
-    if (!parsedSpecs) return DEFAULT_SPECS_FALLBACK;
-
-    const rows = [];
-    for (const [key, val] of Object.entries(parsedSpecs)) {
-      if (key.toLowerCase() === 'description') continue;
-      if (!val || String(val).trim() === '') continue;
-      const label = SPEC_LABEL_MAP[key.toLowerCase()] || key;
-      rows.push({ label, value: String(val) });
-    }
-
-    return rows.length > 0 ? rows : DEFAULT_SPECS_FALLBACK;
-  }, [parsedSpecs]);
-
-  // Real product description
-  const productDescription = parsedSpecs?.description || product.description ||
-    'Laptop chính hãng trang bị vi xử lý thế hệ mới, tối ưu hiệu năng làm việc đa nhiệm và học tập mượt mà. Thời lượng pin dài, độ bền đạt tiêu chuẩn quân đội.';
 
   // Handlers
   const handleIncrease = () => {
@@ -634,9 +638,22 @@ const ProductDetail = () => {
                 Trợ lý GHT giúp so sánh và tư vấn thiết bị phù hợp nhất với nhu cầu của bạn.
               </div>
             </div>
-            <a href="#ai-assistant" className="btn-ghost ai-suggestion-btn">
+            <button
+              type="button"
+              className="btn-ghost ai-suggestion-btn"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('open-ght-chatbot', {
+                  detail: {
+                    productId: product.id,
+                    productSlug: product.slug,
+                    productName: product.name,
+                    message: `Tư vấn giúp mình về sản phẩm ${product.name} này với!`
+                  }
+                }));
+              }}
+            >
               Hỏi trợ lý
-            </a>
+            </button>
           </div>
         </div>
       </div>

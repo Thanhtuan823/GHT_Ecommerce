@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import axiosClient from '../../utils/axiosClient';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../common/ToastContext';
 import ButtonSpinner from '../common/ButtonSpinner';
 import { PRODUCT_TAGS, getTagLabel, getTagColor } from '../../utils/tagHelper';
 import '../../pages/admin/AdminProducts.css';
 
 export default function ProductEditModal({ isOpen, productId, onClose, onSaveSuccess }) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'Admin';
   const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -13,6 +16,38 @@ export default function ProductEditModal({ isOpen, productId, onClose, onSaveSuc
   const [categories, setCategories] = useState([]);
   const [error, setError] = useState('');
   const [customTagInput, setCustomTagInput] = useState('');
+
+  // Quick Category creation (Admin only)
+  const [showQuickCatModal, setShowQuickCatModal] = useState(false);
+  const [quickCatForm, setQuickCatForm] = useState({ name: '', description: '' });
+  const [isSavingQuickCat, setIsSavingQuickCat] = useState(false);
+  const [quickCatError, setQuickCatError] = useState('');
+
+  const handleCreateQuickCategory = async (e) => {
+    if (e) e.preventDefault();
+    if (!quickCatForm.name.trim()) {
+      setQuickCatError('Vui lòng nhập tên danh mục');
+      return;
+    }
+    setIsSavingQuickCat(true);
+    setQuickCatError('');
+    try {
+      const res = await axiosClient.post('/categories', {
+        name: quickCatForm.name.trim(),
+        description: quickCatForm.description.trim() || null
+      });
+      const newCat = res.data;
+      setCategories((prev) => [...prev, newCat]);
+      setFormData((prev) => ({ ...prev, categoryId: newCat.id }));
+      toast.success(`Đã tạo và chọn danh mục "${newCat.name}"!`);
+      setShowQuickCatModal(false);
+      setQuickCatForm({ name: '', description: '' });
+    } catch (err) {
+      setQuickCatError(err.response?.data?.message || 'Không thể tạo danh mục');
+    } finally {
+      setIsSavingQuickCat(false);
+    }
+  };
 
   const [formData, setFormData] = useState({
     id: null,
@@ -464,9 +499,36 @@ export default function ProductEditModal({ isOpen, productId, onClose, onSaveSuc
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
               <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
-                  Danh mục *
-                </label>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 600, margin: 0 }}>
+                    Danh mục *
+                  </label>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuickCatForm({ name: '', description: '' });
+                        setQuickCatError('');
+                        setShowQuickCatModal(true);
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#2563eb',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        padding: '0'
+                      }}
+                      title="Tạo nhanh danh mục mới"
+                    >
+                      <i className="ti ti-plus"></i> Thêm nhanh
+                    </button>
+                  )}
+                </div>
                 <select
                   className="input"
                   style={{ width: '100%', boxSizing: 'border-box' }}
@@ -856,6 +918,108 @@ export default function ProductEditModal({ isOpen, productId, onClose, onSaveSuc
           </form>
         )}
       </div>
+
+      {/* Quick Category Mini-Modal */}
+      {showQuickCatModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.6)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1100,
+            padding: '20px'
+          }}
+          onClick={() => !isSavingQuickCat && setShowQuickCatModal(false)}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '14px',
+              width: '100%',
+              maxWidth: '420px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15)',
+              overflow: 'hidden'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700 }}>
+                <i className="ti ti-folder-plus" style={{ color: '#2563eb', marginRight: '6px' }}></i>
+                Thêm nhanh danh mục mới
+              </h4>
+              <button
+                type="button"
+                onClick={() => !isSavingQuickCat && setShowQuickCatModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer', color: '#64748b' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateQuickCategory}>
+              <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {quickCatError && (
+                  <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', padding: '8px 12px', borderRadius: '6px', fontSize: '12px' }}>
+                    {quickCatError}
+                  </div>
+                )}
+                <div>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 600 }}>
+                    Tên danh mục <span style={{ color: '#dc2626' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="Ví dụ: Máy tính bảng, Loa Bluetooth..."
+                    value={quickCatForm.name}
+                    onChange={(e) => setQuickCatForm({ ...quickCatForm, name: e.target.value })}
+                    required
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 600 }}>
+                    Mô tả (tùy chọn)
+                  </label>
+                  <textarea
+                    className="input"
+                    rows={2}
+                    style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical' }}
+                    placeholder="Mô tả tóm tắt..."
+                    value={quickCatForm.description}
+                    onChange={(e) => setQuickCatForm({ ...quickCatForm, description: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div style={{ padding: '12px 18px', borderTop: '1px solid var(--color-border)', backgroundColor: '#fafbfd', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => setShowQuickCatModal(false)}
+                  disabled={isSavingQuickCat}
+                  style={{ fontSize: '13px', padding: '6px 14px' }}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={isSavingQuickCat}
+                  style={{ fontSize: '13px', padding: '6px 14px' }}
+                >
+                  {isSavingQuickCat ? <><ButtonSpinner /> Đang tạo...</> : 'Tạo và chọn'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

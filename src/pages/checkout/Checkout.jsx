@@ -76,14 +76,12 @@ const Checkout = () => {
 
   // Redirect if cart is empty or no items selected (only after cart is loaded)
   useEffect(() => {
-    if (isCartLoading) return;
+    if (isCartLoading || isSubmitting || createdOrder) return;
     if (!items || items.length === 0) {
-      if (!createdOrder) {
-        toast.warning('Không có sản phẩm nào được chọn để thanh toán.');
-        navigate('/cart');
-      }
+      toast.warning('Không có sản phẩm nào được chọn để thanh toán.');
+      navigate('/cart');
     }
-  }, [items, isCartLoading, navigate, createdOrder]);
+  }, [items, isCartLoading, isSubmitting, createdOrder, navigate]);
 
   // Auto apply voucher passed from Cart
   useEffect(() => {
@@ -340,8 +338,6 @@ const Checkout = () => {
       };
 
       const res = await axiosClient.post('/orders', payload);
-      await fetchCart();
-
       const newOrderId = res.data.orderId || res.data.order?.id;
       const newOrder = res.data.order || {
         id: newOrderId,
@@ -349,11 +345,13 @@ const Checkout = () => {
         paymentExpiredAt: res.data.paymentExpiredAt || new Date(Date.now() + 30 * 60 * 1000).toISOString()
       };
 
+      setCreatedOrder(newOrder);
+      fetchCart().catch(() => { });
+
       if (paymentMethod === 'cod') {
         toast.success(`Đặt hàng thành công! Đơn hàng COD #GHT${newOrderId} đang được xử lý đóng gói.`);
         navigate(`/orders/${newOrderId}`);
       } else {
-        setCreatedOrder(newOrder);
         setShowQrModal(true);
         toast.success(`Đặt hàng thành công! Mã đơn: #GHT${newOrderId}`);
       }
@@ -748,7 +746,7 @@ const Checkout = () => {
           ) : (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--color-text-secondary)' }}>Mã ưu đãi / Voucher</span>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--color-text-secondary)' }}>Mã ưu đãi</span>
                 <button
                   id="checkout-open-vouchers-btn"
                   type="button"

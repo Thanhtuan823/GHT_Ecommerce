@@ -272,110 +272,111 @@ const VouchersModal = () => {
               </p>
             </div>
           ) : (
-            currentList.map((v) => {
-              const { eligible, diff } = checkEligibility(v);
-              const expiring = isExpiringSoon(v.endDate);
-              const isFixed = v.discountType === 'FIXED';
+            <div className="vouchers-list-scroll">
+              {currentList.map((v) => {
+                const { eligible, diff } = checkEligibility(v);
+                const expiring = isExpiringSoon(v.endDate);
+                const isFixed = v.discountType === 'FIXED';
 
-              return (
-                <div
-                  key={v.id}
-                  className={`voucher-ticket-card ${!eligible ? 'is-disabled' : ''}`}
-                >
-                  {/* Cuống vé (Left Stub) */}
-                  <div className={`voucher-ticket-stub ${isFixed ? 'fixed-discount' : ''}`}>
-                    <div className="voucher-stub-icon">
-                      <i className={isFixed ? 'ti ti-cash' : 'ti ti-percentage'}></i>
-                    </div>
-                    <div className="voucher-stub-value">
-                      {isFixed ? formatPrice(v.discountValue) : `${v.discountValue}%`}
-                    </div>
-                    <div className="voucher-stub-type">
-                      {isFixed ? 'Giảm tiền' : 'Giảm giá'}
-                    </div>
-                  </div>
-
-                  {/* Vết cắt phân cách (Cut-out Notches) */}
-                  <div className="voucher-ticket-divider">
-                    <div className="voucher-notch-top"></div>
-                    <div className="voucher-notch-bottom"></div>
-                  </div>
-
-                  {/* Thân vé (Right Body) */}
-                  <div className="voucher-ticket-body">
-                    <div className="voucher-body-top">
-                      <div className="voucher-code-wrap">
-                        <span className="voucher-code-badge">{v.code}</span>
-                        {expiring && (
-                          <span className="voucher-status-pill warning">
-                            <i className="ti ti-clock"></i> Sắp hết hạn
-                          </span>
-                        )}
-                        {!expiring && (
-                          <span className="voucher-status-pill active">
-                            <i className="ti ti-circle-check"></i> Trong ví
-                          </span>
-                        )}
+                return (
+                  <div
+                    key={v.id}
+                    className={`voucher-ticket-card ${!eligible ? 'is-disabled' : ''}`}
+                  >
+                    {/* Cuống vé (Left Stub) */}
+                    <div className={`voucher-ticket-stub ${isFixed ? 'fixed-discount' : ''}`}>
+                      <div className="voucher-stub-icon">
+                        <i className={isFixed ? 'ti ti-cash' : 'ti ti-percentage'}></i>
+                      </div>
+                      <div className="voucher-stub-value">
+                        {isFixed ? formatPrice(v.discountValue) : `${v.discountValue}%`}
+                      </div>
+                      <div className="voucher-stub-type">
+                        {isFixed ? 'Giảm tiền' : 'Giảm giá'}
                       </div>
                     </div>
 
-                    <p className="voucher-desc-text">{v.description || `Mã ưu đãi ${v.code}`}</p>
+                    {/* Vết cắt phân cách (Cut-out Notches) */}
+                    <div className="voucher-ticket-divider">
+                      <div className="voucher-notch-top"></div>
+                      <div className="voucher-notch-bottom"></div>
+                    </div>
 
-                    <div className="voucher-condition-meta">
-                      <div className="voucher-condition-item">
-                        <i className="ti ti-info-circle"></i>
-                        <span>Đơn tối thiểu: <strong>{formatPrice(v.minOrderAmount)}</strong></span>
+                    {/* Thân vé (Right Body) */}
+                    <div className="voucher-ticket-body">
+                      <div className="voucher-body-top">
+                        <div className="voucher-code-wrap">
+                          <span className="voucher-code-badge">{v.code}</span>
+                          {expiring && (
+                            <span className="voucher-status-pill warning">
+                              <i className="ti ti-clock"></i> Sắp hết hạn
+                            </span>
+                          )}
+                          {!expiring && (
+                            <span className="voucher-status-pill active">
+                              <i className="ti ti-circle-check"></i> Trong ví
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      {v.maxDiscountAmount && (
+
+                      <p className="voucher-desc-text">{v.description || `Mã ưu đãi ${v.code}`}</p>
+
+                      <div className="voucher-condition-meta">
                         <div className="voucher-condition-item">
-                          <i className="ti ti-shield"></i>
-                          <span>Giảm tối đa: <strong>{formatPrice(v.maxDiscountAmount)}</strong></span>
+                          <i className="ti ti-info-circle"></i>
+                          <span>Đơn tối thiểu: <strong>{formatPrice(v.minOrderAmount)}</strong></span>
                         </div>
-                      )}
-                      {!eligible && diff > 0 && (
-                        <div className="voucher-condition-item warning">
-                          <i className="ti ti-alert-triangle"></i>
-                          <span>Cần mua thêm <strong>{formatPrice(diff)}</strong> để sử dụng mã này</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="voucher-body-bottom">
-                      <span className="voucher-expiry-text">
-                        Hạn dùng: {formatDate(v.endDate)}
-                      </span>
-
-                      <div className="voucher-actions-group">
-                        <button
-                          id={`copy-voucher-${v.code}`}
-                          type="button"
-                          className="voucher-btn-copy"
-                          onClick={() => handleCopyCode(v.code)}
-                          title="Sao chép mã vào bộ nhớ tạm"
-                        >
-                          <i className="ti ti-copy"></i>
-                          <span>Sao chép</span>
-                        </button>
-
-                        {/* If in checkout or onApply is present: button [Áp dụng ngay] */}
-                        {onApplyCode && (
-                          <button
-                            id={`apply-voucher-${v.code}`}
-                            type="button"
-                            className="voucher-btn-apply"
-                            disabled={!eligible}
-                            onClick={() => handleApply(v.code)}
-                          >
-                            <i className="ti ti-check"></i>
-                            <span>Áp dụng ngay</span>
-                          </button>
+                        {v.maxDiscountAmount && (
+                          <div className="voucher-condition-item">
+                            <i className="ti ti-shield"></i>
+                            <span>Giảm tối đa: <strong>{formatPrice(v.maxDiscountAmount)}</strong></span>
+                          </div>
                         )}
+                        {!eligible && diff > 0 && (
+                          <div className="voucher-condition-item warning">
+                            <i className="ti ti-alert-triangle"></i>
+                            <span>Cần mua thêm <strong>{formatPrice(diff)}</strong> để sử dụng mã này</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="voucher-body-bottom">
+                        <span className="voucher-expiry-text">
+                          Hạn dùng: {formatDate(v.endDate)}
+                        </span>
+                        <div className="voucher-actions-group">
+                          <button
+                            id={`copy-voucher-${v.code}`}
+                            type="button"
+                            className="voucher-btn-copy"
+                            onClick={() => handleCopyCode(v.code)}
+                            title="Sao chép mã vào bộ nhớ tạm"
+                          >
+                            <i className="ti ti-copy"></i>
+                            <span>Sao chép</span>
+                          </button>
+
+                          {/* If in checkout or onApply is present: button [Áp dụng ngay] */}
+                          {onApplyCode && (
+                            <button
+                              id={`apply-voucher-${v.code}`}
+                              type="button"
+                              className="voucher-btn-apply"
+                              disabled={!eligible}
+                              onClick={() => handleApply(v.code)}
+                            >
+                              <i className="ti ti-check"></i>
+                              <span>Áp dụng ngay</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })
+                );
+              })}
+            </div>
           )}
         </div>
       </div>

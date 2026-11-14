@@ -17,8 +17,13 @@
 }
 
 @keyframes v-fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes v-slideUp {
@@ -26,6 +31,7 @@
     opacity: 0;
     transform: translateY(16px) scale(0.98);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -184,6 +190,31 @@
   gap: 16px;
 }
 
+/* Scrollable Voucher Tickets List */
+.vouchers-list-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.vouchers-list-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.vouchers-list-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.vouchers-list-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 /* Manual Code Input Bar */
 .vouchers-manual-input-box {
   display: flex;
@@ -254,6 +285,9 @@
 .voucher-ticket-card {
   position: relative;
   display: flex;
+  height: auto;
+  min-height: 124px;
+  flex-shrink: 0;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
@@ -282,6 +316,8 @@
 /* Phần 1: Cuống vé (Left Stub) */
 .voucher-ticket-stub {
   width: 140px;
+  height: auto;
+  align-self: stretch;
   background: linear-gradient(145deg, #1e40af, #2563eb);
   color: #ffffff;
   padding: 16px 12px;
@@ -373,6 +409,7 @@
 /* Phần 3: Thân vé (Right Body) */
 .voucher-ticket-body {
   flex: 1;
+  height: auto;
   padding: 14px 18px;
   display: flex;
   flex-direction: column;
@@ -468,14 +505,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px dashed #f1f5f9;
-  padding-top: 8px;
-  margin-top: 2px;
   gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px dashed #f1f5f9;
 }
 
 .voucher-expiry-text {
-  font-size: 11.5px;
+  font-size: 11px;
   color: #94a3b8;
 }
 
@@ -491,7 +529,7 @@
   color: #334155;
   font-size: 12px;
   font-weight: 600;
-  padding: 5px 12px;
+  padding: 5px 12px 5px;
   border-radius: 6px;
   cursor: pointer;
   display: inline-flex;
@@ -561,12 +599,14 @@
   .voucher-ticket-card {
     flex-direction: column;
   }
+
   .voucher-ticket-stub {
     width: 100%;
     padding: 12px;
     flex-direction: row;
     justify-content: space-between;
   }
+
   .voucher-ticket-divider {
     display: none;
   }

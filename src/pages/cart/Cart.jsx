@@ -84,11 +84,11 @@ const Cart = () => {
       return;
     }
 
-    const finalVoucher = voucherCodeOverride || selectedVoucherCode;
+    const codeToApply = typeof voucherCodeOverride === 'string' ? voucherCodeOverride : selectedVoucherCode;
     navigate('/checkout', {
       state: {
         selectedProductIds,
-        voucherCode: finalVoucher || undefined
+        voucherCode: codeToApply || undefined
       }
     });
   };
@@ -303,16 +303,8 @@ const Cart = () => {
             Đã bao gồm VAT. Miễn phí giao hàng toàn quốc qua GHN cho đơn từ 5.000.000đ.
           </p>
 
-          <button
-            type="button"
-            className="btn-primary cart-checkout-btn"
-            onClick={handleCheckout}
-            disabled={selectedItems.length === 0}
-          >
-            Thanh toán ({selectedItems.length} sản phẩm)
-          </button>
-
-          <div className="cart-voucher-banner-btn-box" style={{ marginTop: '12px', marginBottom: '8px' }}>
+          {/* Khối Chọn mã ưu đãi  */}
+          <div className="cart-voucher-banner-btn-box" style={{ marginBottom: '12px' }}>
             <button
               id="cart-open-vouchers-btn"
               type="button"
@@ -335,19 +327,30 @@ const Cart = () => {
                   return;
                 }
                 openVouchersModal({
+                  isCheckout: true,
                   currentOrderAmount: totalPrice,
                   onApply: (selectedCode) => {
                     setSelectedVoucherCode(selectedCode);
-                    toast.success(`Đã chọn mã ${selectedCode}! Tiến hành thanh toán để áp dụng.`);
+                    toast.success(`Đã chọn mã ${selectedCode}! Đang chuyển đến trang thanh toán...`);
                     handleCheckout(selectedCode);
                   }
                 });
               }}
             >
               <i className="ti ti-ticket"></i>
-              <span>{selectedVoucherCode ? `Mã đã chọn: ${selectedVoucherCode}` : ' Chọn mã ưu đãi'}</span>
+              <span>{selectedVoucherCode ? `Mã đã chọn: ${selectedVoucherCode}` : 'Chọn mã ưu đãi'}</span>
             </button>
           </div>
+
+          <button
+            id="cart-proceed-checkout-btn"
+            type="button"
+            className="btn-primary cart-checkout-btn"
+            onClick={() => handleCheckout()}
+            disabled={selectedItems.length === 0}
+          >
+            Thanh toán ({selectedItems.length} sản phẩm)
+          </button>
 
           <p className="cart-discount-hint">
             Bạn có thể áp mã giảm giá ở bước này hoặc thanh toán.
@@ -393,6 +396,7 @@ const Cart = () => {
                   return;
                 }
                 openVouchersModal({
+                  isCheckout: true,
                   currentOrderAmount: totalPrice,
                   onApply: (code) => {
                     setSelectedVoucherCode(code);
@@ -407,7 +411,7 @@ const Cart = () => {
                 fontWeight: '600'
               }}
             >
-              <i className="ti ti-ticket"></i> 🎟️ {selectedVoucherCode ? `Mã: ${selectedVoucherCode}` : 'Chọn mã ưu đãi'}
+              <i className="ti ti-ticket"></i>  {selectedVoucherCode ? `Mã: ${selectedVoucherCode}` : 'Chọn mã ưu đãi'}
             </button>
             <button
               type="button"

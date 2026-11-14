@@ -12,7 +12,7 @@ const PaymentQrModal = ({ order, onClose }) => {
   const [bankInfo, setBankInfo] = useState({
     bankShortName: 'MB',
     bankFullName: 'Ngân hàng Quân Đội (MB Bank)',
-    accountNumber: '9999888868',
+    accountNumber: '0343741446',
     accountName: 'CUA HANG GHT E-COMMERCE',
     orderPrefix: 'DH'
   });

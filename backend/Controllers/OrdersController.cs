@@ -135,7 +135,7 @@ public class OrdersController : ControllerBase
         {
             bankShortName = sePaySec["BankShortName"] ?? "MB",
             bankFullName = sePaySec["BankFullName"] ?? "Ngân hàng Quân Đội (MB Bank)",
-            accountNumber = sePaySec["BankAccount"] ?? "9999888868",
+            accountNumber = sePaySec["BankAccount"] ?? "0343741446",
             accountName = sePaySec["AccountName"] ?? "CUA HANG GHT E-COMMERCE",
             orderPrefix = sePaySec["OrderPrefix"] ?? "DH"
         });

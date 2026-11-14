@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import axiosClient from '../../utils/axiosClient';
 import { useToast } from '../../components/common/ToastContext';
+import ExportExcelModal from '../../components/admin/ExportExcelModal';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -58,6 +59,7 @@ export default function AdminDashboard() {
   const [data, setData] = useState(DEFAULT_DEMO_DATA);
   const [isLoading, setIsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [activePill, setActivePill] = useState('ALL'); // 'TODAY' | '7DAYS' | '30DAYS' | 'MONTH' | 'CUSTOM' | 'ALL'
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -301,20 +303,15 @@ export default function AdminDashboard() {
         </div>
 
         <div className="dashboard-toolbar">
-          {/* Nút 1: Xuất Excel */}
+          {/* Nút 1: Xuất Excel (Mở Modal tùy chọn động) */}
           <button
             type="button"
             className="dashboard-btn-export"
-            onClick={handleExportExcel}
-            disabled={isExporting}
-            title="Xuất báo cáo Excel theo khoảng thời gian đang lọc"
+            onClick={() => setIsExportModalOpen(true)}
+            title="Tùy chọn khoảng thời gian và chọn các sheet báo cáo xuất Excel"
           >
-            {isExporting ? (
-              <span className="dashboard-spinner"></span>
-            ) : (
-              <i className="ti ti-file-spreadsheet"></i>
-            )}
-            <span>{isExporting ? 'Đang xuất...' : 'Xuất Excel'}</span>
+            <i className="ti ti-file-spreadsheet"></i>
+            <span>Xuất Excel</span>
           </button>
 
           {/* Nút 2: Dropdown bộ lọc thời gian */}
@@ -691,6 +688,13 @@ export default function AdminDashboard() {
           </table>
         </div>
       </div>
+
+      {/* Modal Tùy chọn xuất file Excel động */}
+      <ExportExcelModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        initialDateRange={dateRange}
+      />
     </div>
   );
 }

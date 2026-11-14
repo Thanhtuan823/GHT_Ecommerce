@@ -30,12 +30,22 @@ namespace GhtBackend.Controllers
         }
 
         [HttpGet("export-excel")]
-        [Authorize(Roles = "Admin,Staff")]
-        public async Task<IActionResult> ExportExcel([FromQuery] DateTime? from, [FromQuery] DateTime? to)
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ExportExcel(
+            [FromQuery] DateTime? from, 
+            [FromQuery] DateTime? to,
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate,
+            [FromQuery] string? sheets)
         {
-            var excelBytes = await _adminService.ExportExcelAsync(from, to);
+            var effectiveFrom = from ?? fromDate;
+            var effectiveTo = to ?? toDate;
+
+            var excelBytes = await _adminService.ExportExcelAsync(effectiveFrom, effectiveTo, sheets);
             
-            var fileName = $"GHT_Revenue_{(from.HasValue ? from.Value.ToString("yyyy-MM-dd") : "All")}_{(to.HasValue ? to.Value.ToString("yyyy-MM-dd") : "All")}.xlsx";
+            var fromStr = effectiveFrom.HasValue ? effectiveFrom.Value.ToString("yyyy-MM-dd") : "All";
+            var toStr = effectiveTo.HasValue ? effectiveTo.Value.ToString("yyyy-MM-dd") : "All";
+            var fileName = $"GHT_Revenue_{fromStr}_{toStr}.xlsx";
             
             return File(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }

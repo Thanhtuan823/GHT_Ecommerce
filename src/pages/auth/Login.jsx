@@ -41,7 +41,7 @@ const Login = () => {
     try {
       const decoded = jwtDecode(token);
       const role = decoded.role || decoded['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'];
-      
+
       const from = location.state?.from?.pathname;
       if (from && from !== '/login') {
         navigate(from, { replace: true });
@@ -266,7 +266,7 @@ const Login = () => {
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
                 />
-                <span>Ghi nhớ đăng nhập</span>
+                <span>Ghi nhớ </span>
               </label>
               <Link to="/forgot-password" className="auth-link">
                 Quên mật khẩu?
@@ -290,20 +290,16 @@ const Login = () => {
           </form>
 
           <div className="auth-card-footer">
-            Chưa có tài khoản?{' '}
+            {' '}
             <Link to="/register" className="auth-link">
-              Tạo tài khoản ở bên cạnh
+              Bắt đầu với tài khoản mới
             </Link>
-          </div>
-
-          <div className="auth-card-note">
-            Đăng nhập để đồng bộ giỏ hàng và dữ liệu mua sắm của bạn.
           </div>
         </section>
 
         {/* Column 3: Register Promo / Direct Register Link (40%) */}
         <section className="auth-card">
-          <h2 className="auth-card-title">Tạo tài khoản</h2>
+          <h2 className="auth-card-title">Mua sắm với tài khoản mới</h2>
           <p className="auth-card-sub">
             Bắt đầu mua sắm và nhận ưu đãi độc quyền dành riêng cho bạn.
           </p>
@@ -324,12 +320,8 @@ const Login = () => {
             to="/register"
             className="btn-dark auth-submit-btn"
           >
-            Đăng ký tài khoản mới ➔
+            Đăng ký ngay
           </Link>
-
-          <div className="auth-card-note">
-            Không gửi thư rác. Bạn có thể huỷ nhận thông tin bất cứ lúc nào.
-          </div>
         </section>
       </div>
     </div>

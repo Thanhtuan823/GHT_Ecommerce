@@ -364,7 +364,7 @@ const OrderDetail = () => {
                     <p className="milestone-desc">
                       {isStep2Done
                         ? 'Giao dịch chuyển khoản SePay đã được hệ thống ghi nhận thành công.'
-                        : 'Quý khách vui lòng quét mã QR thanh toán trong vòng 15 phút kể từ lúc đặt hàng.'}
+                        : 'Quý khách vui lòng quét mã QR thanh toán trong vòng 30 phút kể từ lúc đặt hàng.'}
                     </p>
                   </div>
                 </div>

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import axiosClient from '../../utils/axiosClient';
@@ -12,7 +12,11 @@ const Checkout = () => {
   const { cart, isCartLoading, fetchCart } = useCart();
   const { user, openVouchersModal } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
+
+  const selectedProductIdsFromState = location.state?.selectedProductIds;
+  const initialVoucherCode = location.state?.voucherCode;
 
   // Address State
   const [address, setAddress] = useState({
@@ -55,19 +59,39 @@ const Checkout = () => {
   const [createdOrder, setCreatedOrder] = useState(null);
   const [showQrModal, setShowQrModal] = useState(false);
 
-  const items = cart?.items || [];
-  const originalAmount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  // Filter items based on selectedProductIds from Cart
+  const allCartItems = cart?.items || [];
+  const items = useMemo(() => {
+    if (Array.isArray(selectedProductIdsFromState) && selectedProductIdsFromState.length > 0) {
+      return allCartItems.filter((it) => selectedProductIdsFromState.includes(it.productId));
+    }
+    return allCartItems;
+  }, [allCartItems, selectedProductIdsFromState]);
+
+  const originalAmount = useMemo(() => {
+    return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  }, [items]);
+
   const totalPrice = Math.max(0, originalAmount - discountAmount + shippingFee);
 
-  // Redirect if cart is empty (only after cart is loaded)
+  // Redirect if cart is empty or no items selected (only after cart is loaded)
   useEffect(() => {
     if (isCartLoading) return;
     if (!items || items.length === 0) {
       if (!createdOrder) {
+        toast.warning('Không có sản phẩm nào được chọn để thanh toán.');
         navigate('/cart');
       }
     }
   }, [items, isCartLoading, navigate, createdOrder]);
+
+  // Auto apply voucher passed from Cart
+  useEffect(() => {
+    if (initialVoucherCode && originalAmount > 0 && discountStatus === 'default') {
+      setDiscountCode(initialVoucherCode);
+      triggerApplyDiscount(initialVoucherCode);
+    }
+  }, [initialVoucherCode, originalAmount]);
 
   // Load Provinces
   useEffect(() => {
@@ -104,13 +128,13 @@ const Checkout = () => {
         axiosClient
           .get(`/shipping/districts/${def.provinceId}`)
           .then((res) => setDistricts(res.data?.data || []))
-          .catch(() => {});
+          .catch(() => { });
       }
       if (def.districtId) {
         axiosClient
           .get(`/shipping/wards/${def.districtId}`)
           .then((res) => setWards(res.data?.data || []))
-          .catch(() => {});
+          .catch(() => { });
       }
       if (def.districtId && def.wardCode) {
         axiosClient
@@ -322,7 +346,7 @@ const Checkout = () => {
       const newOrder = res.data.order || {
         id: newOrderId,
         totalPrice,
-        paymentExpiredAt: res.data.paymentExpiredAt || new Date(Date.now() + 15 * 60 * 1000).toISOString()
+        paymentExpiredAt: res.data.paymentExpiredAt || new Date(Date.now() + 30 * 60 * 1000).toISOString()
       };
 
       if (paymentMethod === 'cod') {
@@ -749,7 +773,7 @@ const Checkout = () => {
                     padding: '0'
                   }}
                 >
-                  <i className="ti ti-ticket"></i> 🎟️ Chọn mã ưu đãi
+                  <i className="ti ti-ticket"></i> Chọn mã ưu đãi
                 </button>
               </div>
               <div className="checkout-discount-input-row">

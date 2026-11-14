@@ -122,6 +122,10 @@ export const CartProvider = ({ children }) => {
       let items = getGuestCart();
       const existing = items.find(i => i.productId === productId);
       if (existing) {
+        if (existing.inStock !== undefined && quantity > existing.inStock) {
+          toast.warning(`Sản phẩm chỉ còn ${existing.inStock} sản phẩm trong kho`);
+          return;
+        }
         existing.quantity = quantity;
       }
       setGuestCart(items);

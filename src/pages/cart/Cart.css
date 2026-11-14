@@ -98,10 +98,26 @@
 
 .cart-table-columns-legend {
   display: flex;
-  gap: 32px;
+  align-items: center;
+  gap: 16px;
   color: var(--color-text-muted);
   font-size: 12px;
   font-weight: 500;
+}
+
+.cart-legend-col-price {
+  width: 100px;
+  text-align: right;
+}
+
+.cart-legend-col-qty {
+  width: 88px;
+  text-align: center;
+}
+
+.cart-legend-col-total {
+  width: 110px;
+  text-align: right;
 }
 
 /* Each Cart Item */

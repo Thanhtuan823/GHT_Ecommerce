@@ -5,26 +5,40 @@ import { useToast } from '../../components/common/ToastContext';
 import ButtonSpinner from '../../components/common/ButtonSpinner';
 import './PaymentQrModal.css';
 
-const BANK_INFO = {
-  bankName: 'MB',
-  bankFullName: 'Ngân hàng Quân Đội (MB Bank)',
-  accountNumber: '0123456789',
-  accountName: 'GHT ECOM'
-};
-
 const PaymentQrModal = ({ order, onClose }) => {
   const navigate = useNavigate();
   const toast = useToast();
 
+  const [bankInfo, setBankInfo] = useState({
+    bankShortName: 'MB',
+    bankFullName: 'Ngân hàng Quân Đội (MB Bank)',
+    accountNumber: '9999888868',
+    accountName: 'CUA HANG GHT E-COMMERCE',
+    orderPrefix: 'DH'
+  });
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccessPaid, setIsSuccessPaid] = useState(false);
   const [timeLeft, setTimeLeft] = useState(() => {
-    if (!order?.paymentExpiredAt) return 15 * 60; // 15 mins default
+    if (!order?.paymentExpiredAt) return 30 * 60; // 30 mins default
     const diff = Math.floor((new Date(order.paymentExpiredAt).getTime() - Date.now()) / 1000);
     return diff > 0 ? diff : 0;
   });
 
   const isExpired = timeLeft <= 0;
+
+  // Lấy cấu hình ngân hàng động từ Backend
+  useEffect(() => {
+    const fetchBankInfo = async () => {
+      try {
+        const res = await axiosClient.get('/orders/bank-info');
+        if (res.data) setBankInfo(res.data);
+      } catch (err) {
+        console.error('Không thể tải cấu hình ngân hàng', err);
+      }
+    };
+    fetchBankInfo();
+  }, []);
 
   // Countdown timer
   useEffect(() => {
@@ -71,12 +85,12 @@ const PaymentQrModal = ({ order, onClose }) => {
   const seconds = timeLeft % 60;
   const timeFormatted = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
-  const transferContent = `DH${order?.id || ''}`;
+  const transferContent = `${bankInfo.orderPrefix || 'DH'}${order?.id || ''}`;
   const amount = order?.totalPrice || 0;
   const formatPrice = (val) => `${new Intl.NumberFormat('vi-VN').format(val)}đ`;
 
   // VietQR URL
-  const qrUrl = `https://img.vietqr.io/image/${BANK_INFO.bankName}-${BANK_INFO.accountNumber}-compact2.jpg?amount=${amount}&addInfo=${transferContent}&accountName=${encodeURIComponent(BANK_INFO.accountName)}`;
+  const qrUrl = `https://img.vietqr.io/image/${bankInfo.bankShortName}-${bankInfo.accountNumber}-compact2.jpg?amount=${amount}&addInfo=${transferContent}&accountName=${encodeURIComponent(bankInfo.accountName)}`;
 
   const handleCopy = (text, label) => {
     navigator.clipboard?.writeText(text);
@@ -169,7 +183,7 @@ const PaymentQrModal = ({ order, onClose }) => {
           <div className="payment-qr-expired-box">
             <h3 className="payment-qr-expired-title">Đơn hàng đã hết hạn thanh toán</h3>
             <p className="payment-qr-expired-desc">
-              Thời gian giữ chỗ thanh toán 15 phút đã kết thúc. Vui lòng đặt lại đơn hàng mới để tiếp tục.
+              Thời gian giữ chỗ thanh toán 30 phút đã kết thúc. Vui lòng đặt lại đơn hàng mới để tiếp tục.
             </p>
             <div className="payment-qr-expired-actions">
               <button type="button" className="btn-primary btn-sm" onClick={handleReorder}>
@@ -205,7 +219,7 @@ const PaymentQrModal = ({ order, onClose }) => {
                 </p>
                 <div className="payment-qr-method-badge">
                   <span>🏦</span>
-                  <span>MB Bank • QR Nhanh 24/7</span>
+                  <span>{bankInfo.bankFullName} • QR Nhanh 24/7</span>
                 </div>
               </div>
             </div>
@@ -215,25 +229,25 @@ const PaymentQrModal = ({ order, onClose }) => {
               <div className="payment-bank-row-item">
                 <span className="payment-bank-row-label">Ngân hàng</span>
                 <span className="payment-bank-row-val-group">
-                  {BANK_INFO.bankFullName}
+                  {bankInfo.bankFullName}
                 </span>
               </div>
 
               <div className="payment-bank-row-item">
                 <span className="payment-bank-row-label">Chủ tài khoản</span>
                 <span className="payment-bank-row-val-group">
-                  {BANK_INFO.accountName}
+                  {bankInfo.accountName}
                 </span>
               </div>
 
               <div className="payment-bank-row-item">
                 <span className="payment-bank-row-label">Số tài khoản</span>
                 <div className="payment-bank-row-val-group">
-                  <span>{BANK_INFO.accountNumber}</span>
+                  <span>{bankInfo.accountNumber}</span>
                   <button
                     type="button"
                     className="payment-copy-btn"
-                    onClick={() => handleCopy(BANK_INFO.accountNumber, 'Số tài khoản')}
+                    onClick={() => handleCopy(bankInfo.accountNumber, 'Số tài khoản')}
                   >
                     Sao chép
                   </button>

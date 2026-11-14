@@ -44,17 +44,23 @@ public class CartController : ControllerBase
             await _context.SaveChangesAsync();
         }
 
+        // Sắp xếp cố định thứ tự các item để chống xáo trộn vị trí trên giao diện khi update số lượng
+        if (cart?.CartItems != null)
+        {
+            cart.CartItems = cart.CartItems.OrderBy(ci => ci.Id).ToList();
+        }
+
         var dto = new CartDto
         {
             CartId = cart.Id,
-            Items = cart.CartItems.Select(ci => new CartItemDto
+            Items = cart.CartItems.OrderBy(ci => ci.Id).Select(ci => new CartItemDto
             {
                 ProductId = ci.ProductId,
-                ProductName = ci.Product.Name,
-                ProductSlug = ci.Product.Slug,
-                Price = ci.Product.Price,
-                InStock = ci.Product.InStock,
-                Image = ci.Product.Images.FirstOrDefault(),
+                ProductName = ci.Product?.Name ?? string.Empty,
+                ProductSlug = ci.Product?.Slug ?? string.Empty,
+                Price = ci.Product?.Price ?? 0,
+                InStock = ci.Product?.InStock ?? 0,
+                Image = ci.Product?.Images.FirstOrDefault(),
                 Quantity = ci.Quantity
             }).ToList()
         };

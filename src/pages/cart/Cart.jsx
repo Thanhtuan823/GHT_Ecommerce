@@ -23,10 +23,20 @@ const Cart = () => {
 
   const items = cart?.items || [];
 
-  // Selection state for items (default all selected)
-  const [selectedProductIds, setSelectedProductIds] = useState(() =>
-    items.map((it) => it.productId)
-  );
+  // Selection state for items (default all selected upon data load)
+  const [selectedProductIds, setSelectedProductIds] = useState([]);
+  const [hasInitialized, setHasInitialized] = useState(false);
+  const [selectedVoucherCode, setSelectedVoucherCode] = useState('');
+
+  // Sync selection when cart items load from API (F5 Mounting Sync) & clean up removed IDs
+  useEffect(() => {
+    if (!hasInitialized && items.length > 0) {
+      setSelectedProductIds(items.map((it) => it.productId));
+      setHasInitialized(true);
+    } else if (hasInitialized) {
+      setSelectedProductIds((prev) => prev.filter((id) => items.some((it) => it.productId === id)));
+    }
+  }, [items, hasInitialized]);
 
   // Sync selection when cart items change
   const isAllSelected = items.length > 0 && items.every((it) => selectedProductIds.includes(it.productId));
@@ -47,6 +57,11 @@ const Cart = () => {
     );
   };
 
+  const handleRemoveItem = async (productId) => {
+    setSelectedProductIds((prev) => prev.filter((id) => id !== productId));
+    await removeFromCart(productId);
+  };
+
   const selectedItems = useMemo(() => {
     return items.filter((it) => selectedProductIds.includes(it.productId));
   }, [items, selectedProductIds]);
@@ -55,7 +70,7 @@ const Cart = () => {
     return selectedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   }, [selectedItems]);
 
-  const handleCheckout = () => {
+  const handleCheckout = (voucherCodeOverride) => {
     if (selectedItems.length === 0) {
       toast.error('Vui lòng chọn ít nhất một sản phẩm để thanh toán');
       return;
@@ -69,7 +84,13 @@ const Cart = () => {
       return;
     }
 
-    navigate('/checkout');
+    const finalVoucher = voucherCodeOverride || selectedVoucherCode;
+    navigate('/checkout', {
+      state: {
+        selectedProductIds,
+        voucherCode: finalVoucher || undefined
+      }
+    });
   };
 
   const handleCopyCode = async () => {
@@ -159,16 +180,16 @@ const Cart = () => {
             </label>
 
             <div className="cart-table-columns-legend">
-              <span>Đơn giá</span>
-              <span>Số lượng</span>
-              <span>Thành tiền</span>
+              <span className="cart-legend-col-price">Đơn giá</span>
+              <span className="cart-legend-col-qty">Số lượng</span>
+              <span className="cart-legend-col-total">Thành tiền</span>
             </div>
           </div>
 
           <div className="cart-items-body">
             {items.map((item) => {
               const isChecked = selectedProductIds.includes(item.productId);
-              const inStock = item.inStock ?? 24;
+              const inStock = item.inStock ?? 0;
               const isOut = inStock <= 0;
               const itemSubtotal = item.price * item.quantity;
               const specsText = item.specsLine || (item.brand ? `${item.brand} • Chính hãng` : 'Chính hãng • Bảo hành 24T');
@@ -230,7 +251,7 @@ const Cart = () => {
                       type="button"
                       className="cart-stepper-btn"
                       onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                      disabled={item.quantity >= inStock}
+                      disabled={isOut || item.quantity >= inStock}
                       aria-label="Tăng số lượng"
                     >
                       +
@@ -244,7 +265,7 @@ const Cart = () => {
                     <button
                       type="button"
                       className="cart-item-remove-btn"
-                      onClick={() => removeFromCart(item.productId)}
+                      onClick={() => handleRemoveItem(item.productId)}
                     >
                       Xóa sản phẩm
                     </button>
@@ -308,16 +329,23 @@ const Cart = () => {
                 padding: '10px 14px',
                 borderRadius: '8px'
               }}
-              onClick={() => openVouchersModal({
-                currentOrderAmount: totalPrice,
-                onApply: (selectedCode) => {
-                  toast.success(`Đã chọn mã ${selectedCode}! Tiến hành thanh toán để áp dụng.`);
-                  handleCheckout();
+              onClick={() => {
+                if (selectedItems.length === 0) {
+                  toast.error('Vui lòng chọn ít nhất một sản phẩm để áp dụng mã ưu đãi');
+                  return;
                 }
-              })}
+                openVouchersModal({
+                  currentOrderAmount: totalPrice,
+                  onApply: (selectedCode) => {
+                    setSelectedVoucherCode(selectedCode);
+                    toast.success(`Đã chọn mã ${selectedCode}! Tiến hành thanh toán để áp dụng.`);
+                    handleCheckout(selectedCode);
+                  }
+                });
+              }}
             >
               <i className="ti ti-ticket"></i>
-              <span>🎟️ Chọn mã ưu đãi</span>
+              <span>{selectedVoucherCode ? `Mã đã chọn: ${selectedVoucherCode}` : ' Chọn mã ưu đãi'}</span>
             </button>
           </div>
 
@@ -359,20 +387,27 @@ const Cart = () => {
             <button
               type="button"
               className="btn-ghost"
-              onClick={() => openVouchersModal({
-                currentOrderAmount: selectedTotal,
-                onApply: (code) => {
-                  toast.success(`Đã chọn mã ${code}! Đang chuyển đến trang thanh toán...`);
-                  navigate('/checkout');
+              onClick={() => {
+                if (selectedItems.length === 0) {
+                  toast.error('Vui lòng chọn ít nhất một sản phẩm để áp dụng mã ưu đãi');
+                  return;
                 }
-              })}
+                openVouchersModal({
+                  currentOrderAmount: totalPrice,
+                  onApply: (code) => {
+                    setSelectedVoucherCode(code);
+                    toast.success(`Đã chọn mã ${code}! Đang chuyển đến trang thanh toán...`);
+                    handleCheckout(code);
+                  }
+                });
+              }}
               style={{
                 borderColor: '#2563eb',
                 color: '#2563eb',
                 fontWeight: '600'
               }}
             >
-              <i className="ti ti-ticket"></i> 🎟️ Chọn mã ưu đãi
+              <i className="ti ti-ticket"></i> 🎟️ {selectedVoucherCode ? `Mã: ${selectedVoucherCode}` : 'Chọn mã ưu đãi'}
             </button>
             <button
               type="button"

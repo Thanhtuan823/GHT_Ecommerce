@@ -6,104 +6,15 @@ import { useToast } from '../../components/common/ToastContext';
 import ProductEditModal from '../../components/product/ProductEditModal';
 import './StaffOrders.css';
 
-// Default initial demo orders aligned with Figma Screen 8
-const INITIAL_DEMO_ORDERS = [
-  {
-    id: 1031,
-    code: 'GHT1031',
-    createdAt: '2026-10-12T09:15:00Z',
-    customer: {
-      name: 'Nguyễn Minh Anh',
-      phone: '0901 234 567',
-      address: 'Số 45 Lê Duẩn, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh'
-    },
-    totalPrice: 14950000,
-    status: 'PAID',
-    shippingProvider: 'GHN • Miễn phí vận chuyển',
-    internalNote: 'Khách yêu cầu gọi trước 15 phút khi giao. Giao giờ hành chính.',
-    items: [
-      { id: 1, name: 'Bàn phím cơ không dây GHT Master Pro', quantity: 1, price: 2950000 },
-      { id: 2, name: 'Màn hình Dell UltraSharp 27" 4K', quantity: 1, price: 12000000 }
-    ]
-  },
-  {
-    id: 1030,
-    code: 'GHT1030',
-    createdAt: '2026-10-12T08:40:00Z',
-    customer: {
-      name: 'Trần Văn Hùng',
-      phone: '0912 345 678',
-      address: 'Tòa Landmark 81, 720A Điện Biên Phủ, P.22, Bình Thạnh, TP.HCM'
-    },
-    totalPrice: 4250000,
-    status: 'PENDING_REVIEW',
-    shippingProvider: 'GHN • Miễn phí vận chuyển',
-    internalNote: 'Đã chuyển khoản qua VietQR, chờ đối soát ngân hàng.',
-    items: [
-      { id: 3, name: 'Tai nghe Sony WH-1000XM5 Chống ồn', quantity: 1, price: 4250000 }
-    ]
-  },
-  {
-    id: 1029,
-    code: 'GHT1029',
-    createdAt: '2026-10-11T16:20:00Z',
-    customer: {
-      name: 'Lê Thị Thu Thảo',
-      phone: '0988 765 432',
-      address: '128 Cầu Giấy, Phường Quan Hoa, Quận Cầu Giấy, Hà Nội'
-    },
-    totalPrice: 1850000,
-    status: 'CONFIRMED',
-    shippingProvider: 'GHN • Tiêu chuẩn',
-    internalNote: 'Đã kiểm tra tem bảo hành chính hãng.',
-    items: [
-      { id: 4, name: 'Chuột không dây Logitech MX Master 3S', quantity: 1, price: 1850000 }
-    ]
-  },
-  {
-    id: 1028,
-    code: 'GHT1028',
-    createdAt: '2026-10-10T14:30:00Z',
-    customer: {
-      name: 'Phạm Đức Duy',
-      phone: '0933 112 233',
-      address: '254 Nguyễn Văn Cừ, Phường An Hòa, Quận Ninh Kiều, Cần Thơ'
-    },
-    totalPrice: 32900000,
-    status: 'PROCESSING',
-    shippingProvider: 'GHN • Miễn phí vận chuyển',
-    internalNote: 'Đóng gói bọc xốp bóng khí 3 lớp cho thiết bị giá trị cao.',
-    items: [
-      { id: 5, name: 'MacBook Air M2 13.6" 16GB 256GB', quantity: 1, price: 32900000 }
-    ]
-  },
-  {
-    id: 1027,
-    code: 'GHT1027',
-    createdAt: '2026-10-09T11:00:00Z',
-    customer: {
-      name: 'Hoàng Quốc Bảo',
-      phone: '0977 889 900',
-      address: '15 Trần Phú, Hải Châu, Đà Nẵng'
-    },
-    totalPrice: 990000,
-    status: 'SHIPPING',
-    shippingProvider: 'GHN • Mã vận đơn GHN987621',
-    internalNote: 'Đã bàn giao cho shipper lúc 08:30 ngày 10/10.',
-    items: [
-      { id: 6, name: 'Giá đỡ nhôm công thái học Laptop cao cấp', quantity: 1, price: 990000 }
-    ]
-  }
-];
-
 export default function StaffOrders() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const [orders, setOrders] = useState(INITIAL_DEMO_ORDERS);
-  const [activeOrderId, setActiveOrderId] = useState(1031);
+  const [orders, setOrders] = useState([]);
+  const [activeOrderId, setActiveOrderId] = useState(null);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // Sync active order if URL has highlightOrder or orderId query param
   const highlightParam = searchParams.get('highlightOrder') || searchParams.get('orderId');
@@ -131,18 +42,11 @@ export default function StaffOrders() {
   const handleDownloadInvoice = async (orderId) => {
     setDownloadingInvoiceId(orderId);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`/api/orders/${orderId}/invoice`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+      const res = await axiosClient.get(`/orders/${orderId}/invoice`, {
+        responseType: 'blob'
       });
 
-      if (!res.ok) {
-        throw new Error('Không thể tải hóa đơn');
-      }
-
-      const blob = await res.blob();
+      const blob = res.data;
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -170,69 +74,74 @@ export default function StaffOrders() {
 
   // Fetch orders from backend
   const fetchOrders = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-
     try {
       setLoading(true);
-      const res = await fetch('/api/orders', {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+      const res = await axiosClient.get('/orders');
+      const data = res.data;
 
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          // Normalize backend structure
-          const formatted = data.map((o) => {
-            let parsedAddr = {};
+      if (Array.isArray(data)) {
+        // Normalize backend structure supporting both PascalCase and camelCase
+        const formatted = data.map((o) => {
+          let parsedAddr = {};
+          if (o.shippingAddress) {
             try {
               parsedAddr = typeof o.shippingAddress === 'string'
                 ? JSON.parse(o.shippingAddress)
-                : (o.shippingAddress || {});
+                : o.shippingAddress;
             } catch {
               parsedAddr = {};
             }
-
-            return {
-              id: o.id,
-              code: `GHT${o.id}`,
-              createdAt: o.createdAt,
-              customer: {
-                name: parsedAddr.name || o.user?.fullName || 'Khách hàng',
-                phone: parsedAddr.phone || o.user?.phone || 'Chưa có SĐT',
-                address: parsedAddr.address || 'Địa chỉ giao hàng'
-              },
-              totalPrice: o.totalPrice,
-              status: o.status,
-              paymentMethod: o.paymentMethod || 'BANK_TRANSFER',
-              trackingNumber: o.trackingNumber || null,
-              shippingProvider: o.trackingNumber ? `GHN • Mã vận đơn ${o.trackingNumber}` : 'GHN • Tiêu chuẩn E-commerce',
-              internalNote: internalNotes[o.id] || '',
-              items: (o.orderItems || []).map((it) => ({
-                id: it.id,
-                name: it.product?.name || `Sản phẩm #${it.productId}`,
-                quantity: it.quantity,
-                price: it.price
-              }))
-            };
-          });
-
-          // Merge backend orders with demo orders to maintain complete workflow demo
-          const existingIds = new Set(formatted.map((f) => f.id));
-          const combined = [
-            ...formatted,
-            ...INITIAL_DEMO_ORDERS.filter((d) => !existingIds.has(d.id))
-          ];
-          setOrders(combined);
-          if (!activeOrderId && combined.length > 0) {
-            setActiveOrderId(combined[0].id);
           }
+
+          const custName = parsedAddr.Name || parsedAddr.name || o.user?.name || o.user?.fullName || 'Khách hàng';
+          const custPhone = parsedAddr.Phone || parsedAddr.phone || o.user?.phone || 'Chưa có SĐT';
+          const custAddress = parsedAddr.FullAddress || parsedAddr.fullAddress || parsedAddr.Address || parsedAddr.address || 'Địa chỉ giao hàng';
+
+          return {
+            id: o.id,
+            code: `GHT${o.id}`,
+            createdAt: o.createdAt,
+            customer: {
+              name: custName,
+              phone: custPhone,
+              address: custAddress
+            },
+            totalPrice: o.totalPrice,
+            status: o.status,
+            paymentMethod: o.paymentMethod || 'BANK_TRANSFER',
+            trackingNumber: o.trackingNumber || null,
+            shippingProvider: o.trackingNumber ? `GHN • Mã vận đơn ${o.trackingNumber}` : 'GHN • Tiêu chuẩn E-commerce',
+            internalNote: internalNotes[o.id] || '',
+            items: (o.orderItems || []).map((it) => ({
+              id: it.id,
+              name: it.product?.name || `Sản phẩm #${it.productId}`,
+              quantity: it.quantity,
+              price: it.price
+            }))
+          };
+        });
+
+        setOrders(formatted);
+
+        // Auto highlight order: priority to query param, otherwise newest order (formatted[0])
+        if (highlightParam) {
+          const targetId = parseInt(highlightParam, 10);
+          if (!isNaN(targetId) && formatted.some((f) => f.id === targetId)) {
+            setActiveOrderId(targetId);
+            const targetIdx = formatted.findIndex((f) => f.id === targetId);
+            if (targetIdx >= 5) {
+              setIsExpanded(true);
+            }
+          } else if (formatted.length > 0) {
+            setActiveOrderId(formatted[0].id);
+          }
+        } else if (formatted.length > 0) {
+          setActiveOrderId((prev) => (prev && formatted.some((f) => f.id === prev) ? prev : formatted[0].id));
         }
       }
     } catch (err) {
-      console.warn('Lỗi kết nối API orders backend, sử dụng dữ liệu mô phỏng:', err);
+      console.error('Lỗi kết nối API orders backend:', err);
+      showToast('Không thể tải danh sách đơn hàng từ máy chủ', 'error');
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -278,9 +187,16 @@ export default function StaffOrders() {
     });
   }, [orders, statusFilter, searchTerm]);
 
+  // Displayed orders (Default top 5 newest orders, or all if isExpanded is true)
+  const displayedOrders = useMemo(() => {
+    if (isExpanded) return filteredOrders;
+    return filteredOrders.slice(0, 5);
+  }, [filteredOrders, isExpanded]);
+
   // Active Order
   const activeOrder = useMemo(() => {
-    return orders.find((o) => o.id === activeOrderId) || filteredOrders[0] || orders[0];
+    if (!orders || orders.length === 0) return null;
+    return orders.find((o) => o.id === activeOrderId) || filteredOrders[0] || orders[0] || null;
   }, [orders, activeOrderId, filteredOrders]);
 
   // Create GHN Order Handler
@@ -289,30 +205,18 @@ export default function StaffOrders() {
     if (!targetOrder) return;
 
     setShippingOrderId(orderId);
-    const token = localStorage.getItem('token');
 
     try {
       let ghnTrackingNumber = `GHN${orderId}${Math.floor(100000 + Math.random() * 900000)}`;
       let isCodOrder = targetOrder.paymentMethod === 'COD';
 
-      if (token) {
-        const res = await fetch(`/api/shipping/create-ghn-order/${orderId}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          }
-        });
-
-        if (res.ok) {
-          const resData = await res.json();
-          if (resData.trackingNumber) {
-            ghnTrackingNumber = resData.trackingNumber;
-          }
-          if (resData.paymentMethod) {
-            isCodOrder = resData.paymentMethod === 'COD';
-          }
-        }
+      const res = await axiosClient.post(`/shipping/create-ghn-order/${orderId}`);
+      const resData = res.data;
+      if (resData?.trackingNumber) {
+        ghnTrackingNumber = resData.trackingNumber;
+      }
+      if (resData?.paymentMethod) {
+        isCodOrder = resData.paymentMethod === 'COD';
       }
 
       // Update local state
@@ -343,7 +247,7 @@ export default function StaffOrders() {
       }
     } catch (err) {
       console.error('Lỗi gọi API tạo vận đơn GHN:', err);
-      showToast('Có lỗi xảy ra khi tạo vận đơn GHN.', 'error');
+      showToast(err.response?.data?.message || 'Có lỗi xảy ra khi tạo vận đơn GHN.', 'error');
     } finally {
       setShippingOrderId(null);
     }
@@ -351,26 +255,16 @@ export default function StaffOrders() {
 
   // Update order status handler
   const handleUpdateStatus = async (orderId, newStatus) => {
-    const token = localStorage.getItem('token');
     try {
-      if (token) {
-        await fetch(`/api/orders/${orderId}/status`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify({ status: newStatus })
-        });
-      }
-    } catch {
-      // Local fallback
+      await axiosClient.put(`/orders/${orderId}/status`, { status: newStatus });
+      setOrders((prev) =>
+        prev.map((ord) => (ord.id === orderId ? { ...ord, status: newStatus } : ord))
+      );
+      showToast(`Đã cập nhật đơn #${orderId} sang trạng thái "${getStatusText(newStatus)}"`, 'success');
+    } catch (err) {
+      console.error('Lỗi cập nhật trạng thái đơn:', err);
+      showToast(err.response?.data?.message || 'Có lỗi khi cập nhật trạng thái đơn hàng', 'error');
     }
-
-    setOrders((prev) =>
-      prev.map((ord) => (ord.id === orderId ? { ...ord, status: newStatus } : ord))
-    );
-    showToast(`Đã cập nhật đơn #${orderId} sang trạng thái "${getStatusText(newStatus)}"`, 'success');
   };
 
   // Cancel order (calls /api/orders/{id}/cancel to auto restock inventory and restore vouchers)
@@ -378,30 +272,17 @@ export default function StaffOrders() {
     if (!window.confirm(`Bạn có chắc chắn muốn hủy đơn hàng #${orderId}? Thao tác này sẽ tự động hoàn tồn kho và hoàn trả voucher vào ví của khách.`)) {
       return;
     }
-    const token = localStorage.getItem('token');
     try {
-      if (token) {
-        const res = await fetch(`/api/orders/${orderId}/cancel`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify({ reason: 'Nhân viên hủy đơn từ cổng vận hành' })
-        });
-
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.message || 'Không thể hủy đơn hàng');
-        }
-      }
+      await axiosClient.put(`/orders/${orderId}/cancel`, {
+        reason: 'Nhân viên hủy đơn từ cổng vận hành'
+      });
 
       setOrders((prev) =>
         prev.map((ord) => (ord.id === orderId ? { ...ord, status: 'CANCELLED' } : ord))
       );
       showToast(`Đã huỷ đơn hàng #${orderId} và tự động hoàn trả tồn kho!`, 'success');
     } catch (err) {
-      showToast(err.message || `Có lỗi khi hủy đơn hàng #${orderId}`, 'error');
+      showToast(err.response?.data?.message || `Có lỗi khi hủy đơn hàng #${orderId}`, 'error');
     }
   };
 
@@ -447,6 +328,8 @@ export default function StaffOrders() {
         return <span className="staff-badge staff-badge-completed">Hoàn thành</span>;
       case 'CANCELLED':
         return <span className="staff-badge staff-badge-cancelled">Đã huỷ</span>;
+      case 'EXPIRED':
+        return <span className="staff-badge staff-badge-cancelled">Hết hạn</span>;
       default:
         return <span className="staff-badge">{status}</span>;
     }
@@ -462,6 +345,7 @@ export default function StaffOrders() {
       case 'SHIPPING': return 'Đang giao hàng';
       case 'COMPLETED': return 'Hoàn thành';
       case 'CANCELLED': return 'Đã huỷ';
+      case 'EXPIRED': return 'Hết hạn';
       default: return status;
     }
   };
@@ -558,7 +442,6 @@ export default function StaffOrders() {
           <div className="staff-table-header-box">
             <h2 className="staff-table-title">
               <span>Hàng đợi xử lý</span>
-              <span className="staff-count-pill">{filteredOrders.length} đơn</span>
             </h2>
           </div>
 
@@ -574,14 +457,14 @@ export default function StaffOrders() {
                 </tr>
               </thead>
               <tbody>
-                {filteredOrders.length === 0 ? (
+                {displayedOrders.length === 0 ? (
                   <tr>
                     <td colSpan="5" className="staff-empty-state">
-                      Không tìm thấy đơn hàng nào phù hợp với bộ lọc.
+                      {loading ? 'Đang nạp danh sách đơn hàng...' : 'Không tìm thấy đơn hàng nào phù hợp với bộ lọc.'}
                     </td>
                   </tr>
                 ) : (
-                  filteredOrders.map((ord) => {
+                  displayedOrders.map((ord) => {
                     const isActive = ord.id === activeOrder?.id;
                     return (
                       <tr
@@ -705,6 +588,29 @@ export default function StaffOrders() {
               </tbody>
             </table>
           </div>
+
+          {/* Toggle Expand / Collapse Button */}
+          {filteredOrders.length > 5 && (
+            <div className="staff-table-footer">
+              <button
+                type="button"
+                className="staff-toggle-expand-btn"
+                onClick={() => setIsExpanded((prev) => !prev)}
+              >
+                {isExpanded ? (
+                  <>
+                    <i className="ti ti-chevron-up"></i>
+                    <span>Thu gọn</span>
+                  </>
+                ) : (
+                  <>
+                    <i className="ti ti-chevron-down"></i>
+                    <span>{filteredOrders.length - 5} đơn hàng khác</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Right Column (40%): Detail Panel */}

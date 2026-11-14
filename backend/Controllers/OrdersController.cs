@@ -126,6 +126,21 @@ public class OrdersController : ControllerBase
         catch { }
     }
 
+    [HttpGet("bank-info")]
+    [AllowAnonymous]
+    public IActionResult GetBankInfo()
+    {
+        var sePaySec = _config.GetSection("SePay");
+        return Ok(new
+        {
+            bankShortName = sePaySec["BankShortName"] ?? "MB",
+            bankFullName = sePaySec["BankFullName"] ?? "Ngân hàng Quân Đội (MB Bank)",
+            accountNumber = sePaySec["BankAccount"] ?? "9999888868",
+            accountName = sePaySec["AccountName"] ?? "CUA HANG GHT E-COMMERCE",
+            orderPrefix = sePaySec["OrderPrefix"] ?? "DH"
+        });
+    }
+
     [Authorize]
     [HttpPost]
     public async Task<IActionResult> CreateOrder([FromBody] CreateOrderRequest req)
@@ -179,7 +194,7 @@ public class OrdersController : ControllerBase
             UserId = userId,
             Status = initialStatus,
             PaymentMethod = paymentMethod,
-            PaymentExpiredAt = paymentMethod == "COD" ? DateTime.UtcNow.AddDays(7) : DateTime.UtcNow.AddMinutes(15),
+            PaymentExpiredAt = paymentMethod == "COD" ? DateTime.UtcNow.AddDays(7) : DateTime.UtcNow.AddMinutes(30),
             OriginalAmount = originalAmount,
             DiscountAmount = discountAmount,
             ShippingFee = req.ShippingFee,
@@ -236,11 +251,16 @@ public class OrdersController : ControllerBase
             }
         }
 
-        // Clear Cart
+        // Clear only purchased items from Cart
         var cart = await _context.Carts.Include(c => c.CartItems).FirstOrDefaultAsync(c => c.UserId == userId);
-        if (cart != null)
+        if (cart != null && cart.CartItems.Any())
         {
-            _context.CartItems.RemoveRange(cart.CartItems);
+            var purchasedProductIds = req.Items.Select(i => i.ProductId).ToHashSet();
+            var itemsToRemove = cart.CartItems.Where(ci => purchasedProductIds.Contains(ci.ProductId)).ToList();
+            if (itemsToRemove.Any())
+            {
+                _context.CartItems.RemoveRange(itemsToRemove);
+            }
         }
 
         await _context.SaveChangesAsync();
@@ -561,10 +581,11 @@ public class OrdersController : ControllerBase
         var authHeader = Request.Headers["Authorization"].ToString();
         var apiKey = _config["SePay:ApiKey"];
         
-        if (string.IsNullOrEmpty(apiKey) || authHeader != $"Bearer {apiKey}")
+        if (string.IsNullOrEmpty(apiKey) || (authHeader != $"Bearer {apiKey}" && authHeader != $"Apikey {apiKey}"))
             return Unauthorized();
 
-        var match = Regex.Match(req.content, @"DH([A-Za-z0-9]+)", RegexOptions.IgnoreCase);
+        var orderPrefix = _config["SePay:OrderPrefix"] ?? "DH";
+        var match = Regex.Match(req.content, $@"{orderPrefix}([A-Za-z0-9]+)", RegexOptions.IgnoreCase);
         if (!match.Success) return Ok();
 
         if (!int.TryParse(match.Groups[1].Value, out int orderId))
